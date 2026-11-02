@@ -8,12 +8,21 @@ android {
     namespace = "com.nexus.psp"
     compileSdk = 35
 
+    signingConfigs {
+        create("nexusStable") {
+            storeFile = rootProject.file("nexus-debug.keystore")
+            storePassword = "nexusdebug2026"
+            keyAlias = "nexus"
+            keyPassword = "nexusdebug2026"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.3.0"
 
         externalNativeBuild {
             cmake {
@@ -23,6 +32,12 @@ android {
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("nexusStable")
         }
     }
 
