@@ -32,7 +32,11 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
-      - name: Build debug APK
+      - name: Restore stable signing key
+        run: |
+          base64 --decode nexus-debug.keystore.b64 > nexus-debug.keystore
+
+      - name: Build APK
         run: gradle --no-daemon :app:assembleDebug
 
       - name: Upload APK
