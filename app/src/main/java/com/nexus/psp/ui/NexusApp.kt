@@ -137,64 +137,21 @@ private fun HeaderAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 @Composable
 private fun HomeScreen(search: String, onCatalog: () -> Unit, onLibrary: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("NEXUS // GAME HUB", color = NeonBlue, fontSize = 9.sp, letterSpacing = 2.sp)
-                Text("ИГРОВАЯ ВСЕЛЕННАЯ", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("NEXUS // GAME CATALOG", color = NeonBlue, fontSize = 9.sp, letterSpacing = 2.sp)
+                Text("КАТАЛОГ ИГР", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
             }
-            TextButton(onClick = onCatalog) { Text("ВЕСЬ КАТАЛОГ  →", color = NeonBlue, fontSize = 10.sp) }
+            Spacer(Modifier.weight(1f))
+            Text("PSP • ISO • CSO", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
         }
-        Spacer(Modifier.height(13.dp))
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Column(Modifier.weight(1.25f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(
-                    Modifier.fillMaxWidth().weight(1f)
-                        .background(Brush.linearGradient(listOf(Color(0xFF32145B), Color(0xFF171A32), Color(0xFF101827))), RoundedCornerShape(20.dp))
-                        .border(1.dp, Neon.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
-                        .padding(22.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Column(Modifier.fillMaxWidth(0.82f)) {
-                        Text("DISCOVER • PLAY • REPEAT", color = NeonBlue, fontSize = 9.sp, letterSpacing = 1.8.sp)
-                        Spacer(Modifier.height(10.dp))
-                        Text("ТВОИ ЛЮБИМЫЕ\nИГРЫ — В ОДНОМ МЕСТЕ", color = White, fontSize = 25.sp, lineHeight = 29.sp, fontWeight = FontWeight.Black)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Открывай каталог, собирай коллекцию и возвращайся к приключениям.", color = Color(0xFFC3C5D8), fontSize = 12.sp)
-                        Spacer(Modifier.height(13.dp))
-                        Button(onClick = onCatalog, colors = ButtonDefaults.buttonColors(containerColor = Neon), shape = RoundedCornerShape(10.dp)) {
-                            Icon(Icons.Rounded.Explore, null, modifier = Modifier.size(17.dp))
-                            Spacer(Modifier.width(7.dp))
-                            Text("ОТКРЫТЬ КАТАЛОГ", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MiniAction("МОЯ БИБЛИОТЕКА", Icons.Rounded.SportsEsports, Modifier.weight(1f), onLibrary)
-                    MiniAction("КАТАЛОГ ИГР", Icons.Rounded.Storefront, Modifier.weight(1f), onCatalog)
-                }
-            }
-            Column(Modifier.weight(0.8f).fillMaxHeight()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (search.isBlank()) "ПОПУЛЯРНОЕ" else "РЕЗУЛЬТАТЫ ПОИСКА", color = Muted, fontSize = 10.sp, letterSpacing = 1.4.sp)
-                    Spacer(Modifier.weight(1f))
-                    Text("0 ИГР", color = NeonBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(8.dp))
-                Box(
-                    Modifier.fillMaxWidth().weight(1f).background(Panel, RoundedCornerShape(18.dp))
-                        .border(1.dp, Color(0xFF292B40), RoundedCornerShape(18.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                        Icon(Icons.Rounded.SportsEsports, null, tint = Neon, modifier = Modifier.size(36.dp))
-                        Spacer(Modifier.height(9.dp))
-                        Text("КАТАЛОГ ГОТОВИТСЯ", color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        Text("Игры появятся здесь после\nдобавления в базу NEXUS.", color = Muted, fontSize = 11.sp)
-                        TextButton(onClick = onCatalog) { Text("ПЕРЕЙТИ В КАТАЛОГ", color = NeonBlue, fontSize = 9.sp) }
-                    }
-                }
-            }
-        }
+
+        // Каталог намеренно остаётся пустым, пока в базу не добавлены реальные игры.
+        // Не показываем заглушки, рекламные блоки или выдуманные подборки.
+        Spacer(Modifier.fillMaxSize())
     }
 }
 
