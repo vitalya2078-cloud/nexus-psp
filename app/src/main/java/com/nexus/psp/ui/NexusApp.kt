@@ -1,6 +1,7 @@
 package com.nexus.psp.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,15 +16,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Bg = Color(0xFF101116)
-private val Panel = Color(0xFF1B1D27)
-private val Purple = Color(0xFF865CFF)
-private val Cyan = Color(0xFF43C8FF)
-private val Muted = Color(0xFF9295A5)
+private val Bg = Color(0xFF08090F)
+private val Rail = Color(0xFF10111B)
+private val Panel = Color(0xFF151724)
+private val PanelLight = Color(0xFF1B1E30)
+private val Neon = Color(0xFF9B5CFF)
+private val NeonBlue = Color(0xFF35D7FF)
+private val Muted = Color(0xFF85899F)
+private val White = Color(0xFFF4F2FF)
 
-private enum class Tab(val label: String) {
-    HOME("Главная"), LIBRARY("Игры"), SETTINGS("Настройки")
-}
+private enum class Tab { HOME, LIBRARY, SETTINGS }
 
 @Composable
 fun NexusApp() {
@@ -31,38 +33,29 @@ fun NexusApp() {
 
     Row(Modifier.fillMaxSize().background(Bg)) {
         NavigationRail(
-            modifier = Modifier.fillMaxHeight().width(88.dp),
-            containerColor = Panel,
-            contentColor = Color.White,
+            modifier = Modifier.fillMaxHeight().width(76.dp),
+            containerColor = Rail,
+            contentColor = White,
             header = {
-                Text("N", color = Purple, fontSize = 25.sp, fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(top = 18.dp, bottom = 22.dp))
+                Box(
+                    Modifier.padding(top = 18.dp, bottom = 28.dp)
+                        .size(42.dp)
+                        .background(
+                            Brush.linearGradient(listOf(Neon, Color(0xFF5424B8))),
+                            RoundedCornerShape(13.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("N", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
+                }
             }
         ) {
-            NavigationRailItem(
-                selected = selected == Tab.HOME,
-                onClick = { selected = Tab.HOME },
-                icon = { Icon(Icons.Rounded.Home, null) },
-                label = { Text("Главная", fontSize = 10.sp) },
-                colors = railColors()
-            )
-            NavigationRailItem(
-                selected = selected == Tab.LIBRARY,
-                onClick = { selected = Tab.LIBRARY },
-                icon = { Icon(Icons.Rounded.SportsEsports, null) },
-                label = { Text("Игры", fontSize = 10.sp) },
-                colors = railColors()
-            )
-            NavigationRailItem(
-                selected = selected == Tab.SETTINGS,
-                onClick = { selected = Tab.SETTINGS },
-                icon = { Icon(Icons.Rounded.Settings, null) },
-                label = { Text("Настройки", fontSize = 10.sp) },
-                colors = railColors()
-            )
+            RailItem(selected == Tab.HOME, { selected = Tab.HOME }, Icons.Rounded.Home, "Домой")
+            RailItem(selected == Tab.LIBRARY, { selected = Tab.LIBRARY }, Icons.Rounded.SportsEsports, "Игры")
+            RailItem(selected == Tab.SETTINGS, { selected = Tab.SETTINGS }, Icons.Rounded.Settings, "Опции")
         }
 
-        Box(Modifier.weight(1f).fillMaxHeight()) {
+        Box(Modifier.fillMaxSize()) {
             when (selected) {
                 Tab.HOME -> HomeScreen(onLibrary = { selected = Tab.LIBRARY })
                 Tab.LIBRARY -> LibraryScreen()
@@ -73,105 +66,156 @@ fun NexusApp() {
 }
 
 @Composable
-private fun railColors() = NavigationRailItemDefaults.colors(
-    selectedIconColor = Purple,
-    selectedTextColor = Color.White,
-    indicatorColor = Purple.copy(alpha = 0.16f),
-    unselectedIconColor = Muted,
-    unselectedTextColor = Muted
-)
+private fun RailItem(selected: Boolean, onClick: () -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+    NavigationRailItem(
+        selected = selected,
+        onClick = onClick,
+        icon = { Icon(icon, null, modifier = Modifier.size(22.dp)) },
+        label = { Text(label, fontSize = 9.sp, letterSpacing = 0.2.sp) },
+        colors = NavigationRailItemDefaults.colors(
+            selectedIconColor = Neon,
+            selectedTextColor = White,
+            indicatorColor = Neon.copy(alpha = 0.17f),
+            unselectedIconColor = Muted,
+            unselectedTextColor = Muted
+        )
+    )
+}
 
 @Composable
 private fun HomeScreen(onLibrary: () -> Unit) {
     Row(
-        Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 22.dp),
-        horizontalArrangement = Arrangement.spacedBy(22.dp)
+        Modifier.fillMaxSize().padding(start = 26.dp, end = 28.dp, top = 18.dp, bottom = 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        Column(Modifier.weight(1.15f).fillMaxHeight()) {
+        Column(Modifier.weight(1.35f).fillMaxHeight()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("NEXUS", color = Color.White, fontSize = 27.sp,
-                        fontWeight = FontWeight.Black, letterSpacing = 3.sp)
-                    Text("PLAYSTATION PORTABLE EMULATOR", color = Muted,
-                        fontSize = 9.sp, letterSpacing = 1.5.sp)
+                    Text("NEXUS", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
+                    Text("PSP  //  GAME SYSTEM", color = NeonBlue, fontSize = 9.sp, letterSpacing = 1.8.sp)
                 }
-                Surface(shape = RoundedCornerShape(14.dp), color = Panel) {
-                    Icon(Icons.Rounded.AccountCircle, null, tint = Cyan,
-                        modifier = Modifier.padding(10.dp).size(25.dp))
+                Row(
+                    Modifier.background(Panel, RoundedCornerShape(50)).padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(7.dp).background(NeonBlue, RoundedCornerShape(50)))
+                    Spacer(Modifier.width(7.dp))
+                    Text("SYSTEM ONLINE", color = NeonBlue, fontSize = 9.sp, letterSpacing = 1.sp)
                 }
             }
-            Spacer(Modifier.height(18.dp))
-            Column(
+
+            Spacer(Modifier.height(16.dp))
+            Box(
                 Modifier.fillMaxWidth().weight(1f)
                     .background(
-                        Brush.linearGradient(listOf(Color(0xFF30245C), Color(0xFF182C42), Color(0xFF171923))),
-                        RoundedCornerShape(26.dp)
-                    ).padding(22.dp),
-                verticalArrangement = Arrangement.Center
+                        Brush.linearGradient(
+                            listOf(Color(0xFF241344), Color(0xFF171A32), Color(0xFF101827))
+                        ),
+                        RoundedCornerShape(22.dp)
+                    )
+                    .border(1.dp, Neon.copy(alpha = 0.32f), RoundedCornerShape(22.dp))
             ) {
-                Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(50)) {
-                    Text("ВАША ИГРОВАЯ СИСТЕМА", color = Color.White, fontSize = 9.sp,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp), letterSpacing = 1.sp)
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(18.dp)
+                        .size(120.dp)
+                        .background(
+                            Brush.radialGradient(listOf(Neon.copy(alpha = 0.30f), Color.Transparent)),
+                            RoundedCornerShape(100.dp)
+                        )
+                )
+                Column(
+                    Modifier.align(Alignment.CenterStart).padding(horizontal = 25.dp, vertical = 20.dp)
+                        .fillMaxWidth(0.84f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text("YOUR NEXT LEVEL STARTS HERE", color = NeonBlue, fontSize = 9.sp, letterSpacing = 1.8.sp)
+                    Spacer(Modifier.height(13.dp))
+                    Text("ТВОЯ ИГРОВАЯ\nВСЕЛЕННАЯ.", color = White, fontSize = 27.sp, lineHeight = 31.sp, fontWeight = FontWeight.Black)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Собери коллекцию. Выбери игру. Погрузись в приключение.",
+                        color = Color(0xFFC3C5D8), fontSize = 12.sp, lineHeight = 18.sp)
+                    Spacer(Modifier.height(17.dp))
+                    Button(
+                        onClick = onLibrary,
+                        colors = ButtonDefaults.buttonColors(containerColor = Neon),
+                        shape = RoundedCornerShape(11.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
+                    ) {
+                        Icon(Icons.Rounded.Add, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("ОТКРЫТЬ БИБЛИОТЕКУ", fontSize = 10.sp, letterSpacing = 0.8.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
-                Spacer(Modifier.height(14.dp))
-                Text("Игры начинаются здесь.", color = Color.White, fontSize = 27.sp,
-                    lineHeight = 32.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(7.dp))
-                Text("Добавьте свою коллекцию PSP и продолжайте приключения.",
-                    color = Color(0xFFD0CBE5), fontSize = 13.sp)
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = onLibrary, colors = ButtonDefaults.buttonColors(containerColor = Purple),
-                    shape = RoundedCornerShape(14.dp)) {
-                    Icon(Icons.Rounded.Add, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Открыть библиотеку")
-                }
+                Text("N / 01", color = Color.White.copy(alpha = 0.18f), fontSize = 42.sp,
+                    fontWeight = FontWeight.Black, modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp))
             }
         }
 
-        Column(Modifier.weight(0.85f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("БЫСТРЫЙ ДОСТУП", color = Muted, fontSize = 11.sp,
-                letterSpacing = 1.4.sp, modifier = Modifier.padding(top = 5.dp))
-            Column(
-                Modifier.fillMaxWidth().weight(1f).background(Panel, RoundedCornerShape(20.dp)).padding(18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(Icons.Rounded.SportsEsports, null, tint = Purple, modifier = Modifier.size(38.dp))
-                Spacer(Modifier.height(9.dp))
-                Text("Пока здесь тихо", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                Spacer(Modifier.height(5.dp))
-                Text("Ваша библиотека появится здесь после добавления игр.",
-                    color = Muted, fontSize = 12.sp)
+        Column(Modifier.weight(0.9f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("КОЛЛЕКЦИЯ", color = Muted, fontSize = 10.sp, letterSpacing = 1.8.sp, modifier = Modifier.weight(1f))
+                Text("0 GAMES", color = NeonBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                InfoTile("ВЕРСИЯ", "0.1.0", Modifier.weight(1f))
-                InfoTile("ПЛАТФОРМА", "ANDROID", Modifier.weight(1f))
+            Column(
+                Modifier.fillMaxWidth().weight(1f)
+                    .background(Panel, RoundedCornerShape(18.dp))
+                    .border(1.dp, Color(0xFF292B40), RoundedCornerShape(18.dp))
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    Modifier.size(54.dp).background(Neon.copy(alpha = 0.13f), RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.SportsEsports, null, tint = Neon, modifier = Modifier.size(29.dp))
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("БИБЛИОТЕКА ПУСТА", color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp)
+                Spacer(Modifier.height(5.dp))
+                Text("Добавь первую игру,\nчтобы начать.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+                Spacer(Modifier.height(13.dp))
+                TextButton(onClick = onLibrary) {
+                    Text("ДОБАВИТЬ ИГРЫ  +", color = NeonBlue, fontSize = 9.sp, letterSpacing = 0.8.sp)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SystemTile("BUILD", "0.2.0", Modifier.weight(1f))
+                SystemTile("PLATFORM", "ANDROID", Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-private fun InfoTile(title: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier.background(Panel, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Text(title, color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
-        Spacer(Modifier.height(5.dp))
-        Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+private fun SystemTile(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier.background(Panel, RoundedCornerShape(13.dp))
+            .border(1.dp, Color(0xFF292B40), RoundedCornerShape(13.dp))
+            .padding(horizontal = 13.dp, vertical = 10.dp)
+    ) {
+        Text(label, color = Muted, fontSize = 8.sp, letterSpacing = 1.2.sp)
+        Spacer(Modifier.height(4.dp))
+        Text(value, color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 private fun LibraryScreen() {
-    Column(Modifier.fillMaxSize().padding(horizontal = 30.dp, vertical = 24.dp)) {
-        Text("Библиотека", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-        Text("ВАША КОЛЛЕКЦИЯ PSP", color = Muted, fontSize = 10.sp, letterSpacing = 1.4.sp)
+    Column(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 22.dp)) {
+        Text("GAME LIBRARY", color = NeonBlue, fontSize = 9.sp, letterSpacing = 2.sp)
+        Text("ТВОИ ИГРЫ", color = White, fontSize = 27.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(14.dp))
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                Icon(Icons.Rounded.LibraryAdd, null, tint = Purple, modifier = Modifier.size(58.dp))
+            Row(
+                Modifier.background(Panel, RoundedCornerShape(18.dp)).padding(horizontal = 28.dp, vertical = 22.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Rounded.LibraryAdd, null, tint = Neon, modifier = Modifier.size(42.dp))
+                Spacer(Modifier.width(18.dp))
                 Column {
-                    Text("Игры ещё не добавлены", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 19.sp)
-                    Text("Импорт игр добавим на следующем этапе.", color = Muted, fontSize = 13.sp)
+                    Text("ПОКА НЕТ ИГР", color = White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Импорт ISO / CSO появится на следующем этапе.", color = Muted, fontSize = 11.sp)
                 }
             }
         }
@@ -180,35 +224,37 @@ private fun LibraryScreen() {
 
 @Composable
 private fun SettingsScreen() {
-    Column(Modifier.fillMaxSize().padding(horizontal = 30.dp, vertical = 24.dp)) {
-        Text("Настройки", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-        Text("НАСТРОЙКА NEXUS PSP", color = Muted, fontSize = 10.sp, letterSpacing = 1.4.sp)
-        Spacer(Modifier.height(18.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 22.dp)) {
+        Text("SYSTEM CONFIGURATION", color = NeonBlue, fontSize = 9.sp, letterSpacing = 2.sp)
+        Text("НАСТРОЙКИ", color = White, fontSize = 27.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
-                SettingRow("Графика", "Разрешение и качество изображения", Icons.Rounded.Tune)
-                SettingRow("Звук", "Аудио и задержка", Icons.Rounded.VolumeUp)
+                SettingCard("Графика", "Разрешение и качество изображения", Icons.Rounded.Tune)
+                SettingCard("Звук", "Аудио и задержка", Icons.Rounded.VolumeUp)
             }
             Column(Modifier.weight(1f)) {
-                SettingRow("Управление", "Кнопки и подключённые геймпады", Icons.Rounded.Gamepad)
-                SettingRow("О приложении", "NEXUS PSP · версия 0.1.0", Icons.Rounded.Info)
+                SettingCard("Управление", "Кнопки и подключённые геймпады", Icons.Rounded.Gamepad)
+                SettingCard("О приложении", "NEXUS PSP · версия 0.2.0", Icons.Rounded.Info)
             }
         }
     }
 }
 
 @Composable
-private fun SettingRow(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+private fun SettingCard(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp)
-            .background(Panel, RoundedCornerShape(16.dp)).padding(16.dp),
+        Modifier.fillMaxWidth().padding(vertical = 5.dp)
+            .background(Panel, RoundedCornerShape(14.dp))
+            .border(1.dp, Color(0xFF292B40), RoundedCornerShape(14.dp))
+            .padding(15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = Cyan, modifier = Modifier.size(25.dp))
-        Spacer(Modifier.width(14.dp))
+        Icon(icon, null, tint = NeonBlue, modifier = Modifier.size(23.dp))
+        Spacer(Modifier.width(12.dp))
         Column {
-            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = Muted, fontSize = 11.sp)
+            Text(title, color = White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(subtitle, color = Muted, fontSize = 10.sp)
         }
     }
 }
