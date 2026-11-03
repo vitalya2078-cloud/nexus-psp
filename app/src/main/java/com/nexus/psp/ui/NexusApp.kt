@@ -37,94 +37,69 @@ fun NexusApp() {
     var selected by remember { mutableStateOf(Section.HOME) }
     var search by remember { mutableStateOf("") }
 
-    Row(Modifier.fillMaxSize().background(Bg)) {
-        Column(
-            Modifier.width(104.dp).fillMaxHeight().background(Rail).padding(horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+    Column(Modifier.fillMaxSize().background(Bg).padding(horizontal = 18.dp, vertical = 10.dp)) {
+        TopBar(
+            search = search,
+            onSearch = { search = it },
+            onNotifications = { selected = Section.NOTIFICATIONS },
+            onProfile = { selected = Section.PROFILE },
+            onController = { selected = Section.CONTROLLER }
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            Modifier.fillMaxWidth().height(48.dp)
+                .background(Rail, RoundedCornerShape(14.dp))
+                .border(1.dp, Color(0xFF29213F), RoundedCornerShape(14.dp))
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                Modifier.padding(top = 13.dp, bottom = 15.dp).size(42.dp)
-                    .background(Brush.linearGradient(listOf(Neon, Color(0xFF5424B8))), RoundedCornerShape(13.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("N", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
-            }
-
-            SidebarItem(selected == Section.HOME, "Главная", Icons.Rounded.Home) { selected = Section.HOME }
-            SidebarItem(selected == Section.LIBRARY, "Библиотека", Icons.Rounded.SportsEsports) { selected = Section.LIBRARY }
-            SidebarItem(selected == Section.CATALOG, "Каталог", Icons.Rounded.Storefront) { selected = Section.CATALOG }
-            SidebarItem(selected == Section.FAVORITES, "Избранное", Icons.Rounded.Favorite) { selected = Section.FAVORITES }
-            SidebarItem(selected == Section.DOWNLOADS, "Загрузки", Icons.Rounded.Download) { selected = Section.DOWNLOADS }
-            Spacer(Modifier.weight(1f))
-            SidebarItem(selected == Section.SETTINGS, "Настройки", Icons.Rounded.Settings) { selected = Section.SETTINGS }
-            Spacer(Modifier.height(8.dp))
+            HorizontalNavItem(selected == Section.HOME, "Главная", Icons.Rounded.Home, Modifier.weight(1f)) { selected = Section.HOME }
+            HorizontalNavItem(selected == Section.LIBRARY, "Библиотека", Icons.Rounded.SportsEsports, Modifier.weight(1.25f)) { selected = Section.LIBRARY }
+            HorizontalNavItem(selected == Section.CATALOG, "Каталог", Icons.Rounded.Storefront, Modifier.weight(1f)) { selected = Section.CATALOG }
+            HorizontalNavItem(selected == Section.FAVORITES, "Избранное", Icons.Rounded.Favorite, Modifier.weight(1.1f)) { selected = Section.FAVORITES }
+            HorizontalNavItem(selected == Section.DOWNLOADS, "Загрузки", Icons.Rounded.Download, Modifier.weight(1f)) { selected = Section.DOWNLOADS }
+            HorizontalNavItem(selected == Section.SETTINGS, "Настройки", Icons.Rounded.Settings, Modifier.weight(1.1f)) { selected = Section.SETTINGS }
         }
-
-        Column(Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 12.dp)) {
-            TopBar(
-                search = search,
-                onSearch = { search = it },
-                onNotifications = { selected = Section.NOTIFICATIONS },
-                onProfile = { selected = Section.PROFILE },
-                onController = { selected = Section.CONTROLLER }
-            )
-            Spacer(Modifier.height(18.dp))
-            when (selected) {
-                Section.HOME -> HomeScreen()
-                Section.LIBRARY -> LibraryScreen()
-                Section.CATALOG -> ContentScreen(
-                    "КАТАЛОГ ИГР", "ИГРЫ ДЛЯ СКАЧИВАНИЯ",
-                    "Каталог будет наполняться играми, доступными для законного распространения.",
-                    Icons.Rounded.Storefront
-                )
-                Section.FAVORITES -> ContentScreen(
-                    "ИЗБРАННОЕ", "ТВОИ СОХРАНЁННЫЕ ИГРЫ",
-                    "Здесь будут отображаться игры, которые ты добавишь в избранное.",
-                    Icons.Rounded.Favorite
-                )
-                Section.DOWNLOADS -> ContentScreen(
-                    "ЗАГРУЗКИ", "УПРАВЛЕНИЕ ЗАГРУЗКАМИ",
-                    "Здесь будут отображаться активные и завершённые загрузки.",
-                    Icons.Rounded.Download
-                )
-                Section.SETTINGS -> SettingsScreen { selected = Section.CONTROLLER }
-                Section.CONTROLLER -> ContentScreen(
-                    "УПРАВЛЕНИЕ", "НАСТРОЙКА ГЕЙМПАДА",
-                    "Настройка расположения, размера и прозрачности кнопок.",
-                    Icons.Rounded.Gamepad
-                )
-                Section.NOTIFICATIONS -> ContentScreen(
-                    "ЦЕНТР СОБЫТИЙ", "УВЕДОМЛЕНИЯ",
-                    "Здесь будут обновления приложения и статусы загрузок.",
-                    Icons.Rounded.Notifications
-                )
-                Section.PROFILE -> ContentScreen(
-                    "NEXUS ID", "ПРОФИЛЬ",
-                    "Настройки профиля и дополнительные возможности приложения.",
-                    Icons.Rounded.AccountCircle
-                )
-            }
+        Spacer(Modifier.height(18.dp))
+        when (selected) {
+            Section.HOME -> HomeScreen()
+            Section.LIBRARY -> LibraryScreen()
+            Section.CATALOG -> ContentScreen("КАТАЛОГ ИГР", "ИГРЫ ДЛЯ СКАЧИВАНИЯ", "Каталог будет наполняться играми, доступными для законного распространения.", Icons.Rounded.Storefront)
+            Section.FAVORITES -> ContentScreen("ИЗБРАННОЕ", "ТВОИ СОХРАНЁННЫЕ ИГРЫ", "Здесь будут отображаться игры, которые ты добавишь в избранное.", Icons.Rounded.Favorite)
+            Section.DOWNLOADS -> ContentScreen("ЗАГРУЗКИ", "УПРАВЛЕНИЕ ЗАГРУЗКАМИ", "Здесь будут отображаться активные и завершённые загрузки.", Icons.Rounded.Download)
+            Section.SETTINGS -> SettingsScreen { selected = Section.CONTROLLER }
+            Section.CONTROLLER -> ContentScreen("УПРАВЛЕНИЕ", "НАСТРОЙКА ГЕЙМПАДА", "Настройка расположения, размера и прозрачности кнопок.", Icons.Rounded.Gamepad)
+            Section.NOTIFICATIONS -> ContentScreen("ЦЕНТР СОБЫТИЙ", "УВЕДОМЛЕНИЯ", "Здесь будут обновления приложения и статусы загрузок.", Icons.Rounded.Notifications)
+            Section.PROFILE -> ContentScreen("NEXUS ID", "ПРОФИЛЬ", "Настройки профиля и дополнительные возможности приложения.", Icons.Rounded.AccountCircle)
         }
     }
 }
 
 @Composable
-private fun SidebarItem(
+private fun HorizontalNavItem(
     selected: Boolean,
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Column(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp)
-            .background(if (selected) Neon.copy(alpha = 0.16f) else Color.Transparent, RoundedCornerShape(12.dp))
-            .then(if (selected) Modifier.border(1.dp, Neon.copy(alpha = 0.28f), RoundedCornerShape(12.dp)) else Modifier)
-            .clickable { onClick() }.padding(vertical = 9.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Row(
+        modifier.fillMaxHeight()
+            .background(
+                if (selected) Brush.horizontalGradient(listOf(Color(0xFF39205F), Color(0xFF211936)))
+                else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)),
+                RoundedCornerShape(10.dp)
+            )
+            .then(if (selected) Modifier.border(1.dp, Neon.copy(alpha = 0.8f), RoundedCornerShape(10.dp)) else Modifier)
+            .clickable { onClick() }
+            .padding(horizontal = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
-        Icon(icon, null, tint = if (selected) Neon else Muted, modifier = Modifier.size(21.dp))
-        Spacer(Modifier.height(4.dp))
-        Text(label, color = if (selected) White else Muted, fontSize = 9.sp, maxLines = 1)
+        Icon(icon, null, tint = if (selected) Neon else Muted, modifier = Modifier.size(17.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, color = if (selected) White else Muted, fontSize = 10.sp, maxLines = 1, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
     }
 }
 
@@ -140,7 +115,7 @@ private fun TopBar(
         Row(
             Modifier.weight(1f).fillMaxHeight()
                 .background(Panel, RoundedCornerShape(13.dp))
-                .border(1.dp, Color(0xFF292B40), RoundedCornerShape(13.dp))
+                .border(1.2.dp, NeonBlue.copy(alpha = 0.42f), RoundedCornerShape(13.dp))
                 .padding(horizontal = 13.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -174,7 +149,8 @@ private fun HeaderAction(
 ) {
     Column(
         Modifier.padding(start = 5.dp).width(52.dp).fillMaxHeight()
-            .background(Panel, RoundedCornerShape(11.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xFF20243A), Panel)), RoundedCornerShape(11.dp))
+            .border(1.dp, tint.copy(alpha = 0.32f), RoundedCornerShape(11.dp))
             .clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -238,7 +214,7 @@ private fun LibraryScreen() {
 private fun LibraryFilter(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
-            .background(if (selected) Neon.copy(alpha = 0.16f) else Panel, RoundedCornerShape(10.dp))
+            .background(if (selected) Brush.verticalGradient(listOf(Color(0xFF43256F), Color(0xFF211936))) else Brush.verticalGradient(listOf(Panel, Panel)), RoundedCornerShape(10.dp))
             .then(
                 if (selected) Modifier.border(1.dp, Neon.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
                 else Modifier.border(1.dp, Color(0xFF292B40), RoundedCornerShape(10.dp))
