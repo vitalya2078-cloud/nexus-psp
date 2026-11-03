@@ -27,7 +27,7 @@ private val Muted = Color(0xFF85899F)
 private val White = Color(0xFFF4F2FF)
 
 private enum class Section(val title: String) {
-    HOME("Главная"), LIBRARY("Библиотека"), CATALOG("Каталог игр"),
+    HOME("Главная"), LIBRARY("Библиотека"), CATALOG("Каталог"),
     FAVORITES("Избранное"), DOWNLOADS("Загрузки"), SETTINGS("Настройки"),
     CONTROLLER("Геймпад"), NOTIFICATIONS("Уведомления"), PROFILE("Профиль")
 }
@@ -46,7 +46,9 @@ fun NexusApp() {
                 Modifier.padding(top = 13.dp, bottom = 15.dp).size(42.dp)
                     .background(Brush.linearGradient(listOf(Neon, Color(0xFF5424B8))), RoundedCornerShape(13.dp)),
                 contentAlignment = Alignment.Center
-            ) { Text("N", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black) }
+            ) {
+                Text("N", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
+            }
 
             SidebarItem(selected == Section.HOME, "Главная", Icons.Rounded.Home) { selected = Section.HOME }
             SidebarItem(selected == Section.LIBRARY, "Библиотека", Icons.Rounded.SportsEsports) { selected = Section.LIBRARY }
@@ -55,50 +57,89 @@ fun NexusApp() {
             SidebarItem(selected == Section.DOWNLOADS, "Загрузки", Icons.Rounded.Download) { selected = Section.DOWNLOADS }
             Spacer(Modifier.weight(1f))
             SidebarItem(selected == Section.SETTINGS, "Настройки", Icons.Rounded.Settings) { selected = Section.SETTINGS }
-            SidebarItem(selected == Section.CONTROLLER, "Геймпад", Icons.Rounded.Gamepad) { selected = Section.CONTROLLER }
             Spacer(Modifier.height(8.dp))
         }
 
         Column(Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 12.dp)) {
-            TopBar(search, { search = it }, { selected = Section.NOTIFICATIONS }, { selected = Section.PROFILE }, { selected = Section.CONTROLLER })
-            Spacer(Modifier.height(14.dp))
+            TopBar(
+                search = search,
+                onSearch = { search = it },
+                onNotifications = { selected = Section.NOTIFICATIONS },
+                onProfile = { selected = Section.PROFILE },
+                onController = { selected = Section.CONTROLLER }
+            )
+            Spacer(Modifier.height(18.dp))
             when (selected) {
-                Section.HOME -> HomeScreen(search, { selected = Section.CATALOG }, { selected = Section.LIBRARY })
-                Section.LIBRARY -> ContentScreen("БИБЛИОТЕКА", "ТВОЯ КОЛЛЕКЦИЯ", "Здесь будут игры, которые ты добавишь в свою библиотеку.", Icons.Rounded.SportsEsports)
-                Section.CATALOG -> ContentScreen("КАТАЛОГ ИГР", "ИГРЫ ДЛЯ СКАЧИВАНИЯ", "Здесь появится каталог игр, опубликованных с разрешения правообладателей, homebrew и свободно распространяемых проектов.", Icons.Rounded.Storefront)
-                Section.FAVORITES -> ContentScreen("ИЗБРАННОЕ", "ТВОИ СОХРАНЁННЫЕ ИГРЫ", "Добавляй игры в избранное, чтобы быстро находить их.", Icons.Rounded.Favorite)
-                Section.DOWNLOADS -> ContentScreen("ЗАГРУЗКИ", "УПРАВЛЕНИЕ ЗАГРУЗКАМИ", "Здесь будут отображаться активные и завершённые загрузки.", Icons.Rounded.Download)
+                Section.HOME -> HomeScreen()
+                Section.LIBRARY -> LibraryScreen()
+                Section.CATALOG -> ContentScreen(
+                    "КАТАЛОГ ИГР", "ИГРЫ ДЛЯ СКАЧИВАНИЯ",
+                    "Каталог будет наполняться играми, доступными для законного распространения.",
+                    Icons.Rounded.Storefront
+                )
+                Section.FAVORITES -> ContentScreen(
+                    "ИЗБРАННОЕ", "ТВОИ СОХРАНЁННЫЕ ИГРЫ",
+                    "Здесь будут отображаться игры, которые ты добавишь в избранное.",
+                    Icons.Rounded.Favorite
+                )
+                Section.DOWNLOADS -> ContentScreen(
+                    "ЗАГРУЗКИ", "УПРАВЛЕНИЕ ЗАГРУЗКАМИ",
+                    "Здесь будут отображаться активные и завершённые загрузки.",
+                    Icons.Rounded.Download
+                )
                 Section.SETTINGS -> SettingsScreen { selected = Section.CONTROLLER }
-                Section.CONTROLLER -> ContentScreen("НАСТРОЙКА ГЕЙМПАДА", "УПРАВЛЕНИЕ", "Настройка расположения, размера и прозрачности кнопок появится здесь.", Icons.Rounded.Gamepad)
-                Section.NOTIFICATIONS -> ContentScreen("УВЕДОМЛЕНИЯ", "ЦЕНТР СОБЫТИЙ", "Здесь будут обновления приложения, новости каталога и статусы загрузок.", Icons.Rounded.Notifications)
-                Section.PROFILE -> ContentScreen("ПРОФИЛЬ", "АККАУНТ NEXUS", "Здесь появятся настройки профиля и платных возможностей.", Icons.Rounded.AccountCircle)
+                Section.CONTROLLER -> ContentScreen(
+                    "УПРАВЛЕНИЕ", "НАСТРОЙКА ГЕЙМПАДА",
+                    "Настройка расположения, размера и прозрачности кнопок.",
+                    Icons.Rounded.Gamepad
+                )
+                Section.NOTIFICATIONS -> ContentScreen(
+                    "ЦЕНТР СОБЫТИЙ", "УВЕДОМЛЕНИЯ",
+                    "Здесь будут обновления приложения и статусы загрузок.",
+                    Icons.Rounded.Notifications
+                )
+                Section.PROFILE -> ContentScreen(
+                    "NEXUS ID", "ПРОФИЛЬ",
+                    "Настройки профиля и дополнительные возможности приложения.",
+                    Icons.Rounded.AccountCircle
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SidebarItem(selected: Boolean, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+private fun SidebarItem(
+    selected: Boolean,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
     Column(
         Modifier.fillMaxWidth().padding(vertical = 2.dp)
             .background(if (selected) Neon.copy(alpha = 0.16f) else Color.Transparent, RoundedCornerShape(12.dp))
-            .clickable { onClick() }.padding(vertical = 8.dp),
+            .then(if (selected) Modifier.border(1.dp, Neon.copy(alpha = 0.28f), RoundedCornerShape(12.dp)) else Modifier)
+            .clickable { onClick() }.padding(vertical = 9.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, null, tint = if (selected) Neon else Muted, modifier = Modifier.size(21.dp))
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(4.dp))
         Text(label, color = if (selected) White else Muted, fontSize = 9.sp, maxLines = 1)
     }
 }
 
 @Composable
 private fun TopBar(
-    search: String, onSearch: (String) -> Unit, onNotifications: () -> Unit,
-    onProfile: () -> Unit, onController: () -> Unit
+    search: String,
+    onSearch: (String) -> Unit,
+    onNotifications: () -> Unit,
+    onProfile: () -> Unit,
+    onController: () -> Unit
 ) {
-    Row(Modifier.fillMaxWidth().height(46.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(
-            Modifier.weight(1f).fillMaxHeight().background(Panel, RoundedCornerShape(13.dp))
+            Modifier.weight(1f).fillMaxHeight()
+                .background(Panel, RoundedCornerShape(13.dp))
                 .border(1.dp, Color(0xFF292B40), RoundedCornerShape(13.dp))
                 .padding(horizontal = 13.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -106,7 +147,9 @@ private fun TopBar(
             Icon(Icons.Rounded.Search, null, tint = NeonBlue, modifier = Modifier.size(19.dp))
             Spacer(Modifier.width(9.dp))
             BasicTextField(
-                value = search, onValueChange = onSearch, singleLine = true,
+                value = search,
+                onValueChange = onSearch,
+                singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(color = White, fontSize = 13.sp),
                 modifier = Modifier.weight(1f),
                 decorationBox = { inner ->
@@ -116,67 +159,113 @@ private fun TopBar(
             )
         }
         Spacer(Modifier.width(10.dp))
-        HeaderAction(Icons.Rounded.Gamepad, "Геймпад", onController)
-        HeaderAction(Icons.Rounded.Notifications, "Уведомления", onNotifications)
-        HeaderAction(Icons.Rounded.AccountCircle, "Профиль", onProfile)
+        HeaderAction(Icons.Rounded.Gamepad, "Геймпад", onController, NeonBlue)
+        HeaderAction(Icons.Rounded.Notifications, "Уведомления", onNotifications, Muted)
+        HeaderAction(Icons.Rounded.AccountCircle, "Профиль", onProfile, Muted)
     }
 }
 
 @Composable
-private fun HeaderAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun HeaderAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    tint: Color
+) {
     Column(
-        Modifier.padding(start = 5.dp).width(48.dp).fillMaxHeight()
-            .background(Panel, RoundedCornerShape(11.dp)).clickable { onClick() },
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+        Modifier.padding(start = 5.dp).width(52.dp).fillMaxHeight()
+            .background(Panel, RoundedCornerShape(11.dp))
+            .clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, null, tint = if (label == "Геймпад") NeonBlue else Muted, modifier = Modifier.size(19.dp))
+        Icon(icon, null, tint = tint, modifier = Modifier.size(19.dp))
         Text(label, color = Muted, fontSize = 7.sp, maxLines = 1)
     }
 }
 
 @Composable
-private fun HomeScreen(search: String, onCatalog: () -> Unit, onLibrary: () -> Unit) {
+private fun HomeScreen() {
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text("NEXUS // GAME CATALOG", color = NeonBlue, fontSize = 9.sp, letterSpacing = 2.sp)
-                Text("КАТАЛОГ ИГР", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
-            }
+        Text("NEXUS  /  PSP", color = NeonBlue, fontSize = 9.sp, letterSpacing = 2.sp)
+        Spacer(Modifier.height(5.dp))
+        Text("ГЛАВНАЯ", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(12.dp))
+        // Главный экран остаётся свободным, пока в базу не добавлены реальные игры.
+    }
+}
+
+@Composable
+private fun LibraryScreen() {
+    var filter by remember { mutableStateOf("Все игры") }
+
+    Column(Modifier.fillMaxSize()) {
+        Text("ТВОЯ КОЛЛЕКЦИЯ  /  NEXUS", color = NeonBlue, fontSize = 9.sp, letterSpacing = 2.sp)
+        Spacer(Modifier.height(5.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("БИБЛИОТЕКА", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.weight(1f))
-            Text("PSP • ISO • CSO", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
+            Text("0 ИГР", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
+        }
+        Spacer(Modifier.height(18.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Все игры", "Установленные", "Избранное").forEach { item ->
+                LibraryFilter(item, selected = filter == item) { filter = item }
+            }
         }
 
-        // Каталог намеренно остаётся пустым, пока в базу не добавлены реальные игры.
-        // Не показываем заглушки, рекламные блоки или выдуманные подборки.
-        Spacer(Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier.size(width = 66.dp, height = 3.dp)
+                        .background(Brush.horizontalGradient(listOf(Color.Transparent, Neon, NeonBlue, Color.Transparent)))
+                )
+                Spacer(Modifier.height(22.dp))
+                Text("ПОКА ПУСТО", color = White, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                Spacer(Modifier.height(7.dp))
+                Text(
+                    "Добавленные игры появятся здесь",
+                    color = Muted,
+                    fontSize = 11.sp
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun MiniAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
+private fun LibraryFilter(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
-        modifier.height(44.dp).background(Panel, RoundedCornerShape(12.dp))
-            .border(1.dp, Color(0xFF292B40), RoundedCornerShape(12.dp))
-            .clickable { onClick() }.padding(horizontal = 12.dp),
+        Modifier
+            .background(if (selected) Neon.copy(alpha = 0.16f) else Panel, RoundedCornerShape(10.dp))
+            .then(
+                if (selected) Modifier.border(1.dp, Neon.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
+                else Modifier.border(1.dp, Color(0xFF292B40), RoundedCornerShape(10.dp))
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 13.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = NeonBlue, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label, color = White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = if (selected) White else Muted, fontSize = 10.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 
 @Composable
-private fun ContentScreen(kicker: String, title: String, message: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+private fun ContentScreen(
+    kicker: String,
+    title: String,
+    message: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
     Column(Modifier.fillMaxSize()) {
         Text(kicker, color = NeonBlue, fontSize = 9.sp, letterSpacing = 2.sp)
+        Spacer(Modifier.height(5.dp))
         Text(title, color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Row(
-                Modifier.background(Panel, RoundedCornerShape(18.dp)).border(1.dp, Color(0xFF292B40), RoundedCornerShape(18.dp))
+                Modifier.background(Panel, RoundedCornerShape(18.dp))
+                    .border(1.dp, Color(0xFF292B40), RoundedCornerShape(18.dp))
                     .padding(horizontal = 25.dp, vertical = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -196,6 +285,7 @@ private fun ContentScreen(kicker: String, title: String, message: String, icon: 
 private fun SettingsScreen(onController: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Text("SYSTEM CONFIGURATION", color = NeonBlue, fontSize = 9.sp, letterSpacing = 2.sp)
+        Spacer(Modifier.height(5.dp))
         Text("НАСТРОЙКИ", color = White, fontSize = 25.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -205,7 +295,7 @@ private fun SettingsScreen(onController: () -> Unit) {
             }
             Column(Modifier.weight(1f)) {
                 SettingCard("Управление", "Кнопки и подключённые геймпады", Icons.Rounded.Gamepad, onController)
-                SettingCard("О приложении", "NEXUS PSP · Cyber Neon", Icons.Rounded.Info)
+                SettingCard("О приложении", "NEXUS PSP · Cyber", Icons.Rounded.Info)
             }
         }
     }
@@ -213,13 +303,17 @@ private fun SettingsScreen(onController: () -> Unit) {
 
 @Composable
 private fun SettingCard(
-    title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: (() -> Unit)? = null
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 5.dp).background(Panel, RoundedCornerShape(14.dp))
+        Modifier.fillMaxWidth().padding(vertical = 5.dp)
+            .background(Panel, RoundedCornerShape(14.dp))
             .border(1.dp, Color(0xFF292B40), RoundedCornerShape(14.dp))
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier).padding(14.dp),
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, null, tint = NeonBlue, modifier = Modifier.size(22.dp))
