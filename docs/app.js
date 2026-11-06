@@ -167,19 +167,35 @@ function storeCard(g){
 var heroIdx=0, heroTimer=null, catFilter='Все', catSort='new', catQuery='', libTab='all', setTab='general';
 var FEATURED=['drift','orbit','rubezh'];
 
-function vHome(){
+function heroHtml(){
   var g=byId[FEATURED[heroIdx]];
-  var html='<section class="hero" style="--glow:'+g.glow+'"><div class="hero-art" style="background-image:'+art(g,1600,700,3)+'"></div>'+
-   '<div class="hero-body"><span class="hero-tag">НОВОЕ В КАТАЛОГЕ</span><h2>'+g.title+'</h2><p>'+g.desc+'</p>'+
-   '<div class="hero-meta"><span>'+g.genre+'</span><span>'+fmtSize(g.size)+'</span><span>'+g.players+' игр.</span><span>'+compatLabel(g.compat)+' работает</span></div>'+
+  return '<section class="hero" style="--glow:'+g.glow+'"><div class="hero-art" style="background-image:'+art(g,1600,700,3)+'"></div>'+
+   '<div class="hero-body"><span class="hero-tag">★ ХИТ НЕДЕЛИ · #'+(heroIdx+1)+'</span><h2>'+g.title+'</h2><p>'+g.desc+'</p>'+
+   '<div class="hero-meta"><span>'+g.genre+'</span><span>'+fmtSize(g.size)+'</span><span>'+g.players+' игр.</span><span>'+compatLabel(g.compat)+'</span></div>'+
    '<div class="hero-actions">'+actionBtn(g)+'<a class="btn btn-ghost" href="#game-'+g.id+'">Подробнее</a></div></div>'+
-   '<div class="hero-dots">'+FEATURED.map(function(id,i){return '<button data-act="hero" data-i="'+i+'" class="'+(i===heroIdx?'on':'')+'" aria-label="Слайд '+(i+1)+'"></button>';}).join('')+'</div></section>';
-  html+='<section><div class="chips">'+GENRES.map(function(x){return '<button class="chip" data-act="genre" data-g="'+x+'">'+x+'</button>';}).join('')+'</div></section>';
-  html+='<section><div class="sec-head"><h2>Новые поступления</h2><a href="#catalog">Весь каталог →</a></div><div class="row-scroll">'+G.filter(function(x){return x.isNew;}).concat(G.slice(3,6)).map(storeCard).join('')+'</div></section>';
-  html+='<section><div class="sec-head"><h2>Выбор NEXUS</h2><span class="card-meta" style="margin:0">Лучшая совместимость с эмулятором</span></div><div class="row-scroll">'+G.filter(function(x){return x.compat===3;}).map(storeCard).join('')+'</div></section>';
+   '<div class="hero-prog">'+FEATURED.map(function(id,i){return '<button data-act="hero" data-i="'+i+'" class="'+(i<heroIdx?'done':i===heroIdx?'on':'')+'" aria-label="Слайд '+(i+1)+'"><i></i></button>';}).join('')+'</div></section>';
+}
+function stageIds(){return Object.keys(lib).filter(function(i){return lib[i].status==='installed';});}
+function stageInfo(g,i,n){var L=lib[g.id];
+  return '<span class="eyebrow">Продолжить · '+(i+1)+' / '+n+'</span><h2>'+g.title+'</h2>'+
+   '<div class="stage-meta"><span>'+ic('clock',13)+fmtTime(L.play||0)+'</span><span>'+ic('save',13)+(L.saves||0)+' сохр.</span><span>'+g.genre+'</span></div>'+
+   '<p>Последний запуск: '+L.last+'</p>'+
+   '<div class="hero-actions"><button class="btn btn-primary" data-act="play" data-id="'+g.id+'">'+ic('play',16)+'Продолжить</button><a class="btn btn-ghost btn-icon" href="#game-'+g.id+'" aria-label="Карточка игры">'+ic('info',18)+'</a></div>';}
+function stageHtml(){
+  var ids=stageIds(); if(!ids.length)return '';
+  return '<section class="stage" id="stage"><div class="stage-info" id="stageInfo">'+stageInfo(byId[ids[0]],0,ids.length)+'</div>'+
+   '<div class="stage-track" id="stageTrack">'+ids.map(function(id,i){var g=byId[id];return '<a class="stage-card'+(i===0?' on':'')+'" href="#game-'+id+'" data-sid="'+id+'" style="--glow:'+g.glow+';background-image:'+art(g,300,420)+'" aria-label="'+esc(g.title)+'"><span class="cover-title">'+g.title+'</span></a>';}).join('')+
+   '<a class="stage-card stage-add" href="#catalog"><span>'+ic('plus',26)+'В каталог</span></a></div></section>';
+}
+function shelf(title,list,link,sub){if(!list.length)return '';return '<section><div class="sec-head"><h2>'+title+'</h2>'+(link?'<a href="'+link+'">Все →</a>':'')+(sub?'<span class="card-meta">'+sub+'</span>':'')+'</div><div class="row-scroll">'+list.map(storeCard).join('')+'</div></section>';}
+function vHome(){
+  var html=stageHtml()+heroHtml();
+  html+=shelf('Новинки',G.filter(function(x){return x.isNew;}).concat(G.slice(3,6)),'#catalog');
+  html+=shelf('Выбор NEXUS',G.filter(function(x){return x.compat===3;}),'','лучше всего работают');
+  html+=shelf('Для двоих',G.filter(function(x){return /[2-4]/.test(x.players);}),'','ad-hoc и хот-сит');
+  html+=shelf('Короткие сессии',['shards','rhythm','pixel','orbit'].map(function(i){return byId[i];}),'','на 5–20 минут');
   html+='<section><div class="sec-head"><h2>Скоро в каталоге</h2></div><div class="soon-grid">'+SOON.map(function(s){
-    return '<div class="soon-card" style="--glow:'+s.glow+'"><span class="cover" style="background-image:'+art(s,300,420)+'"><span class="cover-title">'+s.title+'</span></span><div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1"><span class="eyebrow">'+s.when+' · '+s.genre+'</span><b style="font-size:16px">'+s.title+'</b><span class="card-meta" style="margin:0">'+s.desc+'</span><div>'+actionBtn(s,'sm')+'</div></div></div>';}).join('')+'</div></section>';
-  html+='<section><div class="sec-head"><h2>Все игры</h2><a href="#catalog">Фильтры и сортировка →</a></div><div class="grid">'+G.map(storeCard).join('')+'</div></section>';
+    return '<div class="soon-card" style="--glow:'+s.glow+'"><span class="cover" style="background-image:'+art(s,300,420)+'"><span class="cover-title">'+s.title+'</span></span><div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1"><span class="eyebrow">'+s.when+' · '+s.genre+'</span><b style="font-size:15px">'+s.title+'</b><span class="card-meta" style="margin:0">'+s.desc+'</span><div>'+actionBtn(s,'sm')+'</div></div></div>';}).join('')+'</div></section>';
   return html;
 }
 
@@ -189,7 +205,9 @@ function vCatalog(){
   if(catSort==='size')list.sort(function(a,b){return a.size-b.size;});
   var h='<div class="page-head"><div><div class="eyebrow">'+list.length+' из '+G.length+' игр</div><h1 class="page">Каталог</h1></div>'+
    '<label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">Сортировка <select class="sel" id="catSort"><option value="new"'+(catSort==='new'?' selected':'')+'>Сначала новые</option><option value="name"'+(catSort==='name'?' selected':'')+'>По названию</option><option value="size"'+(catSort==='size'?' selected':'')+'>По размеру</option></select></label></div>';
-  h+='<div class="chips">'+['Все'].concat(GENRES).map(function(x){return '<button class="chip'+(x===catFilter?' on':'')+'" data-act="cat" data-g="'+x+'">'+x+'</button>';}).join('')+
+  h+='<div class="gtiles">'+['Все'].concat(GENRES).map(function(x){var g=x==='Все'?byId.drift:G.filter(function(y){return y.genre===x;})[0];var n=x==='Все'?G.length:G.filter(function(y){return y.genre===x;}).length;
+    return '<button class="gtile'+(x===catFilter?' on':'')+'" data-act="cat" data-g="'+x+'" style="--glow:'+g.glow+';background-image:'+art(g,400,240,5)+'"><b>'+x+'</b><span>'+n+'</span></button>';}).join('')+'</div>'+
+   (catQuery?'<div class="chips"><button class="chip on" data-act="clearq">'+ic('search',14)+'«'+esc(catQuery)+'» '+ic('x',14)+'</button></div>':'');
    (catQuery?'<button class="chip on" data-act="clearq">'+ic('search',14)+'«'+esc(catQuery)+'» '+ic('x',14)+'</button>':'')+'</div>';
   h+=list.length?'<div class="grid">'+list.map(storeCard).join('')+'</div>':'<div class="empty">'+ic('search',32)+'<h3>Ничего не нашлось</h3><span>Попробуй другой жанр или сбрось поиск.</span></div>';
   return h;
@@ -230,6 +248,11 @@ function vLibrary(){
   }
   var tabs=[['all','Все',ids.length],['installed','Установлены',inst.length],['dl','Загружаются',dls.length],['fav','Избранное',ids.filter(function(i){return favs[i];}).length]];
   h+='<div class="chips" role="tablist">'+tabs.map(function(t){return '<button role="tab" aria-selected="'+(libTab===t[0])+'" class="chip'+(libTab===t[0]?' on':'')+'" data-act="libtab" data-t="'+t[0]+'">'+t[1]+' <span class="mono" style="color:var(--muted)">'+t[2]+'</span></button>';}).join('')+'</div>';
+  if(libTab==='all'&&list.length){
+    var dlIds=list.filter(function(i){return lib[i].status!=='installed';}), inIds=list.filter(function(i){return lib[i].status==='installed';});
+    if(dlIds.length)h+='<section><div class="sec-head"><h2>Загружается сейчас</h2><a href="#dl">Все загрузки →</a></div><div class="row-scroll dl-ribbon">'+dlIds.map(function(i){return libCard(byId[i]);}).join('')+'</div></section>';
+    h+='<section><div class="sec-head"><h2>Коллекция</h2><span class="card-meta">'+inIds.length+' установлено</span></div>'+(inIds.length?'<div class="lgrid">'+inIds.map(function(i){return libCard(byId[i]);}).join('')+'</div>':'<div class="empty"><h3>Пока ничего не установлено</h3></div>')+'</section>';
+  } else
   h+=list.length?'<div class="lgrid">'+list.map(function(i){return libCard(byId[i]);}).join('')+'</div>':'<div class="empty">'+ic('lib',32)+'<h3>Здесь пока пусто</h3><span>Скачай игру из каталога, и она появится в библиотеке.</span><a class="btn btn-primary" href="#home">Открыть каталог</a></div>';
   return h;
 }
@@ -265,12 +288,12 @@ function vGame(id){
   var L=lib[id], s=st(id), inst=s==='installed';
   var h='<div class="g-hero" style="--glow:'+g.glow+'"><div class="g-hero-art" style="background-image:'+art(g,1600,600,2)+'"></div>'+
    '<div class="g-top"><button class="btn btn-ghost btn-sm" data-act="back" aria-label="Назад">'+ic('left',16)+'Назад</button><button class="btn btn-ghost btn-sm btn-icon'+(favs[id]?' fav-on':'')+'" data-act="fav" data-id="'+id+'" aria-label="Избранное">'+ic(favs[id]?'heartf':'heart',18)+'</button></div>'+
-   '<div class="g-main"><span class="cover" style="background-image:'+art(g,300,420)+'"><span class="fmt">'+g.fmt+'</span></span><div class="g-info"><span class="eyebrow">'+g.genre+' · '+g.year+'</span><h1>'+g.title+'</h1><span class="g-dev">'+g.dev+'</span>'+
+   '<div class="g-main"><span class="cover" style="view-transition-name:gcover;background-image:'+art(g,300,420)+'"><span class="fmt">'+g.fmt+'</span></span><div class="g-info"><span class="eyebrow">'+g.genre+' · '+g.year+'</span><h1>'+g.title+'</h1><span class="g-dev">'+g.dev+'</span>'+
    '<div class="tags">'+compatHtml(g.compat)+g.tags.map(function(t){return '<span class="tag">'+t+'</span>';}).join('')+'</div>'+
    '<div class="g-actions" data-live="'+id+'">'+actionBtn(g).replace('class="btn ','class="btn btn-main ')+(inst?'<button class="btn btn-ghost" data-act="remove" data-id="'+id+'">'+ic('trash',16)+'Удалить</button>':'')+(s&&!inst?'<button class="btn btn-ghost btn-icon" data-act="cancel" data-id="'+id+'" aria-label="Отменить загрузку">'+ic('x',18)+'</button>':'')+'</div></div></div></div>';
   h+='<div class="g-cols"><div style="display:flex;flex-direction:column;gap:22px;min-width:0">';
   h+='<section class="panel"><h2>Об игре</h2><p>'+g.desc+'</p><ul class="feat">'+g.feat.map(function(f){return '<li>'+ic('sparkle',16)+'<span>'+f+'</span></li>';}).join('')+'</ul></section>';
-  h+='<section class="panel"><h2>Скриншоты</h2><div class="shots">'+[1,2,3,4].map(function(n){return '<div class="shot" style="background-image:'+art(g,480,272,n*7)+'"><span>480×272 · кадр '+n+'</span></div>';}).join('')+'</div></section>';
+  h+='<section class="panel"><h2>Скриншоты</h2><div class="gal"><button class="gal-main" id="galMain" data-act="lb" data-id="'+id+'" data-i="0" style="background-image:'+art(g,480,272,7)+'" aria-label="Открыть скриншот на весь экран"><span class="gal-zoom">'+ic('expand',16)+'</span></button><div class="gal-thumbs">'+[1,2,3,4,5].map(function(n,i){return '<button class="gal-th'+(i===0?' on':'')+'" data-act="gal" data-id="'+id+'" data-i="'+i+'" style="background-image:'+art(g,480,272,n*7)+'" aria-label="Скриншот '+n+'"></button>';}).join('')+'</div></div></section>';
   if(inst){h+='<section class="panel"><h2>Твои сохранения</h2><div class="saves">'+
     [['Быстрое · слот 2',L.last],['Слот 1','3 дня назад'],['Автосохранение','неделю назад']].slice(0,Math.min(3,L.saves)).map(function(x,i){return '<div class="save"><span class="shot" style="background-image:'+art(g,480,272,30+i)+'"></span><div style="flex:1;min-width:0"><b>'+x[0]+'</b><span>'+x[1]+'</span></div><button class="btn btn-ghost btn-sm" data-act="play" data-id="'+id+'">Загрузить</button></div>';}).join('')+'</div></section>';}
   h+='<section class="panel"><h2>Что нового в версии '+g.ver+'</h2><ul class="changelog"><li><span class="mono">v'+g.ver+'</span><span>Исправлены вылеты при сохранении в некоторых главах, обновлена обложка.</span></li><li><span class="mono">v1.0</span><span>Игра добавлена в каталог NEXUS.</span></li></ul></section>';
@@ -340,12 +363,14 @@ function vProfile(){
   var ids=Object.keys(lib), inst=ids.filter(function(i){return lib[i].status==='installed';});
   var play=inst.reduce(function(a,i){return a+lib[i].play;},0), saves=inst.reduce(function(a,i){return a+lib[i].saves;},0), maxPlay=Math.max.apply(null,inst.map(function(i){return lib[i].play;}).concat([0]));
   var genres={};inst.forEach(function(i){genres[byId[i].genre]=1;});
-  var B=[['bolt','Первый запуск','Запусти любую игру',inst.length>0],['lib','Коллекционер','5 игр в библиотеке',ids.length>=5],['clock','Марафонец','10 часов в одной игре',maxPlay>=600],['save','Осторожный игрок','10 сохранений',saves>=10],['sparkle','Исследователь','Игры 5 разных жанров',Object.keys(genres).length>=5],['trophy','Легенда','100 часов в NEXUS',play>=6000]];
+  var ng=Object.keys(genres).length;
+  var B=[['bolt','Первый запуск','Запусти любую игру',inst.length,1],['lib','Коллекционер','5 игр в библиотеке',ids.length,5],['clock','Марафонец','10 часов в одной игре',Math.floor(maxPlay/60),10],['save','Осторожный игрок','10 сохранений',saves,10],['sparkle','Исследователь','Игры 5 разных жанров',ng,5],['trophy','Легенда','100 часов в NEXUS',Math.floor(play/60),100]];
+  B=B.map(function(b){var p=Math.min(1,b[3]/b[4]);return [b[0],b[1],b[2],p>=1,Math.min(b[3],b[4])+' / '+b[4],p];});
   var h='<div class="p-head"><span class="p-ava">N</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><span class="eyebrow">NEXUS ID</span><h1>Твой ник</h1><span class="p-id">NEXUS ID · профиль на этом устройстве</span>'+xpHtml(play,saves)+'</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" data-act="toast" data-msg="Здесь будет смена ника и аватара">Изменить</button><button class="btn btn-primary btn-sm" data-act="toast" data-msg="Вход через аккаунт — в планах">'+ic('user',16)+'Войти и синхронизировать</button></div></div>';
   h+='<div class="tiles"><div class="tile">'+ic('clock',20,' style="color:var(--cyan)"')+'<b>'+fmtTime(play).split(' ').slice(0,2).join(' ')+'</b><span>наиграно всего</span></div><div class="tile">'+ic('lib',20,' style="color:var(--cyan)"')+'<b>'+ids.length+'</b><span>игр в библиотеке</span></div><div class="tile">'+ic('save',20,' style="color:var(--cyan)"')+'<b>'+saves+'</b><span>сохранений</span></div><div class="tile">'+ic('trophy',20,' style="color:var(--cyan)"')+'<b>'+B.filter(function(b){return b[3];}).length+' / '+B.length+'</b><span>достижений</span></div></div>';
   h+='<div class="p-cols"><section class="panel"><h2>Облачные сохранения <span class="soon-label">ПЛАНИРУЕТСЯ</span></h2><p style="font-size:13px;margin-bottom:14px">Сохранения копируются в облако. Сменишь телефон — продолжишь с того же места.</p><div class="set-group" style="background:var(--panel2)">'+row('Синхронизация','Последняя: только что',sw('cloud'))+row('Этот телефон','Основное устройство','<span class="st-ok" style="font-size:12px;font-weight:700">'+ic('check',12)+' Активно</span>')+'</div></section>';
   h+='<section class="panel"><h2>Недавняя активность</h2><div class="saves">'+inst.map(function(i){var g=byId[i];return '<a class="save" href="#game-'+g.id+'"><span class="cover" style="width:40px;border-radius:7px;background-image:'+art(g,300,420)+'"></span><div style="flex:1;min-width:0"><b>'+g.title+'</b><span>'+lib[i].last+' · '+fmtTime(lib[i].play)+'</span></div>'+ic('right',16)+'</a>';}).join('')+'</div></section></div>';
-  h+='<section><div class="sec-head"><h2>Достижения NEXUS</h2><span class="card-meta" style="margin:0">Считаются по всем играм в приложении</span></div><div class="badges">'+B.map(function(b){return '<div class="badge-a'+(b[3]?'':' locked')+'"><span class="bi">'+ic(b[0],22)+'</span><b>'+b[1]+'</b><span>'+b[2]+'</span></div>';}).join('')+'</div></section>';
+  h+='<section><div class="sec-head"><h2>Достижения NEXUS</h2><span class="card-meta">'+B.filter(function(b){return b[3];}).length+' из '+B.length+'</span></div><div class="row-scroll medals">'+B.map(function(b){return '<div class="badge-a'+(b[3]?'':' locked')+'"><span class="bi">'+ic(b[3]?b[0]:'x',22)+'</span><b>'+b[1]+'</b><span>'+b[2]+'</span><div class="xp-bar"><i style="width:'+(b[5]*100)+'%"></i></div><span class="mono">'+b[4]+'</span></div>';}).join('')+'</div></section>';
   return h;
 }
 
@@ -361,8 +386,13 @@ function render(keepScroll){
   var navKey=base==='game'?'':base==='gamepad'?'':base;
   document.querySelectorAll('[data-nav]').forEach(function(a){var on=a.getAttribute('data-nav')===navKey;a.classList.toggle('active',on);if(on)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   updateBadge();
+  if(base==='home')initStage();
+  else if(base==='game'&&byId[r.slice(5)])setAmbient(byId[r.slice(5)]);
+  else if(base==='library'){var f=stageIds()[0];if(f)setAmbient(byId[f]);}
 }
-window.addEventListener('hashchange',function(){viewBox.scrollTop=0;closePops();render();});
+window.addEventListener('hashchange',function(){closePops();var go=function(){viewBox.scrollTop=0;render();};
+  if(document.startViewTransition&&!reduceVT){document.startViewTransition(go);}else go();});
+var reduceVT=false;try{reduceVT=matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
 
 /* ---------- downloads engine ---------- */
 function activeCount(){return Object.keys(lib).filter(function(i){return lib[i].status==='downloading';}).length;}
@@ -425,6 +455,9 @@ document.addEventListener('click',function(e){
   else if(a==='set'){var k2=t.getAttribute('data-k');S[k2]=t.getAttribute('data-v');saveS();if(k2==='accent')applyAccent();if(k2==='parallel')pump();render(true);}
   else if(a==='padreset'){['padOp','padSc','padLayout','padEdit'].forEach(function(k){S[k]=defaults[k];});saveS();render(true);toast('Раскладка сброшена');}
   else if(a==='toast'){toast(t.getAttribute('data-msg'));}
+  else if(a==='gal'){var m=document.getElementById('galMain');m.style.backgroundImage=t.style.backgroundImage;m.setAttribute('data-i',t.getAttribute('data-i'));
+    document.querySelectorAll('.gal-th').forEach(function(x){x.classList.toggle('on',x===t);});}
+  else if(a==='lb'){openLb(id,+t.getAttribute('data-i'));}
   else if(a==='back'){if(history.length>1)history.back();else location.hash='home';}
 });
 document.addEventListener('input',function(e){
@@ -467,7 +500,7 @@ drawRail();
 /* ---------- hero autoplay ---------- */
 var reduce=false;try{reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
 function restartHero(){clearInterval(heroTimer);if(reduce)return;heroTimer=setInterval(function(){if(route()!=='home'||document.hidden)return;if(view.querySelector('.hero:hover'))return;heroIdx=(heroIdx+1)%FEATURED.length;
-  var heroEl=view.querySelector('.hero');if(!heroEl)return;var tmp=document.createElement('div');tmp.innerHTML=vHome();heroEl.replaceWith(tmp.querySelector('.hero'));},7000);}
+  swapHero(0,true);},7000);}
 
 
 /* ---------- fullscreen + orientation ---------- */
@@ -482,6 +515,51 @@ fsBtn.addEventListener('click',function(){
 });
 document.addEventListener('fullscreenchange',function(){var on=!!document.fullscreenElement;fsBtn.setAttribute('aria-label',on?'Выйти из полноэкранного режима':'На весь экран');fsBtn.lastElementChild.textContent=on?'Свернуть':'На весь экран';});
 document.getElementById('rotateSkip').addEventListener('click',function(){document.getElementById('rotate').classList.add('dismissed');});
+
+
+/* ---------- ambient background ---------- */
+var amb=[document.getElementById('ambA'),document.getElementById('ambB')],ambI=0,ambId='';
+function setAmbient(g){if(!g||ambId===g.id)return;ambId=g.id;var nx=amb[1-ambI];nx.style.backgroundImage=art(g,300,420);nx.classList.add('on');amb[ambI].classList.remove('on');ambI=1-ambI;
+  document.documentElement.style.setProperty('--amb',g.glow);}
+
+/* ---------- stage carousel ---------- */
+function initStage(){
+  var tr=document.getElementById('stageTrack'),info=document.getElementById('stageInfo');if(!tr)return;
+  var ids=stageIds(),cur=-1,raf=0;
+  function pick(){raf=0;var c=tr.scrollLeft+tr.clientWidth/2,best=0,bd=1e9;
+    tr.querySelectorAll('.stage-card[data-sid]').forEach(function(el,i){var d=Math.abs(el.offsetLeft+el.offsetWidth/2-c);if(d<bd){bd=d;best=i;}});
+    if(best===cur)return;cur=best;
+    tr.querySelectorAll('.stage-card').forEach(function(el,i){el.classList.toggle('on',i===best);});
+    var g=byId[ids[best]];info.innerHTML=stageInfo(g,best,ids.length);info.classList.remove('swap');void info.offsetWidth;info.classList.add('swap');
+    setAmbient(g);if(S.haptic&&navigator.vibrate&&cur>=0)try{navigator.vibrate(8);}catch(e){}}
+  tr.addEventListener('scroll',function(){if(!raf)raf=requestAnimationFrame(pick);},{passive:true});
+  tr.addEventListener('pointermove',function(e){var c=e.target.closest('.stage-card.on');if(!c||e.pointerType==='mouse'&&e.buttons)return;var r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+    c.style.transform='scale(1.12) perspective(600px) rotateY('+(x*14)+'deg) rotateX('+(-y*12)+'deg)';});
+  tr.addEventListener('pointerleave',function(){tr.querySelectorAll('.stage-card').forEach(function(c){c.style.transform='';});});
+  tr.addEventListener('click',function(e){var c=e.target.closest('.stage-card');if(c&&!c.classList.contains('on')&&!c.classList.contains('stage-add')){e.preventDefault();e.stopPropagation();
+    tr.scrollTo({left:c.offsetLeft+c.offsetWidth/2-tr.clientWidth/2,behavior:'smooth'});}},true);
+  pick();
+}
+
+/* ---------- hero swipe ---------- */
+function swapHero(dir,auto){var el=view.querySelector('.hero');if(!el)return;heroIdx=(heroIdx+(auto?1:dir)+FEATURED.length)%FEATURED.length;
+  var tmp=document.createElement('div');tmp.innerHTML=heroHtml();el.replaceWith(tmp.firstChild);}
+var hx=null;
+view.addEventListener('pointerdown',function(e){hx=e.target.closest('.hero')?e.clientX:null;});
+view.addEventListener('pointerup',function(e){if(hx===null)return;var dx=e.clientX-hx;hx=null;if(Math.abs(dx)>50){swapHero(dx<0?1:-1);restartHero();}});
+
+/* ---------- lightbox ---------- */
+var lb=document.getElementById('lb'),lbTr=document.getElementById('lbTrack'),lbCount=document.getElementById('lbCount');
+function openLb(id,i){var g=byId[id];lbTr.innerHTML=[1,2,3,4,5].map(function(n){return '<div class="lb-slide"><div class="lb-img" style="background-image:'+art(g,960,544,n*7)+'"></div></div>';}).join('');
+  lb.hidden=false;requestAnimationFrame(function(){lbTr.scrollLeft=i*lbTr.clientWidth;lbCount.textContent=(i+1)+' / 5';});document.getElementById('lbClose').focus();}
+lbTr.addEventListener('scroll',function(){lbCount.textContent=(Math.round(lbTr.scrollLeft/lbTr.clientWidth)+1)+' / 5';},{passive:true});
+document.getElementById('lbClose').addEventListener('click',function(){lb.hidden=true;});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!lb.hidden)lb.hidden=true;});
+
+/* ---------- cover → game page transition ---------- */
+document.addEventListener('click',function(e){if(e.defaultPrevented)return;var l=e.target.closest('a[href^="#game-"]');if(!l)return;
+  document.querySelectorAll('[data-vt]').forEach(function(x){x.style.viewTransitionName='';x.removeAttribute('data-vt');});
+  var c=l.matches('.cover,.lcover,.stage-card')?l:(l.closest('.card,.lcard')||l).querySelector('.cover,.lcover');if(c){c.style.viewTransitionName='gcover';c.setAttribute('data-vt','');}});
 
 (function(){var items=G.slice(0,6).map(function(g){return '<span><em>▲</em> НОВИНКА · <b>'+g.title.toUpperCase()+'</b> · '+g.genre+'</span>';});
   items.push('<span><em>●</em> NEXUS 0.3.1 · улучшена совместимость</span>','<span><em>■</em> СКОРО · <b>ЗВЁЗДНЫЙ КУРЬЕР</b> · декабрь</span>');

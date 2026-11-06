@@ -32,6 +32,7 @@
   </nav>
 
   <div class="main">
+    <div class="ambient" aria-hidden="true"><span id="ambA"></span><span id="ambB"></span></div>
     <header class="topbar">
       <div class="search">
         <label for="q"><span data-ic="search"></span><input id="q" type="search" placeholder="Поиск игр, жанров…" autocomplete="off"><kbd>/</kbd></label>
@@ -48,6 +49,7 @@
   </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="lb" id="lb" hidden role="dialog" aria-label="Скриншоты"><button class="lb-close btn btn-ghost btn-icon" id="lbClose" aria-label="Закрыть"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div class="lb-track" id="lbTrack"></div><span class="lb-count mono" id="lbCount"></span></div>
 <div class="rotate" id="rotate" role="dialog" aria-label="Поверни телефон">
   <span class="phone-ic"><svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span>
   <h2>Поверни телефон</h2>
