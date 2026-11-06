@@ -114,6 +114,24 @@ var SOON=[
  {id:'code',title:'Код Тьмы',genre:'Стелс',pal:['#1F0B24','#07030A','#E070FF'],motif:'shards',seed:151,when:'Январь',desc:'Проникни в сеть корпорации и выйди незамеченным.'}
 ];
 var byId={};G.concat(SOON).forEach(function(g){byId[g.id]=g;g.glow=g.pal[2];});
+var PLAT={
+ all:{n:'Все',c:'#E8EAF0',c2:'#9AA3B5',ink:'#121316',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>'},
+ psp:{n:'PSP',full:'PlayStation Portable',year:2004,desc:'Портативная консоль. Игры на UMD-дисках',c:'#5ED8FF',c2:'#2A8FE0',ink:'#04131D',icon:'<svg viewBox="0 0 48 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="3" width="44" height="18" rx="9"/><rect x="15" y="6.5" width="18" height="11" rx="1.5"/><circle cx="8.5" cy="12" r="2.2"/><circle cx="39.5" cy="12" r="2.2"/></svg>'},
+ ps1:{n:'PS1',full:'PlayStation',year:1994,desc:'Первая PlayStation. Игры на CD',c:'#B9AEFF',c2:'#7A6BEA',ink:'#120C2E',icon:'<svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="6" width="42" height="22" rx="3"/><circle cx="24" cy="15" r="6"/><path d="M8 24h6M34 24h6"/></svg>'},
+ ps2:{n:'PS2',full:'PlayStation 2',year:2000,desc:'Самая продаваемая консоль. Игры на DVD',c:'#7B95FF',c2:'#3550E8',ink:'#060D2E',icon:'<svg viewBox="0 0 32 40" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3h16l3 34H5z"/><path d="M8 12h16M9 20h14"/></svg>'}
+};
+var PKEYS=['all','psp','ps1','ps2'];
+var PMAP={drift:'psp',rubezh:'ps2',orbit:'psp',ash:'ps1',rhythm:'psp',shards:'ps1',deep:'ps2',fist:'ps2',forest:'ps1',pixel:'psp',courier:'psp',code:'ps2'};
+var KIND={drift:'Своя версия',rubezh:'Демо',orbit:'Своя версия',ash:'Сборник',rhythm:'Демо',shards:'Своя версия',deep:'Демо',fist:'Сборник',forest:'Своя версия',pixel:'Сборник'};
+G.concat(SOON).forEach(function(g){g.plat=PMAP[g.id];g.kind=KIND[g.id]||'Скоро';if(g.plat==='ps1'){g.fmt='CHD';g.discId='SLUS-00000';}if(g.plat==='ps2')g.discId='SLES-00000';});
+var plat='all';try{plat=localStorage.getItem('nexus-plat')||'all';}catch(e){}if(!PLAT[plat])plat='all';
+var playLoaded={},playPaused=false,ptab='menu';
+function pfilter(list){return plat==='all'?list:list.filter(function(g){return g.plat===plat;});}
+function pvars(k){var p=PLAT[k]||PLAT.all;return '--pc:'+p.c+';--pc2:'+p.c2;}
+function paintPlat(k){var p=PLAT[k||plat]||PLAT.all,s=document.documentElement.style;s.setProperty('--acc',p.c);s.setProperty('--acc2',p.c2);s.setProperty('--acc-ink',p.ink);}
+function consoleBar(){return '<div class="consoles" role="tablist" aria-label="Консоли">'+PKEYS.map(function(k){var p=PLAT[k],n=k==='all'?G.length:G.filter(function(g){return g.plat===k;}).length;
+  return '<button role="tab" aria-selected="'+(plat===k)+'" class="con'+(plat===k?' on':'')+'" data-act="plat" data-p="'+k+'" style="'+pvars(k)+'"><span class="con-ic">'+p.icon+'</span><span class="con-txt"><b>'+p.n+'</b><small>'+n+'</small></span></button>';}).join('')+
+  '<a class="con-more" href="#consoles">'+ic('tune',16)+'Консоли</a></div>';}
 var GENRES=[];G.forEach(function(g){if(GENRES.indexOf(g.genre)<0)GENRES.push(g.genre);});
 
 var lib={
@@ -131,7 +149,7 @@ var notifs=[
  {ic:'sparkle',color:'var(--neon)',text:'Новая игра в каталоге: «Неоновый Дрифт»',time:'2 дня назад',unread:true},
  {ic:'info',color:'var(--soft)',text:'Доступно обновление NEXUS 0.3.1: улучшена совместимость',time:'5 дней назад',unread:false}
 ];
-var defaults={accent:'violet',lang:'ru',start:'home',wifiOnly:true,parallel:'1',autoInstall:true,res:'2',backend:'vulkan',fps:false,frameskip:false,vol:80,haptic:true,nDl:true,nNew:true,nUpd:true,
+var defaults={accent:'violet',ratio:'169',lang:'ru',start:'home',wifiOnly:true,parallel:'1',autoInstall:true,res:'2',backend:'vulkan',fps:false,frameskip:false,vol:80,haptic:true,nDl:true,nNew:true,nUpd:true,
   padOp:60,padSc:100,padLayout:'classic',padHaptic:true,padHide:true,padEdit:false,cloud:true};
 var S={};
 try{S=JSON.parse(localStorage.getItem('nexus-proto-settings')||'{}')||{};}catch(e){S={};}
@@ -139,7 +157,7 @@ Object.keys(defaults).forEach(function(k){if(S[k]===undefined)S[k]=defaults[k];}
 function saveS(){try{localStorage.setItem('nexus-proto-settings',JSON.stringify(S));}catch(e){}}
 var ACCENTS_KEYS=/^(violet|blue|green|orange)$/;
 var ACCENTS={violet:{n:'Фиолетовый',neon:'#CFBDFF',btn:'#CFBDFF',ink:'#381E72',soft:'rgba(207,189,255,.14)'},blue:{n:'Синий',neon:'#A8C7FA',btn:'#A8C7FA',ink:'#062E6F',soft:'rgba(168,199,250,.14)'},green:{n:'Зелёный',neon:'#8BD8A0',btn:'#8BD8A0',ink:'#00391C',soft:'rgba(139,216,160,.14)'},orange:{n:'Оранжевый',neon:'#FFB68E',btn:'#FFB68E',ink:'#522300',soft:'rgba(255,182,142,.14)'}};
-function applyAccent(){if(!ACCENTS[S.accent])S.accent='violet';var a=ACCENTS[S.accent]||ACCENTS.violet,st=document.documentElement.style;st.setProperty('--neon',a.neon);st.setProperty('--btn',a.btn);st.setProperty('--btn-ink',a.ink);st.setProperty('--neon-soft',a.soft);}
+function applyAccent(){paintPlat();return;if(!ACCENTS[S.accent])S.accent='violet';var a=ACCENTS[S.accent]||ACCENTS.violet,st=document.documentElement.style;st.setProperty('--neon',a.neon);st.setProperty('--btn',a.btn);st.setProperty('--btn-ink',a.ink);st.setProperty('--neon-soft',a.soft);}
 
 /* ---------- helpers ---------- */
 function fmtSize(mb){return mb>=1000?(mb/1024).toFixed(1).replace('.',',')+' ГБ':Math.round(mb)+' МБ';}
@@ -159,12 +177,12 @@ function actionBtn(g,size){
   return '<button class="btn btn-ghost'+cls+'" data-act="get" data-id="'+g.id+'">'+ic('download',16)+'Скачать · '+fmtSize(g.size)+'</button>';
 }
 function storeCard(g){
-  var s=st(g.id),L=lib[g.id],chip='';
-  if(s==='installed')chip='<span class="chip-state st-ok">'+ic('check',14)+'Есть</span>';
+  var s=st(g.id),L=lib[g.id],chip='',p=PLAT[g.plat]||PLAT.all;
+  if(s==='installed')chip='<span class="chip-state st-ok">'+ic('check',13)+'Есть</span>';
   else if(s==='downloading'||s==='paused')chip='<span class="chip-state st-dl" data-live="'+g.id+'"><b data-pct="">'+Math.floor(L.progress)+'%</b></span>';
-  else if(s==='queued')chip='<span class="chip-state st-q">'+ic('clock',14)+'</span>';
-  return '<article class="card"><a class="cover" href="#game-'+g.id+'" style="background-image:'+art(g,300,420)+'" aria-label="'+esc(g.title)+'"><span class="fmt">'+(g.fmt||'Скоро')+'</span>'+chip+'</a>'+
-    '<a class="card-title" href="#game-'+g.id+'">'+g.title+'</a><div class="card-meta">'+g.genre+(g.size?' · '+fmtSize(g.size):' · '+g.when)+'</div></article>';
+  else if(s==='queued')chip='<span class="chip-state st-q">'+ic('clock',13)+'</span>';
+  return '<article class="card" style="'+pvars(g.plat)+'"><a class="cover" href="#game-'+g.id+'" style="background-image:'+art(g,300,420)+'" aria-label="'+esc(g.title)+'"><span class="plat"><i></i>'+p.n+'</span>'+chip+'</a>'+
+    '<a class="card-title" href="#game-'+g.id+'">'+g.title+'</a><div class="card-meta">'+(g.year||g.when)+' · '+(g.fmt||'—')+(g.size?' · '+fmtSize(g.size):'')+'</div><span class="card-kind">'+g.kind+'</span></article>';
 }
 
 /* ---------- views ---------- */
@@ -193,25 +211,27 @@ function stageHtml(){
 }
 function shelf(title,list,link){if(!list.length)return '';return '<section><div class="sec-head"><h2>'+title+'</h2>'+(link?'<a href="'+link+'">Все</a>':'')+'</div><div class="row-scroll">'+list.map(storeCard).join('')+'</div></section>';}
 function vHome(){
-  var ids=stageIds().sort(function(a,b){return (b==='drift')-(a==='drift');}), html='';
+  var ids=stageIds().filter(function(i){return plat==='all'||byId[i].plat===plat;}).sort(function(a,b){return (b==='drift')-(a==='drift');}), html=consoleBar();
   if(ids.length){var g=byId[ids[0]],L=lib[g.id];
-    html+='<section><div class="sec-head"><h2>Продолжить</h2><a href="#library">Библиотека</a></div><div class="resume">'+
-     '<div class="resume-main" style="--art:'+art(g,300,420)+'"><a class="cover" href="#game-'+g.id+'" style="background-image:'+art(g,300,420)+'" aria-label="'+esc(g.title)+'"></a>'+
-     '<div class="resume-body"><span class="eyebrow">Последняя игра</span><h2>'+g.title+'</h2><p>'+L.last+' · наиграно '+fmtTime(L.play)+'</p><p>Быстрое сохранение, слот 2</p>'+
-     '<div class="resume-actions"><button class="btn btn-primary" data-act="play" data-id="'+g.id+'">'+ic('play',18)+'Продолжить</button><a class="btn btn-ghost" href="#game-'+g.id+'">Сохранения</a></div></div></div>'+
-     '<div class="recent"><div class="recent-head">Недавние</div>'+ids.slice(1,4).map(function(i){var x=byId[i];return '<a href="#game-'+i+'"><span class="cover" style="background-image:'+art(x,300,420)+'"></span><span style="min-width:0"><b>'+x.title+'</b><span>'+lib[i].last+'</span></span>'+ic('right',20)+'</a>';}).join('')+
-     '<a href="#library"><span style="min-width:0"><b style="color:var(--primary)">Вся библиотека</b></span>'+ic('right',20)+'</a></div></div></section>';}
-  html+=shelf('Новое в каталоге',G.filter(function(x){return x.isNew;}).concat(G.slice(3,7)),'#catalog');
-  html+=shelf('Рекомендуем',G.filter(function(x){return x.compat===3;}),'#catalog');
+    html+='<section><div class="resume">'+
+     '<div class="resume-main" style="--art:'+art(g,300,420)+';'+pvars(g.plat)+'"><a class="cover" href="#game-'+g.id+'" style="background-image:'+art(g,300,420)+'" aria-label="'+esc(g.title)+'"></a>'+
+     '<div class="resume-body"><span class="eyebrow">Продолжить · '+PLAT[g.plat].n+'</span><h2>'+g.title+'</h2><p>'+L.last+' · наиграно '+fmtTime(L.play)+'</p><p>Быстрое сохранение, слот 2</p>'+
+     '<div class="resume-actions"><button class="btn btn-primary" data-act="play" data-id="'+g.id+'">'+ic('play',20)+'Играть</button><a class="btn btn-ghost" href="#game-'+g.id+'">Подробнее</a></div></div></div>'+
+     '<div class="recent"><div class="recent-head">Недавние</div>'+ids.slice(1,4).map(function(i){var x=byId[i];return '<a href="#game-'+i+'"><span class="cover" style="background-image:'+art(x,300,420)+'"></span><span style="min-width:0"><b>'+x.title+'</b><span>'+PLAT[x.plat].n+' · '+lib[i].last+'</span></span>'+ic('right',18)+'</a>';}).join('')+
+     '<a href="#library"><span style="min-width:0"><b style="color:var(--acc)">Вся библиотека</b></span>'+ic('right',18)+'</a></div></div></section>';}
+  var list=pfilter(G);
+  html+='<section><div class="sec-head"><h2>'+(plat==='all'?'Все игры':'Игры '+PLAT[plat].full)+' <span class="mono" style="color:var(--muted);font-weight:500;font-size:12px">'+list.length+'</span></h2><a href="#catalog">Фильтры</a></div><div class="grid">'+list.map(storeCard).join('')+'</div></section>';
   return html;
 }
 
 function vCatalog(){
   var list=G.filter(function(g){return (catFilter==='Все'||g.genre===catFilter)&&(!catQuery||(g.title+' '+g.genre+' '+g.tags.join(' ')).toLowerCase().indexOf(catQuery.toLowerCase())>=0);});
+  list=pfilter(list);
   if(catSort==='name')list.sort(function(a,b){return a.title.localeCompare(b.title,'ru');});
   if(catSort==='size')list.sort(function(a,b){return a.size-b.size;});
   var h='<div class="page-head"><div><div class="eyebrow">'+list.length+' из '+G.length+' игр</div><h1 class="page">Каталог</h1></div>'+
    '<label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">Сортировка <select class="sel" id="catSort"><option value="new"'+(catSort==='new'?' selected':'')+'>Сначала новые</option><option value="name"'+(catSort==='name'?' selected':'')+'>По названию</option><option value="size"'+(catSort==='size'?' selected':'')+'>По размеру</option></select></label></div>';
+  h+=consoleBar();
   h+='<div class="chips">'+['Все'].concat(GENRES).map(function(x){return '<button class="chip'+(x===catFilter?' on':'')+'" data-act="cat" data-g="'+x+'">'+x+'</button>';}).join('')+
    (catQuery?'<button class="chip on" data-act="clearq">«'+esc(catQuery)+'» '+ic('x',16)+'</button>':'')+'</div>';
    (catQuery?'<button class="chip on" data-act="clearq">'+ic('search',14)+'«'+esc(catQuery)+'» '+ic('x',14)+'</button>':'')+'</div>';
@@ -234,14 +254,14 @@ function libCard(g){
     sub='<div class="lcard-sub"><span>Начнётся следующей</span><span>'+fmtSize(g.size)+'</span></div>';
     actions='<div class="lcard-row"><button class="btn btn-ghost btn-sm" data-act="startnow" data-id="'+g.id+'">'+ic('bolt',14)+'Начать сейчас</button><button class="btn btn-ghost btn-sm btn-icon" data-act="cancel" data-id="'+g.id+'" aria-label="Убрать из очереди">'+ic('x',16)+'</button></div>';}
   var dl=s!=='installed';
-  return '<article class="lcard" data-live="'+g.id+'" style="--glow:'+g.glow+'"><a class="lcover" href="#game-'+g.id+'" aria-label="'+esc(g.title)+'">'+
+  return '<article class="lcard" data-live="'+g.id+'" style="--glow:'+g.glow+';'+pvars(g.plat)+'"><a class="lcover" href="#game-'+g.id+'" aria-label="'+esc(g.title)+'">'+
     (dl?'<span class="art base" style="background-image:'+art(g,300,420)+'"></span><span class="art" data-clip="" style="background-image:'+art(g,300,420)+';clip-path:inset('+(100-p)+'% 0 0 0)"></span><span class="scan" data-scan="" style="top:calc('+(100-p)+'% - 1px)"></span>'
        :'<span class="art" style="background-image:'+art(g,300,420)+'"></span>')+
     '<span class="shade"></span><span class="fmt">'+g.fmt+'</span>'+top+mid+'<span class="cover-title">'+g.title+'</span>'+
     '</a><span class="ltitle">'+g.title+'</span>'+sub+actions+'</article>';
 }
 function vLibrary(){
-  var ids=Object.keys(lib), inst=ids.filter(function(i){return lib[i].status==='installed';}), dls=ids.filter(function(i){return lib[i].status!=='installed';});
+  var ids=Object.keys(lib).filter(function(i){return plat==='all'||byId[i].plat===plat;}), inst=ids.filter(function(i){return lib[i].status==='installed';}), dls=ids.filter(function(i){return lib[i].status!=='installed';});
   var used=inst.reduce(function(a,i){return a+byId[i].size;},0), play=inst.reduce(function(a,i){return a+lib[i].play;},0);
   var list=libTab==='installed'?inst:libTab==='dl'?dls:libTab==='fav'?ids.filter(function(i){return favs[i];}):ids;
   var order={downloading:0,paused:1,queued:2,installed:3};
@@ -252,6 +272,7 @@ function vLibrary(){
   if(st('drift')==='installed'&&libTab==='all'){
     h+='<section class="continue" style="--glow:'+last.glow+'"><div class="continue-art" style="background-image:'+art(last,1000,560,5)+'"></div><div class="continue-body"><span class="eyebrow">Продолжить с места остановки</span><h3>'+last.title+'</h3><p>Быстрое сохранение · слот 2 · '+lib.drift.last+'</p><p>Наиграно '+fmtTime(lib.drift.play)+'</p><div class="hero-actions"><button class="btn btn-primary" data-act="play" data-id="drift">'+ic('play',16)+'Продолжить</button><a class="btn btn-ghost" href="#game-drift">'+ic('save',16)+'Сохранения</a></div></div></section>';
   }
+  h+=consoleBar();
   var tabs=[['all','Все',ids.length],['installed','Установлены',inst.length],['dl','Загружаются',dls.length],['fav','Избранное',ids.filter(function(i){return favs[i];}).length]];
   h+='<div class="chips" role="tablist">'+tabs.map(function(t){return '<button role="tab" aria-selected="'+(libTab===t[0])+'" class="chip'+(libTab===t[0]?' on':'')+'" data-act="libtab" data-t="'+t[0]+'">'+t[1]+' <span class="mono" style="color:var(--muted)">'+t[2]+'</span></button>';}).join('')+'</div>';
   if(libTab==='all'&&list.length){
@@ -290,12 +311,12 @@ function vDownloads(){
 
 function vGame(id){
   var g=byId[id]; if(!g)return '<div class="empty"><h3>Игра не найдена</h3><a class="btn btn-ghost" href="#home">На главную</a></div>';
-  if(g.when)return '<div class="g-hero" style="--glow:'+g.glow+'"><div class="g-hero-art" style="background-image:'+art(g,1600,600,2)+'"></div><div class="g-top"><a class="btn btn-ghost btn-sm btn-icon" href="#home" aria-label="Назад">'+ic('left',18)+'</a></div><div class="g-main"><span class="cover" style="background-image:'+art(g,300,420)+'"></span><div class="g-info"><span class="eyebrow">Скоро · '+g.when+'</span><h1>'+g.title+'</h1><p class="g-dev">'+g.desc+'</p><div class="g-actions">'+actionBtn(g)+'</div></div></div></div>';
+  if(g.when)return '<div class="g-hero" style="--glow:'+g.glow+';'+pvars(g.plat)+'"><div class="g-hero-art" style="background-image:'+art(g,1600,600,2)+'"></div><div class="g-top"><a class="btn btn-ghost btn-sm btn-icon" href="#home" aria-label="Назад">'+ic('left',18)+'</a></div><div class="g-main"><span class="cover" style="background-image:'+art(g,300,420)+'"></span><div class="g-info"><span class="eyebrow">Скоро · '+g.when+'</span><h1>'+g.title+'</h1><p class="g-dev">'+g.desc+'</p><div class="g-actions">'+actionBtn(g)+'</div></div></div></div>';
   var L=lib[id], s=st(id), inst=s==='installed';
-  var h='<div class="g-hero" style="--glow:'+g.glow+'"><div class="g-hero-art" style="background-image:'+art(g,1600,600,2)+'"></div>'+
+  var h='<div class="g-hero" style="--glow:'+g.glow+';'+pvars(g.plat)+'"><div class="g-hero-art" style="background-image:'+art(g,1600,600,2)+'"></div>'+
    '<div class="g-top"><button class="btn btn-ghost btn-sm" data-act="back" aria-label="Назад">'+ic('left',16)+'Назад</button><button class="btn btn-ghost btn-sm btn-icon'+(favs[id]?' fav-on':'')+'" data-act="fav" data-id="'+id+'" aria-label="Избранное">'+ic(favs[id]?'heartf':'heart',18)+'</button></div>'+
    '<div class="g-main"><span class="cover" style="view-transition-name:gcover;background-image:'+art(g,300,420)+'"><span class="fmt">'+g.fmt+'</span></span><div class="g-info"><span class="eyebrow">'+g.genre+' · '+g.year+'</span><h1>'+g.title+'</h1><span class="g-dev">'+g.dev+'</span>'+
-   '<div class="tags">'+compatHtml(g.compat)+g.tags.map(function(t){return '<span class="tag">'+t+'</span>';}).join('')+'</div>'+
+   '<div class="tags"><span class="tag" style="color:var(--acc)">'+PLAT[g.plat].full+'</span>'+compatHtml(g.compat)+g.tags.map(function(t){return '<span class="tag">'+t+'</span>';}).join('')+'</div>'+
    '<div class="g-actions" data-live="'+id+'">'+actionBtn(g).replace('class="btn ','class="btn btn-main ')+(inst?'<button class="btn btn-ghost" data-act="remove" data-id="'+id+'">'+ic('trash',16)+'Удалить</button>':'')+(s&&!inst?'<button class="btn btn-ghost btn-icon" data-act="cancel" data-id="'+id+'" aria-label="Отменить загрузку">'+ic('x',18)+'</button>':'')+'</div></div></div></div>';
   h+='<div class="g-cols"><div style="display:flex;flex-direction:column;gap:22px;min-width:0">';
   h+='<section class="panel"><h2>Об игре</h2><p>'+g.desc+'</p><ul class="feat">'+g.feat.map(function(f){return '<li>'+ic('sparkle',16)+'<span>'+f+'</span></li>';}).join('')+'</ul></section>';
@@ -305,7 +326,8 @@ function vGame(id){
   h+='<section class="panel"><h2>Что нового в версии '+g.ver+'</h2><ul class="changelog"><li><span class="mono">v'+g.ver+'</span><span>Исправлены вылеты при сохранении в некоторых главах, обновлена обложка.</span></li><li><span class="mono">v1.0</span><span>Игра добавлена в каталог NEXUS.</span></li></ul></section>';
   h+='</div><div style="display:flex;flex-direction:column;gap:22px;min-width:0">';
   h+='<section class="panel"><h2>Работа в NEXUS</h2>'+compatHtml(g.compat)+'<div class="meter">'+[1,2,3].map(function(n){return '<i class="'+(n<=g.compat?'on':'')+'"></i>';}).join('')+'</div><p style="font-size:13px">Рекомендуем: рендер ×'+S.res+', '+(S.backend==='vulkan'?'Vulkan':'OpenGL')+'. '+(g.compat<3?'Возможны редкие просадки кадров в насыщенных сценах.':'Игра проходится полностью без проблем.')+'</p><div style="margin-top:14px"><a class="btn btn-ghost btn-sm" href="#options" data-act="settab" data-t="graphics">'+ic('gear',14)+'Настройки для этой игры</a></div></section>';
-  h+='<section class="panel"><h2>Детали</h2><dl class="specs">'+
+  h+='<section class="panel"><h2>Детали</h2><dl class="specs">'+[['Платформа',PLAT[g.plat].full],['Размер',fmtSize(g.size)],['Языки',g.lang],['Игроки',g.players],['Жанр',g.genre],['Год',g.year]].map(function(r){return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>';}).join('')+'</dl>'+
+   '<details class="more"><summary>Технические данные</summary><dl class="specs">'+[['Формат',g.fmt],['Версия образа',g.ver],['Регион',g.region],['ID диска',g.discId],['BIOS',g.plat==='psp'?'не требуется':'нужен свой BIOS'],['В каталоге',g.added]].map(function(r){return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>';}).join('')+'</dl></details></section>';
    [['Размер',fmtSize(g.size)],['Формат',g.fmt],['Версия',g.ver],['Регион',g.region],['Языки',g.lang],['Игроки',g.players],['Жанр',g.genre],['Год',g.year],['ID диска',g.discId],['В каталоге',g.added]].map(function(r){return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>';}).join('')+'</dl></section>';
   h+='</div></div>';
   var sim=G.filter(function(x){return x.genre===g.genre&&x.id!==id;}).concat(G.filter(function(x){return x.compat===g.compat&&x.id!==id&&x.genre!==g.genre;})).slice(0,6);
@@ -320,7 +342,7 @@ function rng_(key,min,max,unit){return '<div class="range"><input type="range" i
 function vSettings(){
   var tabs=[['general','Общие','gear'],['downloads','Загрузки и память','download'],['graphics','Графика','monitor'],['audio','Звук','volume'],['controls','Управление','pad'],['notify','Уведомления','bell'],['about','О приложении','info']];
   var body='';
-  if(setTab==='general'){body=row('Акцентный цвет','Цвет активных элементов и главных кнопок','<div class="swatches">'+Object.keys(ACCENTS).map(function(k){var a=ACCENTS[k];return '<button class="swatch'+(S.accent===k?' on':'')+'" style="background:'+a.neon+';--sw:'+a.neon+'" data-act="set" data-k="accent" data-v="'+k+'" aria-label="'+a.n+'"></button>';}).join('')+'</div>')+
+  if(setTab==='general'){body=row('Цвет интерфейса','Меняется автоматически под выбранную консоль','<span class="chip on">По консоли</span>')+
     row('Язык интерфейса','','<select class="sel" id="sel-lang" data-k="lang"><option value="ru"'+(S.lang==='ru'?' selected':'')+'>Русский</option><option value="en"'+(S.lang==='en'?' selected':'')+'>English</option></select>')+
     row('Стартовый экран','Что открывать при запуске приложения',seg('start',[['home','Главная'],['library','Библиотека'],['last','Последняя игра']]));}
   if(setTab==='downloads'){body=row('Только по Wi-Fi','Не тратить мобильный трафик на игры',sw('wifiOnly'))+row('Одновременных загрузок','Больше — быстрее в сумме, но каждая медленнее',seg('parallel',[['1','1'],['2','2'],['3','3']]))+
@@ -335,7 +357,30 @@ function vSettings(){
   return '<div class="page-head"><div><div class="eyebrow">Приложение NEXUS</div><h1 class="page">Настройки</h1></div></div><div class="set-wrap"><nav class="set-nav" aria-label="Разделы настроек">'+tabs.map(function(t){return '<button class="'+(setTab===t[0]?'on':'')+'" data-act="settab2" data-t="'+t[0]+'">'+ic(t[2],18)+t[1]+'</button>';}).join('')+'</nav><div class="set-group">'+body+'</div></div>';
 }
 
-function pb(st_,inner,label){return '<span class="pb" style="'+st_+'" aria-label="'+label+'">'+inner+'</span>';}
+function pb(st_,inner,label){return '<span class="pb" style="'+st_+'" aria-label="'+label+'">'+inner+'</span>';}function padLayer(){return '<div class="pad-layer" style="--pad-op:'+(S.padOp/100)+';--pad-sc:'+(S.padSc/100)+'">'+
+   pb('left:3%;top:6%;width:13%;height:11%;border-radius:12px 24px 12px 12px;font-size:2.2cqw','L','L')+pb('right:3%;top:6%;width:13%;height:11%;border-radius:24px 12px 12px 12px;font-size:2.2cqw','R','R')+
+   pb('left:9%;top:44%;width:6%;aspect-ratio:1;border-radius:8px','','Вверх')+pb('left:9%;top:calc(44% + 12cqw);width:6%;aspect-ratio:1;border-radius:8px','','Вниз')+
+   pb('left:3%;top:calc(44% + 6cqw);width:6%;aspect-ratio:1;border-radius:8px','','Влево')+pb('left:15%;top:calc(44% + 6cqw);width:6%;aspect-ratio:1;border-radius:8px','','Вправо')+
+   pb('right:10%;top:40%;width:6.5%;aspect-ratio:1;border-radius:50%;font-size:2.4cqw','△','Треугольник')+pb('right:3.5%;top:calc(40% + 6.5cqw);width:6.5%;aspect-ratio:1;border-radius:50%;font-size:2.4cqw','○','Круг')+
+   pb('right:10%;top:calc(40% + 13cqw);width:6.5%;aspect-ratio:1;border-radius:50%;font-size:2.4cqw','✕','Крест')+pb('right:16.5%;top:calc(40% + 6.5cqw);width:6.5%;aspect-ratio:1;border-radius:50%;font-size:2.4cqw','□','Квадрат')+
+   pb('left:40%;bottom:5%;width:8%;height:7%;border-radius:20px;font-size:1.2cqw','SELECT','Select')+pb('left:52%;bottom:5%;width:8%;height:7%;border-radius:20px;font-size:1.2cqw','START','Start')+'</div>';}
+function vPlay(id){
+  var g=byId[id];if(!g)return '';var p=PLAT[g.plat],L=lib[id]||{};
+  var tabs=[['menu','Меню'],['saves','Сохранения'],['opts','Настройки']],body='';
+  if(ptab==='menu')body=[['play_arrow','Продолжить','presume'],['save','Быстрое сохранение','psave'],['restore','Быстрая загрузка','pload'],['photo_camera','Скриншот','pshot'],['restart_alt','Перезапустить','prestart']].map(function(b){return '<button class="press" data-act="'+b[2]+'" data-id="'+id+'"><span class="msr">'+b[0]+'</span>'+b[1]+'</button>';}).join('')+'<button class="press danger" data-act="pexit" data-id="'+id+'"><span class="msr">logout</span>Выйти из игры</button>';
+  if(ptab==='saves')body=[['Быстрое · слот 2',L.last||'—'],['Слот 1','3 дня назад'],['Автосохранение','неделю назад']].map(function(x,i){return '<div class="save"><span class="shot" style="background-image:'+art(g,480,272,30+i)+'"></span><div style="flex:1;min-width:0"><b>'+x[0]+'</b><span>'+x[1]+'</span></div><button class="btn btn-sm btn-ghost" data-act="pload" data-id="'+id+'">Загрузить</button></div>';}).join('')+'<button class="press" data-act="psave" data-id="'+id+'"><span class="msr">add</span>Новое сохранение</button>';
+  if(ptab==='opts')body='<div class="set-group">'+row('Разрешение','',seg('res',[['1','1x'],['2','2x'],['4','4x']]))+row('Соотношение','',seg('ratio',[['169','16:9'],['235','2.35:1']]))+row('Счётчик FPS','',sw('fps'))+row('Прозрачность кнопок','',rng_('padOp',15,100,'%'))+'</div>';
+  return '<div class="play'+(playLoaded[id]?'':' loading')+(playPaused?' paused':'')+(S.ratio==='235'?' r235':'')+'" id="play" data-id="'+id+'" style="'+pvars(g.plat)+'">'+
+   '<div class="play-game" style="background-image:'+art(g,1600,900,9)+'"></div>'+(S.fps?'<span class="play-fps">60 FPS</span>':'')+padLayer()+
+   '<div class="play-top"><button class="btn btn-sm btn-icon" data-act="pmenu" aria-label="Пауза и меню"><span class="msr">pause</span></button></div>'+
+   '<aside class="sheet" aria-label="Меню паузы"><div class="sheet-head"><b>'+g.title+'</b><button class="btn btn-sm btn-icon btn-ghost" data-act="pmenu" aria-label="Закрыть меню"><span class="msr">close</span></button></div>'+
+   '<div class="sheet-tabs">'+tabs.map(function(t){return '<button class="'+(ptab===t[0]?'on':'')+'" data-act="ptab" data-t="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</div><div class="sheet-body">'+body+'</div></aside>'+
+   '<div class="loader">'+(g.plat==='psp'?'<div class="umd">UMD</div>':'<div class="disc"></div>')+'<b>'+g.title+'</b><span>Запуск · '+p.full+'</span></div></div>';
+}
+function vConsoles(){
+  return '<div class="page-head"><div><div class="eyebrow">Платформы</div><h1 class="page">Консоли</h1></div></div><div class="cgrid">'+PKEYS.slice(1).map(function(k){var p=PLAT[k],all=G.filter(function(g){return g.plat===k;}),inst=all.filter(function(g){return st(g.id)==='installed';}),used=inst.reduce(function(a,g){return a+g.size;},0);
+    return '<button class="ccard'+(plat===k?' on':'')+'" data-act="platgo" data-p="'+k+'" style="'+pvars(k)+'"><span class="art-svg">'+p.icon+'</span><span class="eyebrow" style="color:'+p.c+'">'+p.year+'</span><h3>'+p.full+'</h3><p>'+p.desc+'</p><span class="cstats"><span>Доступно <b>'+all.length+'</b></span><span>Установлено <b>'+inst.length+'</b></span><span>Занято <b>'+fmtSize(used)+'</b></span></span></button>';}).join('')+'</div>';
+}
 function vGamepad(){
   var g=byId.drift, compact=S.padLayout==='compact';
   var y=compact?'58%':'48%';
@@ -387,11 +432,14 @@ function render(keepScroll){
   var r=route(), base=r.indexOf('game-')===0?'game':r, html;
   if(base==='home')html=vHome();else if(base==='library')html=vLibrary();else if(base==='catalog')html=vCatalog();else if(base==='favorites')html=vFavorites();
   else if(base==='dl')html=vDownloads();else if(base==='options')html=vSettings();else if(base==='gamepad')html=vGamepad();else if(base==='profile')html=vProfile();
-  else if(base==='game')html=vGame(r.slice(5));else html=vHome();
+  else if(base==='game')html=vGame(r.slice(5));else if(r.indexOf('play-')===0){base='play';html=vPlay(r.slice(5));}else if(base==='consoles')html=vConsoles();else html=vHome();
   var sc=viewBox.scrollTop; view.innerHTML=html; if(keepScroll)viewBox.scrollTop=sc;
   var navKey=base==='game'?'':base==='gamepad'?'':base;
   document.querySelectorAll('[data-nav]').forEach(function(a){var on=a.getAttribute('data-nav')===navKey;a.classList.toggle('active',on);if(on)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   updateBadge();
+  document.body.classList.toggle('playing',base==='play');
+  paintPlat(base==='game'&&byId[r.slice(5)]?byId[r.slice(5)].plat:base==='play'&&byId[r.slice(5)]?byId[r.slice(5)].plat:plat);
+  if(base==='play'&&!playLoaded[r.slice(5)]){var pid=r.slice(5);setTimeout(function(){playLoaded[pid]=true;var el=document.getElementById('play');if(el)el.classList.remove('loading');},1700);}
   if(base==='home')initStage();
   else if(base==='game'&&byId[r.slice(5)])setAmbient(byId[r.slice(5)]);
   else if(base==='library'){var f=stageIds()[0];if(f)setAmbient(byId[f]);}
@@ -447,7 +495,7 @@ document.addEventListener('click',function(e){
   else if(a==='startnow'){Object.keys(lib).forEach(function(i){if(lib[i].status==='downloading')lib[i].status='queued';});lib[id].status='downloading';lib[id].speed=10;render(true);}
   else if(a==='cancel'){delete lib[id];pump();toast('Загрузка «'+g.title+'» отменена');render(true);}
   else if(a==='remove'){delete lib[id];toast(ic('trash',16)+'«'+g.title+'» удалена с устройства');render(true);}
-  else if(a==='play'){toast(ic('play',16)+'Запуск «'+g.title+'»… Эмулятор будет подключён позже');}
+  else if(a==='play'){playPaused=false;ptab='menu';location.hash='play-'+id;}
   else if(a==='fav'){e.preventDefault();favs[id]=!favs[id];toast(favs[id]?ic('heartf',16,' style="color:var(--hot)"')+'Добавлено в избранное':'Убрано из избранного');render(true);}
   else if(a==='watch'){soonWatch[id]=!soonWatch[id];toast(soonWatch[id]?'Пришлём уведомление о выходе «'+g.title+'»':'Напоминание отключено');render(true);}
   else if(a==='hero'){heroIdx=+t.getAttribute('data-i');render(true);restartHero();}
@@ -461,6 +509,16 @@ document.addEventListener('click',function(e){
   else if(a==='set'){var k2=t.getAttribute('data-k');S[k2]=t.getAttribute('data-v');saveS();if(k2==='accent')applyAccent();if(k2==='parallel')pump();render(true);}
   else if(a==='padreset'){['padOp','padSc','padLayout','padEdit'].forEach(function(k){S[k]=defaults[k];});saveS();render(true);toast('Раскладка сброшена');}
   else if(a==='toast'){toast(t.getAttribute('data-msg'));}
+  else if(a==='plat'){plat=t.getAttribute('data-p');try{localStorage.setItem('nexus-plat',plat);}catch(e){}paintPlat();render(true);}
+  else if(a==='platgo'){plat=t.getAttribute('data-p');try{localStorage.setItem('nexus-plat',plat);}catch(e){}paintPlat();location.hash='home';}
+  else if(a==='pmenu'){playPaused=!playPaused;var pl=document.getElementById('play');if(pl)pl.classList.toggle('paused',playPaused);}
+  else if(a==='ptab'){ptab=t.getAttribute('data-t');render(true);}
+  else if(a==='presume'){playPaused=false;document.getElementById('play').classList.remove('paused');}
+  else if(a==='psave'){toast(ic('save',18)+'Сохранено в слот 3');}
+  else if(a==='pload'){playPaused=false;toast(ic('restore',18)+'Сохранение загружено');render(true);}
+  else if(a==='pshot'){toast(ic('photo_camera',18)+'Скриншот сохранён в галерею');}
+  else if(a==='prestart'){playLoaded[id]=false;playPaused=false;render(true);}
+  else if(a==='pexit'){playPaused=false;location.hash='game-'+id;}
   else if(a==='gal'){var m=document.getElementById('galMain');m.style.backgroundImage=t.style.backgroundImage;m.setAttribute('data-i',t.getAttribute('data-i'));
     document.querySelectorAll('.gal-th').forEach(function(x){x.classList.toggle('on',x===t);});}
   else if(a==='lb'){openLb(id,+t.getAttribute('data-i'));}
@@ -570,7 +628,7 @@ document.addEventListener('click',function(e){if(e.defaultPrevented)return;var l
 (function(){var items=G.slice(0,6).map(function(g){return '<span><em>▲</em> НОВИНКА · <b>'+g.title.toUpperCase()+'</b> · '+g.genre+'</span>';});
   items.push('<span><em>●</em> NEXUS 0.3.1 · улучшена совместимость</span>','<span><em>■</em> СКОРО · <b>ЗВЁЗДНЫЙ КУРЬЕР</b> · декабрь</span>');
   var t=items.join('');document.getElementById('tickerTrack').innerHTML=t+t;})();
-document.addEventListener('pointerdown',function(e){var t=e.target.closest('.btn,.chip,.nav-item .msr,.rail-fs .msr,.tool,.set-nav button,.seg button,.preset,.recent a,.pop-row,.link-btn,.sec-head>a');if(!t)return;
+document.addEventListener('pointerdown',function(e){var t=e.target.closest('.btn,.chip,.con,.press,.ccard,.nav-item .msr,.rail-fs .msr,.tool,.set-nav button,.seg button,.preset,.recent a,.pop-row,.link-btn,.sec-head>a');if(!t)return;
   t.classList.add('rp');var r=t.getBoundingClientRect(),d=Math.max(r.width,r.height)*2.2,s=document.createElement('span');s.className='ripple';
   s.style.width=s.style.height=d+'px';s.style.left=(e.clientX-r.left-d/2)+'px';s.style.top=(e.clientY-r.top-d/2)+'px';t.appendChild(s);setTimeout(function(){s.remove();},520);});
 applyAccent(); pump(); render(); restartHero();
