@@ -394,7 +394,7 @@ function initPick(){
     paintPlat(cards[best].getAttribute('data-p'));if(S.haptic&&navigator.vibrate)try{navigator.vibrate(8);}catch(e){}}
   tr.addEventListener('scroll',function(){if(!raf)raf=requestAnimationFrame(pick);},{passive:true});
   tr.addEventListener('click',function(e){var c=e.target.closest('.pk-card');if(c&&!c.classList.contains('on')){e.preventDefault();e.stopPropagation();tr.scrollTo({left:c.offsetLeft+c.offsetWidth/2-tr.clientWidth/2,behavior:'smooth'});}},true);
-  var start=Math.max(0,cards.findIndex(function(c){return c.getAttribute('data-p')===plat;}));
+  var start=plat==='all'?0:Math.max(0,cards.findIndex(function(c){return c.getAttribute('data-p')===plat;}));
   tr.scrollLeft=cards[start].offsetLeft+cards[start].offsetWidth/2-tr.clientWidth/2;pick();
 }
 function vConsoles(){

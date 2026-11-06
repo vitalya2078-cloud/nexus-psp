@@ -463,3 +463,5 @@ body.picking .con-switch{display:none}
 .pk-dots i{width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,.2);transition:width .3s,background .3s}
 .pk-dots i.on{width:22px;background:var(--acc)}
 @media (max-height:480px){.pk-card{height:200px;flex-basis:250px}.pk-track{padding-inline:calc(50% - 125px)}.pk-art{height:80px;top:16px}}
+.pk-go{top:16px;bottom:auto}
+.pk-card{justify-content:flex-end}
