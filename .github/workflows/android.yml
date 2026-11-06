@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,3 +47,13 @@ jobs:
           name: nexus-psp-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish APK as direct download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk nexus.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest nexus.apk --prerelease --target "$GITHUB_SHA" \
+            --title "NEXUS — последняя сборка" \
+            --notes "Сборка ${GITHUB_SHA::7} из ветки ${GITHUB_REF_NAME}"
