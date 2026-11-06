@@ -473,3 +473,8 @@ svg.i.ph{fill:currentColor;stroke:none}
 .ach div.off .ach-ic{filter:grayscale(1) brightness(.55)}
 .ach div.off span{color:var(--ink3)}
 :root[data-theme="light"] .ill,:root[data-theme="light"] .onb-ill,:root[data-theme="light"] .conhead-img,:root[data-theme="light"] .bios-ill{filter:drop-shadow(0 6px 10px rgba(0,0,0,.18))}
+
+/* Solar: у иконок свои атрибуты stroke/fill; duotone-часть — стальной синий */
+svg.i.sol{fill:none;stroke:none}
+svg.i.sol.duo [opacity]{fill:var(--acc);stroke:var(--acc);opacity:.9}
+.qt.on svg.i.sol.duo [opacity]{fill:var(--acc);opacity:1}
