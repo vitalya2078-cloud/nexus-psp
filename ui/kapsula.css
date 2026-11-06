@@ -446,3 +446,6 @@ svg.i{width:22px;height:22px;flex-shrink:0;fill:none;stroke:currentColor;stroke-
 .ctx-i.bad{color:var(--bad)}
 .card,.cc{-webkit-touch-callout:none;user-select:none}
 .banner span{line-height:1.45}
+
+/* Phosphor icons: заливка вместо обводки */
+svg.i.ph{fill:currentColor;stroke:none}
