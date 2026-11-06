@@ -469,3 +469,4 @@ body.picking .con-switch{display:none}
 .pk-go{top:auto;bottom:18px;right:16px;width:38px;height:38px;padding:0;border-radius:19px;justify-content:center;font-size:0;gap:0}
 .pk-go .msr{font-size:22px}
 .pk-txt{padding-right:46px}
+.in-app .rail-fs{display:none!important}

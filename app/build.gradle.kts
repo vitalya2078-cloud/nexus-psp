@@ -21,8 +21,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.3.0"
+        versionCode = 3
+        versionName = "0.4.0"
 
         externalNativeBuild {
             cmake {
@@ -38,6 +38,13 @@ android {
     buildTypes {
         getByName("debug") {
             signingConfig = signingConfigs.getByName("nexusStable")
+        }
+    }
+
+    // интерфейс из docs/ упаковывается в assets/web
+    sourceSets {
+        getByName("main") {
+            assets.srcDir(layout.buildDirectory.dir("generated/webAssets"))
         }
     }
 
@@ -71,5 +78,14 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.webkit:webkit:1.12.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
+
+val copyWebAssets by tasks.registering(Copy::class) {
+    from(rootProject.file("docs")) {
+        include("index.html", "styles.css", "app.js")
+    }
+    into(layout.buildDirectory.dir("generated/webAssets/web"))
+}
+tasks.named("preBuild") { dependsOn(copyWebAssets) }

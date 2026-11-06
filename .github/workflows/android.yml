@@ -3,7 +3,7 @@ name: Build NEXUS PSP APK
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "ccr-30f02f17-ph3ie4" ]
 
 jobs:
   build:
