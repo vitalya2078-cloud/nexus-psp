@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#0B0C0F">
 <meta name="mobile-web-app-capable" content="yes">
 <title>KAPSULA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="nexus.css?v=5">
+<link rel="stylesheet" href="kapsula.css?v=3">
 </head>
 <body>
 <div id="bg" class="bg" aria-hidden="true"><i></i><i></i></div>
@@ -23,17 +23,15 @@
   </nav>
   <div class="top-r">
     <a class="ib" href="#search" aria-label="Поиск" data-i="search"></a>
-    <a class="ib dl" href="#downloads" aria-label="Загрузки" id="dlBtn"></a>
-    <a class="ib" href="#pad" aria-label="Экранный геймпад" data-i="pad"></a>
-    <a class="ib" href="#alerts" aria-label="Уведомления" id="alertBtn"></a>
-    <a class="ib" href="#settings" aria-label="Настройки" data-i="gear"></a>
+    <a class="ib" href="#downloads" aria-label="Загрузки" id="dlBtn"></a>
+    <a class="ib" href="#quick" aria-label="Быстрая панель" id="quickBtn"></a>
     <a class="me" href="#profile" aria-label="Профиль">N</a>
-    <span class="clock" id="clock"></span>
   </div>
 </header>
 
 <main id="page" class="page"></main>
 <div id="layer" class="layer"></div>
+<div id="mini" class="mini" aria-live="polite"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <div class="turn" id="turn" role="dialog" aria-label="Поверни телефон">
@@ -43,6 +41,6 @@
   <button class="b b-glass" id="turnSkip" type="button">Всё равно открыть</button>
 </div>
 
-<script src="nexus.js?v=5"></script>
+<script src="kapsula.js?v=2"></script>
 </body>
 </html>
