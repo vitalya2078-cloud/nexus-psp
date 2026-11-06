@@ -116,10 +116,10 @@ var SOON=[
 ];
 var byId={};G.concat(SOON).forEach(function(g){byId[g.id]=g;g.glow=g.pal[2];});
 var PLAT={
- all:{n:'Все',c:'#E8EAF0',c2:'#9AA3B5',ink:'#121316',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>'},
- psp:{n:'PSP',full:'PlayStation Portable',year:2004,desc:'Портативная консоль. Игры на UMD-дисках',c:'#5ED8FF',c2:'#2A8FE0',ink:'#04131D',icon:'<svg viewBox="0 0 48 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="3" width="44" height="18" rx="9"/><rect x="15" y="6.5" width="18" height="11" rx="1.5"/><circle cx="8.5" cy="12" r="2.2"/><circle cx="39.5" cy="12" r="2.2"/></svg>'},
- ps1:{n:'PS1',full:'PlayStation',year:1994,desc:'Первая PlayStation. Игры на CD',c:'#B9AEFF',c2:'#7A6BEA',ink:'#120C2E',icon:'<svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="6" width="42" height="22" rx="3"/><circle cx="24" cy="15" r="6"/><path d="M8 24h6M34 24h6"/></svg>'},
- ps2:{n:'PS2',full:'PlayStation 2',year:2000,desc:'Самая продаваемая консоль. Игры на DVD',c:'#7B95FF',c2:'#3550E8',ink:'#060D2E',icon:'<svg viewBox="0 0 32 40" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3h16l3 34H5z"/><path d="M8 12h16M9 20h14"/></svg>'}
+ all:{n:'Все',c:'#FF6A2B',c2:'#FF8F5C',ink:'#1A0B03',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>'},
+ psp:{n:'PSP',full:'PlayStation Portable',year:2004,desc:'Портативная консоль. Игры на UMD-дисках',c:'#6FD3FF',c2:'#3AA8DD',ink:'#03141C',icon:'<svg viewBox="0 0 48 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="3" width="44" height="18" rx="9"/><rect x="15" y="6.5" width="18" height="11" rx="1.5"/><circle cx="8.5" cy="12" r="2.2"/><circle cx="39.5" cy="12" r="2.2"/></svg>'},
+ ps1:{n:'PS1',full:'PlayStation',year:1994,desc:'Первая PlayStation. Игры на CD',c:'#8E86E8',c2:'#5A52CF',ink:'#FFFFFF',icon:'<svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="6" width="42" height="22" rx="3"/><circle cx="24" cy="15" r="6"/><path d="M8 24h6M34 24h6"/></svg>'},
+ ps2:{n:'PS2',full:'PlayStation 2',year:2000,desc:'Самая продаваемая консоль. Игры на DVD',c:'#6E8BFF',c2:'#3E5BE0',ink:'#060B22',icon:'<svg viewBox="0 0 32 40" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3h16l3 34H5z"/><path d="M8 12h16M9 20h14"/></svg>'}
 };
 var PKEYS=['all','psp','ps1','ps2'];
 var PMAP={drift:'psp',rubezh:'ps2',orbit:'psp',ash:'ps1',rhythm:'psp',shards:'ps1',deep:'ps2',fist:'ps2',forest:'ps1',pixel:'psp',courier:'psp',code:'ps2'};
@@ -129,7 +129,7 @@ var plat='all';try{plat=localStorage.getItem('nexus-plat')||'all';}catch(e){}if(
 var playLoaded={},playPaused=false,ptab='menu';
 function pfilter(list){return plat==='all'?list:list.filter(function(g){return g.plat===plat;});}
 function pvars(k){var p=PLAT[k]||PLAT.all;return '--pc:'+p.c+';--pc2:'+p.c2;}
-function paintPlat(k){var p=PLAT[k||plat]||PLAT.all,s=document.documentElement.style;s.setProperty('--acc',p.c);s.setProperty('--acc2',p.c2);s.setProperty('--acc-ink',p.ink);}
+function paintPlat(k){var w=PLAT[k||plat]?(k||plat):'all';var r=document.documentElement;['--acc','--acc2','--acc-ink'].forEach(function(p){r.style.removeProperty(p);});if(w==='all')r.removeAttribute('data-world');else r.setAttribute('data-world',w);var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',getComputedStyle(r).getPropertyValue('--bg').trim()||'#16171A');}
 function consoleBar(){return '';}
 function consoleBarOld(){return '<div class="consoles" role="tablist" aria-label="Консоли">'+PKEYS.map(function(k){var p=PLAT[k],n=k==='all'?G.length:G.filter(function(g){return g.plat===k;}).length;
   return '<button role="tab" aria-selected="'+(plat===k)+'" class="con'+(plat===k?' on':'')+'" data-act="plat" data-p="'+k+'" style="'+pvars(k)+'"><span class="con-ic">'+p.icon+'</span><span class="con-txt"><b>'+p.n+'</b><small>'+n+'</small></span></button>';}).join('')+
@@ -380,16 +380,15 @@ function vPlay(id){
    '<div class="loader">'+(g.plat==='psp'?'<div class="umd">UMD</div>':'<div class="disc"></div>')+'<b>'+g.title+'</b><span>Запуск · '+p.full+'</span></div></div>';
 }
 function vPick(){
-  var ids=stageIds(),html='<div class="picker">';
+  var ids=stageIds(),html='<div class="picker"><div class="pk-top"><div><span class="eyebrow">NEXUS · выбор системы</span><h1>Во что играем?</h1></div>';
   if(ids.length){var g=byId[ids.indexOf('drift')>=0?'drift':ids[0]],L=lib[g.id];
     html+='<div class="pk-resume" style="'+pvars(g.plat)+'"><span class="cover" style="background-image:'+art(g,300,420)+'"></span><span class="pk-r-txt"><span class="eyebrow">Продолжить · '+PLAT[g.plat].n+'</span><b>'+g.title+'</b><span>'+L.last+' · '+fmtTime(L.play)+'</span></span><button class="btn btn-primary btn-sm" data-act="play" data-id="'+g.id+'">'+ic('play',18)+'Играть</button></div>';}
-  html+='<div class="pk-track" id="pkTrack">'+PKEYS.slice(1).concat(['all']).map(function(k){var p=PLAT[k],all=k==='all'?G:G.filter(function(g){return g.plat===k;}),inst=all.filter(function(g){return st(g.id)==='installed';});
-    return '<button class="pk-card" data-act="platgo" data-p="'+k+'" style="'+pvars(k)+'"><span class="pk-art">'+p.icon+'</span><span class="pk-txt"><span class="pk-year">'+(p.year||'Все платформы')+'</span><b>'+(p.full||'Все игры')+'</b><span class="pk-stats">'+all.length+' игр · '+inst.length+' установлено</span></span><span class="pk-go">Открыть'+ic('right',18)+'</span></button>';}).join('')+'</div>'+
-   '<div class="pk-dots" id="pkDots">'+PKEYS.slice(1).concat(['all']).map(function(k){return '<i data-p="'+k+'"></i>';}).join('')+'</div></div>';
+  html+='</div><div class="pk-grid">'+PKEYS.slice(1).concat(['all']).map(function(k){var p=PLAT[k],all=k==='all'?G:G.filter(function(g){return g.plat===k;}),inst=all.filter(function(g){return st(g.id)==='installed';});
+    return '<button class="dev dev-'+k+'" data-act="platgo" data-p="'+k+'" style="'+pvars(k)+'"><span class="dev-head"><span>'+(p.year||'Каталог')+'</span><span class="led"></span></span><span class="dev-art">'+p.icon+'</span><span><b>'+(p.full||'Все игры')+'</b><small>'+all.length+' игр · '+inst.length+' уст.</small></span><span class="dev-go">'+ic('right',20)+'</span></button>';}).join('')+'</div></div>';
   return html;
 }
 function initPick(){
-  var tr=document.getElementById('pkTrack');if(!tr)return;var cards=[].slice.call(tr.querySelectorAll('.pk-card')),dots=[].slice.call(document.querySelectorAll('#pkDots i')),cur=-1,raf=0;
+  var tr=document.getElementById('pkTrack');if(!tr){paintPlat('all');return;}var cards=[].slice.call(tr.querySelectorAll('.pk-card')),dots=[].slice.call(document.querySelectorAll('#pkDots i')),cur=-1,raf=0;
   function pick(){raf=0;var c=tr.scrollLeft+tr.clientWidth/2,best=0,bd=1e9;cards.forEach(function(el,i){var d=Math.abs(el.offsetLeft+el.offsetWidth/2-c);if(d<bd){bd=d;best=i;}});
     if(best===cur)return;cur=best;cards.forEach(function(el,i){el.classList.toggle('on',i===best);});dots.forEach(function(d,i){d.classList.toggle('on',i===best);});
     paintPlat(cards[best].getAttribute('data-p'));if(S.haptic&&navigator.vibrate)try{navigator.vibrate(8);}catch(e){}}
