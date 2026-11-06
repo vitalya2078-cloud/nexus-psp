@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07080D">
+<meta name="mobile-web-app-capable" content="yes">
+<title>NEXUS PSP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tektur:wght@500;700;800&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <nav class="rail" id="rail" aria-label="Основное меню">
+    <div class="rail-head">
+      <a class="logo" href="#home" aria-label="NEXUS, на главную">
+        <span class="logo-mark">N</span>
+        <span class="logo-word">NEXUS<small>PSP · 0.3.0</small></span>
+      </a>
+      <button class="icon-btn rail-toggle" id="railToggle" aria-label="Свернуть меню"></button>
+    </div>
+    <a class="nav-item" data-nav="home" href="#home"><span data-ic="home"></span><span class="nav-label">Главная</span></a>
+    <a class="nav-item" data-nav="library" href="#library"><span data-ic="lib"></span><span class="nav-label">Библиотека</span></a>
+    <a class="nav-item" data-nav="catalog" href="#catalog"><span data-ic="store"></span><span class="nav-label">Каталог</span></a>
+    <a class="nav-item" data-nav="favorites" href="#favorites"><span data-ic="heart"></span><span class="nav-label">Избранное</span></a>
+    <a class="nav-item" data-nav="dl" href="#dl"><span data-ic="download"></span><span class="nav-label">Загрузки</span><span class="nav-badge" id="dlBadge" hidden>0</span></a>
+    <div class="rail-spacer"></div>
+    <a class="nav-item" data-nav="options" href="#options"><span data-ic="gear"></span><span class="nav-label">Настройки</span></a>
+    <button class="rail-fs" id="fsBtn" type="button" aria-label="На весь экран"><span data-ic="expand"></span><span>На весь экран</span></button>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="search">
+        <label for="q"><span data-ic="search"></span><input id="q" type="search" placeholder="Поиск игр, жанров…" autocomplete="off"><kbd>/</kbd></label>
+        <div class="pop" id="pop" hidden></div>
+      </div>
+      <div class="top-spacer"></div>
+      <a class="tool pad" href="#gamepad" aria-label="Настройка экранного геймпада"><span data-ic="pad"></span><span class="tool-label">Геймпад</span></a>
+      <button class="tool" id="bellBtn" aria-label="Уведомления" aria-expanded="false"><span data-ic="bell"></span><span class="dot" id="bellDot"></span></button>
+      <a class="avatar" href="#profile" aria-label="Профиль">N</a>
+      <div class="notif" id="notif" hidden></div>
+    </header>
+    <div class="view" id="view"><div class="view-inner" id="viewInner"></div></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="rotate" id="rotate" role="dialog" aria-label="Поверни телефон">
+  <span class="phone-ic"><svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span>
+  <h2>Поверни телефон</h2>
+  <p>NEXUS рассчитан на горизонтальную ориентацию, как игровая консоль.</p>
+  <button class="btn btn-ghost" id="rotateSkip" type="button">Всё равно открыть</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
