@@ -38,7 +38,7 @@ grid4:'<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="
 };
 var MS={home:'home',lib:'grid_view',store:'storefront',heart:'favorite',heartf:'favorite',download:'download',gear:'settings',search:'search',pad:'sports_esports',bell:'notifications',left:'arrow_back',right:'chevron_right',play:'play_arrow',pause:'pause',x:'close',check:'check',cloud:'cloud',trophy:'trophy',clock:'schedule',save:'save',trash:'delete',plus:'add',folder:'folder',wifi:'wifi',info:'info',monitor:'monitor',volume:'volume_up',sparkle:'auto_awesome',bolt:'bolt',user:'person',phone:'smartphone',star:'star',bell2:'notifications',grid4:'grid_view',expand:'fullscreen'};
 var MSFILL={heartf:1,play:1,star:1};
-function ic(n,s,extra){var c=(extra||'').match(/color:([^;"]+)/);return '<span class="msr'+(MSFILL[n]?' fill':'')+'" aria-hidden="true" style="font-size:'+(s||20)+'px'+(c?';color:'+c[1]:'')+'">'+(MS[n]||n)+'</span>';}
+function ic(n,s,extra){var c=(extra||'').match(/color:([^;"]+)/);return '<span class="msr notranslate'+(MSFILL[n]?' fill':'')+'" translate="no" aria-hidden="true" style="font-size:'+(s||20)+'px'+(c?';color:'+c[1]:'')+'">'+(MS[n]||n)+'</span>';}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 
 /* ---------- procedural cover art ---------- */

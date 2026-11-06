@@ -418,3 +418,14 @@ body.playing .view-inner{max-width:none;height:100%;gap:0}
 @media (min-width:1100px){.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 ::view-transition-old(gcover),::view-transition-new(gcover){animation-duration:.3s;animation-timing-function:cubic-bezier(.2,0,0,1)}
+/* низкий экран телефона в альбомной: компактное меню, чтобы влезли все пункты */
+@media (max-height:480px){
+  .rail{padding:8px 0;gap:0}
+  .rail-head{margin-bottom:4px}
+  .logo-mark{width:38px;height:38px;border-radius:12px;font-size:18px}
+  .nav-item,.rail-fs{min-height:50px;gap:2px;font-size:10.5px}
+  .nav-item .msr,.rail-fs .msr{height:28px}
+  .rail-fs span:last-child{display:none}
+}
+.ccard .cstats span{white-space:nowrap}
+.ccard .cstats{flex-wrap:wrap;row-gap:4px}
