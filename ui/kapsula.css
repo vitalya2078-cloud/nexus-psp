@@ -495,3 +495,16 @@ svg.i.sol.duo [opacity]{fill:var(--acc);stroke:var(--acc);opacity:.9}
 .dlk.paused .dlk-fill{background:var(--warn)}
 .dlk.paused .dlk-pc{color:var(--warn);font-weight:700}
 @keyframes dlkBob{0%,100%{transform:translateY(-1.5px)}50%{transform:translateY(1.5px)}}
+
+/* v0.8.4: простой индикатор — иконка, тонкая полоска, проценты */
+.dlb{display:flex;align-items:center;gap:8px;color:var(--ink)}
+.dlb svg.i{color:var(--acc)}
+.dlb-track{position:relative;width:64px;height:4px;border-radius:2px;background:var(--s3);overflow:hidden}
+.dlb-track i{position:absolute;inset:0;border-radius:2px;background:var(--acc);transform-origin:left center;transform:scaleX(.03);transition:transform .6s linear}
+.dlb-track i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);background-size:40% 100%;background-repeat:no-repeat;animation:dlbRun 1.4s linear infinite}
+.dlb-pc{min-width:34px;font-size:12px;font-weight:800}
+.dlb.paused svg.i{color:var(--warn)}
+.dlb.paused .dlb-track i{background:var(--warn)}
+.dlb.paused .dlb-track i::after{animation:none;opacity:0}
+.dlb.paused .dlb-pc{color:var(--warn);font-weight:700}
+@keyframes dlbRun{from{background-position:-60% 0}to{background-position:160% 0}}

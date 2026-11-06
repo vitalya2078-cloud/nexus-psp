@@ -490,14 +490,13 @@ function topState() {
   var b = document.getElementById('dlBtn'), busy = a.length > 0;
   if (busy !== dlBusy) {
     dlBusy = busy; b.classList.toggle('busy', busy);
-    b.innerHTML = busy ? '<span class="dlk"><span class="dlk-cap"><span class="dlk-fill"></span><span class="dlk-l"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v6M3.3 5.6 6 8.3l2.7-2.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="dlk-mid"></span><span class="dlk-r"><b></b><b></b><b></b></span></span><span class="dlk-pc num"></span></span>' : I('dl', 20);
+    b.innerHTML = busy ? '<span class="dlb">' + I('dl', 18) + '<span class="dlb-track"><i></i></span><span class="dlb-pc num"></span></span>' : I('dl', 20);
   }
   if (busy) {
-    var cap = b.querySelector('.dlk');
-    cap.classList.toggle('paused', !!paused);
-    b.querySelector('.dlk-fill').style.transform = 'scaleX(' + Math.max(0.04, pr / 100).toFixed(3) + ')';
-    b.querySelectorAll('.dlk-r b').forEach(function (l, i) { l.classList.toggle('on', pr >= (i + 1) * 33); });
-    b.querySelector('.dlk-pc').textContent = paused ? 'пауза' : Math.floor(pr) + '%';
+    var bar = b.querySelector('.dlb');
+    bar.classList.toggle('paused', !!paused);
+    bar.querySelector('.dlb-track i').style.transform = 'scaleX(' + Math.max(0.03, pr / 100).toFixed(3) + ')';
+    bar.querySelector('.dlb-pc').textContent = paused ? 'пауза' : Math.floor(pr) + '%';
   }
   b.setAttribute('aria-label', busy ? 'Загрузки: ' + a.length + ', ' + Math.floor(pr) + '%' : 'Загрузки');
   var qb = document.getElementById('quickBtn'), unread = alerts.some(function (x) { return x.u; });
