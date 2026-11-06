@@ -432,3 +432,4 @@ body.playing .view-inner{max-width:none;height:100%;gap:0}
 .in-app .rail-fs{display:none!important}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 ::view-transition-old(gcover),::view-transition-new(gcover){animation-duration:.3s}
+.dev small{padding-right:40px}
