@@ -4,62 +4,45 @@
 <meta charset="utf-8">
 <meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#16171A">
+<meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
 <title>NEXUS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block">
-<link rel="stylesheet" href="styles.css?v=12">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="nexus.css?v=2">
 </head>
 <body>
-<div class="app">
-  <nav class="rail" id="rail" aria-label="Основное меню">
-    <div class="rail-head">
-      <a class="logo" href="#pick" aria-label="NEXUS, на главную">
-        <span class="logo-mark">N</span>
-        <span class="logo-word">NEXUS<small>EMU · 0.3.0</small></span>
-      </a>
-      <button class="icon-btn rail-toggle" id="railToggle" aria-label="Свернуть меню"></button>
-    </div>
-    <a class="nav-item" data-nav="home" href="#home"><span data-ic="home"></span><span class="nav-label">Главная</span></a>
-    <a class="nav-item" data-nav="library" href="#library"><span data-ic="lib"></span><span class="nav-label">Библиотека</span></a>
-    <a class="nav-item" data-nav="catalog" href="#catalog"><span data-ic="store"></span><span class="nav-label">Каталог</span></a>
-    <a class="nav-item" data-nav="favorites" href="#favorites"><span data-ic="heart"></span><span class="nav-label">Избранное</span></a>
-    <a class="nav-item" data-nav="dl" href="#dl"><span data-ic="download"></span><span class="nav-label">Загрузки</span><span class="nav-badge" id="dlBadge" hidden>0</span></a>
-    <div class="rail-spacer"></div>
-    <a class="nav-item" data-nav="options" href="#options"><span data-ic="gear"></span><span class="nav-label">Настройки</span></a>
-    <button class="rail-fs" id="fsBtn" type="button" aria-label="На весь экран"><span data-ic="expand"></span><span>На весь экран</span></button>
+<div id="bg" class="bg" aria-hidden="true"><i></i><i></i></div>
+
+<header class="top">
+  <div class="brand" aria-label="NEXUS">N</div>
+  <nav class="tabs" aria-label="Разделы">
+    <a href="#games" data-tab="games">Игры</a>
+    <a href="#store" data-tab="store">Магазин</a>
   </nav>
-
-  <div class="main">
-    <div class="ambient" aria-hidden="true"><span id="ambA"></span><span id="ambB"></span></div>
-    <header class="topbar">
-      <a class="con-switch" id="conSwitch" href="#pick" aria-label="Сменить консоль"></a>
-      <div class="search">
-        <label for="q"><span data-ic="search"></span><input id="q" type="search" placeholder="Поиск игр, жанров…" autocomplete="off"><kbd>/</kbd></label>
-        <div class="pop" id="pop" hidden></div>
-      </div>
-      <div class="top-spacer"></div>
-      <a class="tool pad" href="#gamepad" aria-label="Настройка экранного геймпада"><span data-ic="pad"></span><span class="tool-label">Геймпад</span></a>
-      <button class="tool" id="bellBtn" aria-label="Уведомления" aria-expanded="false"><span data-ic="bell"></span><span class="dot" id="bellDot"></span></button>
-      <a class="avatar" href="#profile" aria-label="Профиль">N</a>
-      <div class="notif" id="notif" hidden></div>
-    </header>
-    <div class="ticker" aria-hidden="true"><span class="ticker-live"><i></i>LIVE</span><div class="ticker-win"><div class="ticker-track" id="tickerTrack"></div></div></div>
-    <div class="view" id="view"><div class="view-inner" id="viewInner"></div></div>
+  <div class="top-r">
+    <a class="ib" href="#search" aria-label="Поиск" data-i="search"></a>
+    <a class="ib dl" href="#downloads" aria-label="Загрузки" id="dlBtn"></a>
+    <a class="ib" href="#pad" aria-label="Экранный геймпад" data-i="pad"></a>
+    <a class="ib" href="#alerts" aria-label="Уведомления" id="alertBtn"></a>
+    <a class="ib" href="#settings" aria-label="Настройки" data-i="gear"></a>
+    <a class="me" href="#profile" aria-label="Профиль">N</a>
+    <span class="clock" id="clock"></span>
   </div>
-</div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-<div class="lb" id="lb" hidden role="dialog" aria-label="Скриншоты"><button class="lb-close btn btn-ghost btn-icon" id="lbClose" aria-label="Закрыть"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div class="lb-track" id="lbTrack"></div><span class="lb-count mono" id="lbCount"></span></div>
-<div class="rotate" id="rotate" role="dialog" aria-label="Поверни телефон">
-  <span class="phone-ic"><svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span>
-  <h2>Поверни телефон</h2>
-  <p>NEXUS рассчитан на горизонтальную ориентацию, как игровая консоль.</p>
-  <button class="btn btn-ghost" id="rotateSkip" type="button">Всё равно открыть</button>
+</header>
+
+<main id="page" class="page"></main>
+<div id="layer" class="layer"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<div class="turn" id="turn" role="dialog" aria-label="Поверни телефон">
+  <div class="turn-ic"></div>
+  <b>Поверни телефон</b>
+  <p>NEXUS работает в горизонтальной ориентации, как игровая консоль.</p>
+  <button class="b b-glass" id="turnSkip" type="button">Всё равно открыть</button>
 </div>
 
-<script src="app.js?v=12"></script>
+<script src="nexus.js?v=2"></script>
 </body>
 </html>

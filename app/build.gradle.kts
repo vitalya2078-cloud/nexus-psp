@@ -84,7 +84,7 @@ dependencies {
 
 val copyWebAssets by tasks.registering(Copy::class) {
     from(rootProject.file("docs")) {
-        include("index.html", "styles.css", "app.js")
+        include("index.html", "nexus.css", "nexus.js")
     }
     into(layout.buildDirectory.dir("generated/webAssets/web"))
 }
