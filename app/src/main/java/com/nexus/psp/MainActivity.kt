@@ -16,7 +16,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 
 /**
- * Временная оболочка: показывает интерфейс NEXUS из папки docs/ (упакована в assets).
+ * Временная оболочка: показывает интерфейс KAPSULA из папки docs/ (упакована в assets).
  * Нужна, чтобы проверять дизайн на телефоне до переноса экранов в Jetpack Compose.
  */
 class MainActivity : ComponentActivity() {

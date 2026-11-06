@@ -1,4 +1,4 @@
-/* NEXUS — прототип оболочки мультиплатформенного эмулятора (PSP, PS1, PS2).
+/* KAPSULA — прототип оболочки мультиплатформенного эмулятора (PSP, PS1, PS2).
    Демо-данные; обложки рисуются кодом. Вкладки: #games, #store. Панели поверх: #game-<id>, #search,
    #downloads, #alerts, #settings, #profile, #pad, #play-<id>. */
 (function () {
@@ -73,11 +73,11 @@ var favs = { drift: 1, deep: 1 };
 var alerts = [
   { t: '«Хроники Пепла» готова к запуску', d: 'Вчера', u: 1, g: 'ash' },
   { t: 'Новое в магазине: «Звёздный Курьер»', d: '2 дня назад', u: 1, g: 'courier' },
-  { t: 'Обновление NEXUS 0.5.1', d: '5 дней назад', u: 0 }
+  { t: 'Обновление KAPSULA 0.6.1', d: '5 дней назад', u: 0 }
 ];
 var S = { con: 'all', wifi: true, auto: true, res: '2x', fps: false, vol: 80, vib: true, op: 55, sc: 100, hide: true, cloud: true, layout: 'Классика' };
-try { var saved = JSON.parse(localStorage.getItem('nexus5') || '{}'); for (var k in saved) S[k] = saved[k]; } catch (e) {}
-function save() { try { localStorage.setItem('nexus5', JSON.stringify(S)); } catch (e) {} }
+try { var saved = JSON.parse(localStorage.getItem('kapsula') || '{}'); for (var k in saved) S[k] = saved[k]; } catch (e) {}
+function save() { try { localStorage.setItem('kapsula', JSON.stringify(S)); } catch (e) {} }
 
 /* ---------- helpers ---------- */
 function size(mb) { return mb >= 1000 ? (mb / 1024).toFixed(1).replace('.', ',') + ' ГБ' : mb + ' МБ'; }
@@ -159,24 +159,31 @@ function focusHtml(g) {
   return '<span class="tag"><i></i>' + p.full + ' · ' + g.genre + '</span><h1>' + g.t + '</h1><div class="meta">' + meta + '</div><div class="acts">' + acts +
     '<a class="b b-glass" href="#game-' + g.id + '">' + I('info', 18) + 'Об игре</a><button class="b b-glass b-round' + (favs[g.id] ? ' fav' : '') + '" data-a="fav" data-id="' + g.id + '" aria-label="Избранное">' + I(favs[g.id] ? 'heartF' : 'heart', 20) + '</button></div>';
 }
+function libCard(g) {
+  var L = lib[g.id], ok = L.s === 'ok', btn;
+  if (ok) btn = '<button class="b b-main b-sm" data-a="play" data-id="' + g.id + '">' + I('play', 16) + 'Играть</button>';
+  else btn = '<button class="b b-glass b-sm" data-a="' + (L.s === 'pause' ? 'resume' : 'pause') + '" data-id="' + g.id + '">' + I(L.s === 'pause' ? 'play' : 'pause', 16) + (L.s === 'pause' ? 'Продолжить' : 'Пауза') + '</button>';
+  return '<article class="lc' + (ok ? '' : ' dlg') + '" style="--pc:' + PL[g.p].c + '"><a class="lc-art" href="#game-' + g.id + '" style="background-image:' + art(g, 300, 400) + '" aria-label="' + esc(g.t) + '"><span class="pl">' + PL[g.p].n + '</span>' +
+    (ok ? '' : '<span class="lc-pr"><b data-pr="' + g.id + '">' + Math.floor(L.pr) + '%</b><span class="pb"><i data-bar="' + g.id + '" style="width:' + L.pr + '%"></i></span></span>') + '</a>' +
+    '<div class="lc-tx"><b>' + g.t + '</b><span>' + (ok ? hrs(L.play) + ' · ' + L.last : (L.s === 'pause' ? 'На паузе' : 'Загружается') + ' · ' + size(g.size)) + '</span></div>' + btn + '</article>';
+}
 function vGames() {
-  var list = myGames();
-  if (!list.length) return '<div class="home"><div class="home-top">' + consSwitch() + '</div><div class="focus"><span class="tag">Пусто</span><h1>Здесь пока нет игр</h1><div class="meta">Скачай что-нибудь в магазине.</div><div class="acts"><a class="b b-main" href="#store">Открыть магазин</a></div></div></div>';
-  if (!focusId || !list.some(function (g) { return g.id === focusId; })) focusId = list[0].id;
-  var f = byId[focusId];
-  return '<div class="home" style="--pc:' + PL[f.p].c + '"><div class="home-top">' + consSwitch() + '</div><div class="focus" id="focus">' + focusHtml(f) + '</div>' +
-    '<div class="shelf" id="shelf">' + list.map(function (g) {
-      var L = lib[g.id], dl = L.s !== 'ok';
-      return '<button class="tile' + (g.id === focusId ? ' on' : '') + (dl ? ' dlg' : '') + '" data-a="tile" data-id="' + g.id + '" style="background-image:' + art(g, 300, 300) + '" aria-label="' + esc(g.t) + '"><span class="pl">' + PL[g.p].n + '</span>' + (dl ? '<span class="pg"><i data-bar="' + g.id + '" style="width:' + L.pr + '%"></i></span>' : '') + '</button>';
-    }).join('') + '<a class="tile add" href="#store"><span>' + I('plus', 26) + 'Магазин</span></a></div></div>';
+  var list = myGames(), ok = list.filter(function (g) { return lib[g.id].s === 'ok'; }), dl = list.filter(function (g) { return lib[g.id].s !== 'ok'; });
+  var h = '<div class="scroll"><div class="games-in">' + consSwitch();
+  if (!list.length) return h + '<div class="empty"><b>Здесь пока нет игр</b><span>Скачай что-нибудь в магазине — игры появятся здесь.</span><a class="b b-main" href="#store">Открыть магазин</a></div></div></div>';
+  if (ok.length) {
+    var f = ok[0], L = lib[f.id]; focusId = f.id;
+    h += '<section class="resume" style="--pc:' + PL[f.p].c + '"><a class="rs-main" href="#game-' + f.id + '" style="background-image:' + art(f, 1200, 520, 3) + '"><span class="rs-in"><span class="tag"><i></i>Продолжить · ' + PL[f.p].full + '</span><b>' + f.t + '</b><span>' + L.last + ' · наиграно ' + hrs(L.play) + '</span></span></a>' +
+      '<button class="b b-main rs-play" data-a="play" data-id="' + f.id + '">' + I('play') + 'Играть</button>' +
+      '<div class="rs-side"><span class="rs-h">Недавние</span>' + ok.slice(1, 4).map(function (g) { return '<a class="rs-it" href="#game-' + g.id + '"><span class="th" style="background-image:' + art(g, 300, 300) + '"></span><span class="tx"><b>' + g.t + '</b><span>' + PL[g.p].n + ' · ' + lib[g.id].last + '</span></span><button class="b b-glass b-round b-sm" data-a="play" data-id="' + g.id + '" aria-label="Играть в ' + esc(g.t) + '">' + I('play', 16) + '</button></a>'; }).join('') +
+      (ok.length < 2 ? '<span class="rs-empty">Здесь появятся другие игры, в которые ты играл</span>' : '') + '</div></section>';
+  }
+  if (dl.length) h += '<section><div class="row-h"><h3>Загружается</h3><a class="lnk" href="#downloads">Все загрузки</a></div><div class="lgrid">' + dl.map(libCard).join('') + '</div></section>';
+  h += '<section><div class="row-h"><h3>Моя библиотека</h3><span>' + ok.length + ' установлено</span></div><div class="lgrid">' + ok.map(libCard).join('') +
+    '<a class="lc lc-add" href="#store"><span>' + I('plus', 30) + '<b>Найти игру</b><small>в магазине</small></span></a></div></section></div></div>';
+  return h;
 }
-function setFocus(id) {
-  if (id === focusId) return; focusId = id; var g = byId[id];
-  document.querySelectorAll('.tile').forEach(function (t) { t.classList.toggle('on', t.getAttribute('data-id') === id); });
-  var f = $('#focus'); if (!f) return; f.innerHTML = focusHtml(g); f.classList.remove('swap'); void f.offsetWidth; f.classList.add('swap');
-  $('.home').style.setProperty('--pc', PL[g.p].c); setBg(g);
-  if (S.vib && navigator.vibrate) try { navigator.vibrate(6); } catch (e) {}
-}
+function setFocus() {}
 
 /* ---------- STORE tab ---------- */
 var featIdx = 0, featTimer = null;
@@ -251,7 +258,7 @@ function oSettings() {
   if (setTab === 'gfx') b = opt('Разрешение', 'Для всех игр по умолчанию', seg('res', ['1x', '2x', '3x', '4x'])) + opt('Счётчик FPS', 'Частота кадров в углу экрана', tg('fps'));
   if (setTab === 'snd') b = opt('Громкость игр', '', rngC('vol', 0, 100));
   if (setTab === 'ctl') b = opt('Экранный геймпад', 'Раскладка, размер и прозрачность', '<a class="b b-main b-sm" href="#pad">Настроить</a>') + opt('Скрывать кнопки', 'Когда подключён настоящий геймпад', tg('hide'));
-  if (setTab === 'about') b = opt('NEXUS', 'Версия 0.5.0 · прототип интерфейса', '') + opt('Эмуляторы', 'PPSSPP (PSP), DuckStation (PS1), PCSX2 (PS2) — будут подключены', '') + opt('Лицензии', 'Открытые компоненты и их лицензии', '<button class="b b-glass b-sm" data-a="toast" data-v="Список лицензий появится позже">Открыть</button>');
+  if (setTab === 'about') b = opt('KAPSULA', 'Версия 0.6.0 · прототип интерфейса', '') + opt('Эмуляторы', 'PPSSPP (PSP), DuckStation (PS1), PCSX2 (PS2) — будут подключены', '') + opt('Лицензии', 'Открытые компоненты и их лицензии', '<button class="b b-glass b-sm" data-a="toast" data-v="Список лицензий появится позже">Открыть</button>');
   return '<div class="full" role="dialog" aria-label="Настройки"><div class="ov-h"><h2>Настройки</h2><button class="b b-glass b-round" data-a="close" aria-label="Закрыть">' + I('x') + '</button></div><div class="ov-b"><div class="set"><nav class="set-nav">' +
     nav.map(function (n) { return '<button class="' + (setTab === n[0] ? 'on' : '') + '" data-a="stab" data-v="' + n[0] + '">' + I(n[2], 20) + n[1] + '</button>'; }).join('') + '</nav><div>' + b + '</div></div></div></div>';
 }
@@ -300,7 +307,7 @@ function render() {
   document.body.classList.toggle('store', tab === 'store');
   document.querySelectorAll('.tabs a').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-tab') === tab); });
   $('#page').innerHTML = tab === 'games' ? vGames() : vStore();
-  if (tab === 'games' && focusId) setBg(byId[focusId]);
+  if (tab === 'games') { var mg = myGames(); if (mg[0]) setBg(mg[0]); }
   if (tab === 'store') { var l = storeList().filter(function (g) { return g.isNew; }); setBg(l[featIdx % (l.length || 1)] || storeList()[0]); }
   renderLayer(h);
   top();
