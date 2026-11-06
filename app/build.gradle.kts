@@ -84,7 +84,7 @@ dependencies {
 }
 
 val copyWebAssets by tasks.registering(Copy::class) {
-    from(rootProject.file("docs")) {
+    from(rootProject.file("ui")) {
         include("index.html", "kapsula.css", "kapsula.js")
     }
     into(layout.buildDirectory.dir("generated/webAssets/web"))
