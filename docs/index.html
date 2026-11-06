@@ -11,13 +11,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block">
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
 <div class="app">
   <nav class="rail" id="rail" aria-label="Основное меню">
     <div class="rail-head">
-      <a class="logo" href="#home" aria-label="NEXUS, на главную">
+      <a class="logo" href="#pick" aria-label="NEXUS, на главную">
         <span class="logo-mark">N</span>
         <span class="logo-word">NEXUS<small>EMU · 0.3.0</small></span>
       </a>
@@ -36,6 +36,7 @@
   <div class="main">
     <div class="ambient" aria-hidden="true"><span id="ambA"></span><span id="ambB"></span></div>
     <header class="topbar">
+      <a class="con-switch" id="conSwitch" href="#pick" aria-label="Сменить консоль"></a>
       <div class="search">
         <label for="q"><span data-ic="search"></span><input id="q" type="search" placeholder="Поиск игр, жанров…" autocomplete="off"><kbd>/</kbd></label>
         <div class="pop" id="pop" hidden></div>
@@ -59,6 +60,6 @@
   <button class="btn btn-ghost" id="rotateSkip" type="button">Всё равно открыть</button>
 </div>
 
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

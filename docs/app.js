@@ -129,7 +129,8 @@ var playLoaded={},playPaused=false,ptab='menu';
 function pfilter(list){return plat==='all'?list:list.filter(function(g){return g.plat===plat;});}
 function pvars(k){var p=PLAT[k]||PLAT.all;return '--pc:'+p.c+';--pc2:'+p.c2;}
 function paintPlat(k){var p=PLAT[k||plat]||PLAT.all,s=document.documentElement.style;s.setProperty('--acc',p.c);s.setProperty('--acc2',p.c2);s.setProperty('--acc-ink',p.ink);}
-function consoleBar(){return '<div class="consoles" role="tablist" aria-label="Консоли">'+PKEYS.map(function(k){var p=PLAT[k],n=k==='all'?G.length:G.filter(function(g){return g.plat===k;}).length;
+function consoleBar(){return '';}
+function consoleBarOld(){return '<div class="consoles" role="tablist" aria-label="Консоли">'+PKEYS.map(function(k){var p=PLAT[k],n=k==='all'?G.length:G.filter(function(g){return g.plat===k;}).length;
   return '<button role="tab" aria-selected="'+(plat===k)+'" class="con'+(plat===k?' on':'')+'" data-act="plat" data-p="'+k+'" style="'+pvars(k)+'"><span class="con-ic">'+p.icon+'</span><span class="con-txt"><b>'+p.n+'</b><small>'+n+'</small></span></button>';}).join('')+
   '<a class="con-more" href="#consoles">'+ic('tune',16)+'Консоли</a></div>';}
 var GENRES=[];G.forEach(function(g){if(GENRES.indexOf(g.genre)<0)GENRES.push(g.genre);});
@@ -377,6 +378,25 @@ function vPlay(id){
    '<div class="sheet-tabs">'+tabs.map(function(t){return '<button class="'+(ptab===t[0]?'on':'')+'" data-act="ptab" data-t="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</div><div class="sheet-body">'+body+'</div></aside>'+
    '<div class="loader">'+(g.plat==='psp'?'<div class="umd">UMD</div>':'<div class="disc"></div>')+'<b>'+g.title+'</b><span>Запуск · '+p.full+'</span></div></div>';
 }
+function vPick(){
+  var ids=stageIds(),html='<div class="picker">';
+  if(ids.length){var g=byId[ids.indexOf('drift')>=0?'drift':ids[0]],L=lib[g.id];
+    html+='<div class="pk-resume" style="'+pvars(g.plat)+'"><span class="cover" style="background-image:'+art(g,300,420)+'"></span><span class="pk-r-txt"><span class="eyebrow">Продолжить · '+PLAT[g.plat].n+'</span><b>'+g.title+'</b><span>'+L.last+' · '+fmtTime(L.play)+'</span></span><button class="btn btn-primary btn-sm" data-act="play" data-id="'+g.id+'">'+ic('play',18)+'Играть</button></div>';}
+  html+='<div class="pk-track" id="pkTrack">'+PKEYS.slice(1).concat(['all']).map(function(k){var p=PLAT[k],all=k==='all'?G:G.filter(function(g){return g.plat===k;}),inst=all.filter(function(g){return st(g.id)==='installed';});
+    return '<button class="pk-card" data-act="platgo" data-p="'+k+'" style="'+pvars(k)+'"><span class="pk-art">'+p.icon+'</span><span class="pk-txt"><span class="pk-year">'+(p.year||'Все платформы')+'</span><b>'+(p.full||'Все игры')+'</b><span class="pk-stats">'+all.length+' игр · '+inst.length+' установлено</span></span><span class="pk-go">Открыть'+ic('right',18)+'</span></button>';}).join('')+'</div>'+
+   '<div class="pk-dots" id="pkDots">'+PKEYS.slice(1).concat(['all']).map(function(k){return '<i data-p="'+k+'"></i>';}).join('')+'</div></div>';
+  return html;
+}
+function initPick(){
+  var tr=document.getElementById('pkTrack');if(!tr)return;var cards=[].slice.call(tr.querySelectorAll('.pk-card')),dots=[].slice.call(document.querySelectorAll('#pkDots i')),cur=-1,raf=0;
+  function pick(){raf=0;var c=tr.scrollLeft+tr.clientWidth/2,best=0,bd=1e9;cards.forEach(function(el,i){var d=Math.abs(el.offsetLeft+el.offsetWidth/2-c);if(d<bd){bd=d;best=i;}});
+    if(best===cur)return;cur=best;cards.forEach(function(el,i){el.classList.toggle('on',i===best);});dots.forEach(function(d,i){d.classList.toggle('on',i===best);});
+    paintPlat(cards[best].getAttribute('data-p'));if(S.haptic&&navigator.vibrate)try{navigator.vibrate(8);}catch(e){}}
+  tr.addEventListener('scroll',function(){if(!raf)raf=requestAnimationFrame(pick);},{passive:true});
+  tr.addEventListener('click',function(e){var c=e.target.closest('.pk-card');if(c&&!c.classList.contains('on')){e.preventDefault();e.stopPropagation();tr.scrollTo({left:c.offsetLeft+c.offsetWidth/2-tr.clientWidth/2,behavior:'smooth'});}},true);
+  var start=Math.max(0,cards.findIndex(function(c){return c.getAttribute('data-p')===plat;}));
+  tr.scrollLeft=cards[start].offsetLeft+cards[start].offsetWidth/2-tr.clientWidth/2;pick();
+}
 function vConsoles(){
   return '<div class="page-head"><div><div class="eyebrow">Платформы</div><h1 class="page">Консоли</h1></div></div><div class="cgrid">'+PKEYS.slice(1).map(function(k){var p=PLAT[k],all=G.filter(function(g){return g.plat===k;}),inst=all.filter(function(g){return st(g.id)==='installed';}),used=inst.reduce(function(a,g){return a+g.size;},0);
     return '<button class="ccard'+(plat===k?' on':'')+'" data-act="platgo" data-p="'+k+'" style="'+pvars(k)+'"><span class="art-svg">'+p.icon+'</span><span class="eyebrow" style="color:'+p.c+'">'+p.year+'</span><h3>'+p.full+'</h3><p>'+p.desc+'</p><span class="cstats"><span>Доступно <b>'+all.length+'</b></span><span>Установлено <b>'+inst.length+'</b></span><span>Занято <b>'+fmtSize(used)+'</b></span></span></button>';}).join('')+'</div>';
@@ -427,18 +447,20 @@ function vProfile(){
 
 /* ---------- routing ---------- */
 var view=document.getElementById('viewInner'), viewBox=document.getElementById('view');
-function route(){var h='';try{h=(location.hash||'').slice(1);}catch(e){}return h||'home';}
+function route(){var h='';try{h=(location.hash||'').slice(1);}catch(e){}return h||'pick';}
 function render(keepScroll){
   var r=route(), base=r.indexOf('game-')===0?'game':r, html;
   if(base==='home')html=vHome();else if(base==='library')html=vLibrary();else if(base==='catalog')html=vCatalog();else if(base==='favorites')html=vFavorites();
   else if(base==='dl')html=vDownloads();else if(base==='options')html=vSettings();else if(base==='gamepad')html=vGamepad();else if(base==='profile')html=vProfile();
-  else if(base==='game')html=vGame(r.slice(5));else if(r.indexOf('play-')===0){base='play';html=vPlay(r.slice(5));}else if(base==='consoles')html=vConsoles();else html=vHome();
+  else if(base==='game')html=vGame(r.slice(5));else if(r.indexOf('play-')===0){base='play';html=vPlay(r.slice(5));}else if(base==='consoles')html=vConsoles();else if(base==='pick')html=vPick();else html=vHome();
   var sc=viewBox.scrollTop; view.innerHTML=html; if(keepScroll)viewBox.scrollTop=sc;
   var navKey=base==='game'?'':base==='gamepad'?'':base;
   document.querySelectorAll('[data-nav]').forEach(function(a){var on=a.getAttribute('data-nav')===navKey;a.classList.toggle('active',on);if(on)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   updateBadge();
   document.body.classList.toggle('playing',base==='play');
-  paintPlat(base==='game'&&byId[r.slice(5)]?byId[r.slice(5)].plat:base==='play'&&byId[r.slice(5)]?byId[r.slice(5)].plat:plat);
+  document.body.classList.toggle('picking',base==='pick');
+  var cs=document.getElementById('conSwitch'),cp=PLAT[plat];cs.style.cssText=pvars(plat);cs.innerHTML='<span class="con-ic">'+cp.icon+'</span><b>'+cp.n+'</b>'+ic('unfold_more',18);
+  if(base==='pick'){initPick();}else paintPlat(base==='game'&&byId[r.slice(5)]?byId[r.slice(5)].plat:base==='play'&&byId[r.slice(5)]?byId[r.slice(5)].plat:plat);
   if(base==='play'&&!playLoaded[r.slice(5)]){var pid=r.slice(5);setTimeout(function(){playLoaded[pid]=true;var el=document.getElementById('play');if(el)el.classList.remove('loading');},1700);}
   if(base==='home')initStage();
   else if(base==='game'&&byId[r.slice(5)])setAmbient(byId[r.slice(5)]);
