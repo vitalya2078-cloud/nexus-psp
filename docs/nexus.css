@@ -32,9 +32,10 @@ body.store .bg::after{background:linear-gradient(180deg,rgba(5,6,10,.6),rgba(5,6
 /* ---------- top bar ---------- */
 .top{position:fixed;left:0;right:0;top:0;z-index:20;height:58px;display:flex;align-items:center;gap:18px;padding:0 max(18px,env(safe-area-inset-right,0px)) 0 max(18px,env(safe-area-inset-left,0px))}
 .brand{display:flex;align-items:center;gap:9px}
-.brand-mk{position:relative;width:38px;height:22px;border-radius:11px;background:#fff;overflow:hidden;flex-shrink:0}
-.brand-mk::before{content:"";position:absolute;right:0;top:0;bottom:0;width:50%;background:#4FC3FF}
-.brand-mk i{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:#05060A}
+.brand-mk{position:relative;width:40px;height:22px;border:2.5px solid #fff;border-radius:11px;flex-shrink:0;box-sizing:border-box}
+.brand-mk::before{content:"";position:absolute;left:5px;top:50%;margin-top:-5px;border-left:8px solid #2D9CFF;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.brand-mk i{position:absolute;left:50%;top:0;bottom:0;width:2.5px;margin-left:-1px;background:#fff}
+.brand-mk::after{content:"";position:absolute;right:4px;top:4px;width:9px;height:9px;background:repeating-linear-gradient(180deg,#fff 0 1.6px,transparent 1.6px 3.2px)}
 .brand-wd{font-weight:800;font-size:15px;letter-spacing:2.5px}
 .tabs{display:flex;gap:4px}
 .tabs a{position:relative;height:36px;padding:0 14px;display:flex;align-items:center;font-size:16px;font-weight:700;color:var(--ink3);transition:color .2s}
