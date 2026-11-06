@@ -404,3 +404,21 @@ svg.i{width:22px;height:22px;flex-shrink:0;fill:none;stroke:currentColor;stroke-
 .card .art .st{top:auto;right:auto;left:7px;bottom:7px}
 .cc .st{top:auto;right:auto;left:8px;bottom:18px}
 @media (max-width:980px){.mini .tx b,.mini .pb{display:none}}
+
+/* v0.7.1: фирменный индикатор загрузок в шапке */
+.mini{display:none!important}
+.ib.busy{width:auto;padding:0 6px;border-radius:21px}
+.dlcap{position:relative;display:flex;align-items:center;justify-content:center;width:62px;height:24px;border:2px solid var(--ink2);border-radius:12px;overflow:hidden}
+.dlcap i{position:absolute;left:0;top:0;bottom:0;background:var(--acc);opacity:.45;transition:width .5s}
+.dlcap::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ink2);opacity:.5}
+.dlcap b{position:relative;z-index:1;font-size:11px;font-weight:800;color:var(--ink)}
+/* компактная библиотека */
+.lib-h{gap:8px}
+.lib-h h2{flex:0 0 auto;display:flex;align-items:baseline;gap:8px}
+.lib-h .lsearch{flex:1 1 200px;max-width:360px;height:40px}
+.frow{display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none;padding:2px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));flex-shrink:0}
+.frow::-webkit-scrollbar{display:none}
+.frow .chip{flex-shrink:0;height:32px}
+.frow .sep{flex:0 0 1px;height:20px;background:var(--line2);margin:0 4px}
+.frow .nc{flex:0 0 180px;height:32px}
+.lib-h .lsearch{max-width:none}

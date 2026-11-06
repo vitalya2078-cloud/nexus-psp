@@ -299,7 +299,7 @@ function oGSet(id) {
     opt('Разрешение', 'Только для этой игры', seg('res', ['1x', '2x', '3x', '4x'])) + opt('Раскладка кнопок', '', seg('layout', ['Классика', 'Компакт', 'Своя'])) + opt('Счётчик FPS', '', tg('fps')) + opt('Читы', 'Появятся позже', '<span class="hint">скоро</span>') + '</div></div>';
 }
 /* full library (п. 2, 19) */
-var newCol = '';
+var newCol = '', showNewCol = false;
 function oLibrary() {
   var q = (S.lq || '').toLowerCase(), list = Object.keys(lib).map(function (i) { return byId[i]; }).filter(inCon).filter(function (g) {
     var s = lib[g.id].s;
@@ -312,13 +312,16 @@ function oLibrary() {
   });
   var srt = { 'Недавние': function (a, b) { return lib[b.id].t - lib[a.id].t; }, 'По названию': function (a, b) { return a.t.localeCompare(b.t, 'ru'); }, 'По времени игры': function (a, b) { return (lib[b.id].play || 0) - (lib[a.id].play || 0); } };
   list.sort(srt[S.sort] || srt['Недавние']);
-  return '<div class="full" role="dialog" aria-label="Вся библиотека"><div class="ov-h"><h2>Вся библиотека</h2><span class="hint num">' + list.length + ' игр</span><button class="b b-soft b-rd" data-a="close" aria-label="Закрыть">' + I('x') + '</button></div><div class="ov-b"><div class="wrap" style="gap:12px">' +
-    '<div class="lib-tools"><label class="lsearch">' + I('search', 18) + '<input id="lq" type="search" placeholder="Поиск в библиотеке" value="' + esc(S.lq || '') + '"></label>' + seg('sort', ['Недавние', 'По названию', 'По времени игры']) + '</div>' +
-    conChips(Object.keys(lib).map(function (i) { return byId[i]; })) +
-    '<div class="chips">' + ['Все', 'Установленные', 'Не установленные', 'Загружаются', 'Избранное'].map(function (f) { return '<button class="chip' + (S.lf === f ? ' on' : '') + '" data-a="set" data-k="lf" data-v="' + f + '">' + f + '</button>'; }).join('') + '</div>' +
-    '<div class="chips">' + I('folder', 18) + Object.keys(cols).map(function (c) { return '<button class="chip' + (S.lc === c ? ' on' : '') + '" data-a="lcol" data-v="' + esc(c) + '">' + esc(c) + ' <small>' + cols[c].length + '</small></button>'; }).join('') +
-    '<label class="lsearch" style="max-width:220px;height:34px"><input id="newcol" placeholder="Новая коллекция" value="' + esc(newCol) + '"></label><button class="b b-soft b-xs" data-a="mkcol">' + I('plus', 14) + 'Создать</button></div>' +
-    (list.length ? '<div class="lgrid">' + list.map(function (g) { return card(g, true); }).join('') + '</div>' : '<div class="banner">' + I('search', 18) + 'Ничего не нашлось. Сбрось фильтры или добавь игры в магазине.</div>') + '</div></div></div>';
+  var mine = Object.keys(lib).map(function (i) { return byId[i]; });
+  var sep = '<span class="sep" aria-hidden="true"></span>';
+  var chipsRow = '<div class="frow">' +
+    [['all', 'Все']].concat(Object.keys(PL).map(function (k) { return [k, PL[k].n]; })).map(function (x) { var n = mine.filter(function (g) { return x[0] === 'all' || g.p === x[0]; }).length; return '<button class="chip' + (S.con === x[0] ? ' on' : '') + '" data-a="con" data-v="' + x[0] + '"' + (x[0] !== 'all' ? ' style="--c:' + PL[x[0]].c + '"' : '') + '>' + (x[0] !== 'all' ? '<i></i>' : '') + x[1] + ' <small>' + n + '</small></button>'; }).join('') + sep +
+    ['Все', 'Установленные', 'Не установленные', 'Загружаются', 'Избранное'].slice(1).map(function (f) { return '<button class="chip' + (S.lf === f ? ' on' : '') + '" data-a="lf" data-v="' + f + '">' + f + '</button>'; }).join('') + sep +
+    Object.keys(cols).map(function (c) { return '<button class="chip' + (S.lc === c ? ' on' : '') + '" data-a="lcol" data-v="' + esc(c) + '">' + I('folder', 14) + esc(c) + ' <small>' + cols[c].length + '</small></button>'; }).join('') +
+    (showNewCol ? '<label class="lsearch nc"><input id="newcol" placeholder="Название коллекции" value="' + esc(newCol) + '"></label><button class="chip" data-a="mkcol">' + I('check', 14) + 'Создать</button>' : '<button class="chip" data-a="newcol">' + I('plus', 14) + 'Коллекция</button>') + '</div>';
+  return '<div class="full" role="dialog" aria-label="Вся библиотека"><div class="ov-h lib-h"><h2>Библиотека <span class="hint num">' + list.length + '</span></h2><label class="lsearch">' + I('search', 18) + '<input id="lq" type="search" placeholder="Поиск в библиотеке" value="' + esc(S.lq || '') + '"></label>' +
+    '<button class="b b-soft b-sm" data-a="sortcyc">' + I('list', 16) + S.sort + '</button><button class="b b-soft b-rd" data-a="close" aria-label="Закрыть">' + I('x') + '</button></div>' + chipsRow +
+    '<div class="ov-b">' + (list.length ? '<div class="lgrid">' + list.map(function (g) { return card(g, true); }).join('') + '</div>' : '<div class="banner">' + I('search', 18) + 'Ничего не нашлось. Сбрось фильтры или добавь игры в магазине.</div>') + '</div></div>';
 }
 /* search (п. 8) */
 function sMatch(g, q) { return (g.t + ' ' + g.genre + ' ' + PL[g.p].full + ' ' + PL[g.p].n).toLowerCase().indexOf(q) >= 0; }
@@ -448,17 +451,14 @@ window.addEventListener('hashchange', function () { var h = hash(); if (h.indexO
 
 /* ---------- top bar, mini bar (п. 7, 15) ---------- */
 function topState() {
-  var a = Object.keys(lib).filter(function (i) { return ['dl', 'pause', 'q'].indexOf(lib[i].s) >= 0; }), pr = a.length ? a.reduce(function (s, i) { return s + (lib[i].pr || 0); }, 0) / a.length : 0, C = 2 * Math.PI * 13;
-  $('#dlBtn').innerHTML = I('dl', 20) + (a.length ? '<svg class="ring" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" stroke="var(--line2)"/><circle cx="15" cy="15" r="13" stroke="var(--acc)" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - pr / 100)).toFixed(1) + '"/></svg>' : '');
-  $('#quickBtn').innerHTML = I('grid', 20) + (alerts.some(function (x) { return x.u; }) ? '<span class="dot"></span>' : '');
+  var a = Object.keys(lib).filter(function (i) { return ['dl', 'pause', 'q'].indexOf(lib[i].s) >= 0; }), pr = a.length ? a.reduce(function (s, i) { return s + (lib[i].pr || 0); }, 0) / a.length : 0;
+  var b = document.getElementById('dlBtn');
+  b.classList.toggle('busy', a.length > 0);
+  b.setAttribute('aria-label', a.length ? 'Загрузки: ' + a.length + ', ' + Math.floor(pr) + '%' : 'Загрузки');
+  b.innerHTML = a.length ? '<span class="dlcap"><i style="width:' + pr.toFixed(0) + '%"></i><b class="num">' + Math.floor(pr) + '%</b></span>' : I('dl', 20);
+  document.getElementById('quickBtn').innerHTML = I('grid', 20) + (alerts.some(function (x) { return x.u; }) ? '<span class="dot"></span>' : '');
 }
-function mini() {
-  var m = $('#mini'), id = Object.keys(lib).filter(function (i) { return lib[i].s === 'dl'; })[0] || Object.keys(lib).filter(function (i) { return lib[i].s === 'pause'; })[0];
-  var hide = !id || layerKey === 'downloads' || layerKey.indexOf('play-') === 0 || layerKey === 'library' || layerKey === 'settings';
-  m.classList.toggle('on', !hide); if (!id) return;
-  var g = byId[id], L = lib[id], left = L.s === 'dl' ? Math.max(1, Math.round(g.size * (1 - L.pr / 100) / 11 / 60)) : 0;
-  m.innerHTML = '<span class="th" style="background-image:' + art(g, 300, 300) + '"></span><a class="tx" href="#downloads"><b>' + g.t + '</b><span><span data-pr="' + id + '">' + Math.floor(L.pr) + '%</span>' + (L.s === 'dl' ? ' · ещё ~' + left + ' мин' : ' · пауза') + '</span><span class="pb"><i data-bar="' + id + '" style="width:' + L.pr + '%"></i></span></a><button class="b b-soft b-rd b-sm" data-a="' + (L.s === 'dl' ? 'pause' : 'resume') + '" data-id="' + id + '" aria-label="' + (L.s === 'dl' ? 'Пауза' : 'Продолжить') + '">' + I(L.s === 'dl' ? 'pause' : 'play', 16) + '</button>';
-}
+function mini() { var m = document.getElementById('mini'); if (m) m.classList.remove('on'); }
 
 /* ---------- downloads engine ---------- */
 function pump() { if (Object.keys(lib).some(function (i) { return lib[i].s === 'dl'; })) return; var q = Object.keys(lib).filter(function (i) { return lib[i].s === 'q'; })[0]; if (q) lib[q].s = 'dl'; }
@@ -513,7 +513,10 @@ document.addEventListener('click', function (e) {
     case 'fav': if (favs[id]) delete favs[id]; else favs[id] = 1; refresh(); break;
     case 'togcol': var c = cols[v], ix = c.indexOf(id); if (ix >= 0) c.splice(ix, 1); else c.push(id); refresh(); break;
     case 'lcol': S.lc = S.lc === v ? '' : v; save(); refresh(); break;
-    case 'mkcol': var nm = ($('#newcol') || {}).value || ''; nm = nm.trim(); if (!nm) { toast('Введи название коллекции'); break; } if (!cols[nm]) cols[nm] = []; newCol = ''; S.lc = nm; toast('Коллекция «' + esc(nm) + '» создана'); refresh(); break;
+    case 'lf': S.lf = S.lf === v ? 'Все' : v; save(); refresh(); break;
+    case 'sortcyc': var so = ['Недавние', 'По названию', 'По времени игры']; S.sort = so[(so.indexOf(S.sort) + 1) % so.length]; save(); refresh(); break;
+    case 'newcol': showNewCol = true; renderLayer('library'); setTimeout(function () { var n = document.getElementById('newcol'); if (n) n.focus(); }, 30); break;
+    case 'mkcol': var nm = ($('#newcol') || {}).value || ''; nm = nm.trim(); if (!nm) { toast('Введи название коллекции'); break; } if (!cols[nm]) cols[nm] = []; newCol = ''; showNewCol = false; S.lc = nm; toast('Коллекция «' + esc(nm) + '» создана'); refresh(); break;
     case 'fit': S.fit = !S.fit; save(); refresh(); break;
     case 'gtab': gTab = v; renderLayer(hash()); break;
     case 'close': e.preventDefault(); close(); break;
