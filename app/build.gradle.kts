@@ -21,8 +21,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.7.2"
+        versionCode = 7
+        versionName = "0.8.0"
 
         externalNativeBuild {
             cmake {
@@ -85,7 +85,7 @@ dependencies {
 
 val copyWebAssets by tasks.registering(Copy::class) {
     from(rootProject.file("ui")) {
-        include("index.html", "kapsula.css", "kapsula.js")
+        include("index.html", "kapsula.css", "kapsula.js", "img/**", "LICENSE-phosphor.txt")
     }
     into(layout.buildDirectory.dir("generated/webAssets/web"))
 }
