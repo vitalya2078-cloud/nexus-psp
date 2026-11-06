@@ -338,3 +338,11 @@ body:not(.store) .bg::after{background:linear-gradient(180deg,rgba(5,6,10,.7),rg
 .empty b{font-size:20px;font-weight:800}
 .empty span{color:var(--ink3)}
 @media (max-width:760px){.resume{grid-template-columns:1fr}.brand-wd{display:none}}
+
+/* ===== строгий стиль: без неона ===== */
+.bg i{filter:saturate(.35) brightness(.6)}
+.brand-mk::before{border-left-color:#7FA7D9}
+.tile.on,.lc:hover{box-shadow:none}
+.b-main{background:#F2F2F0}
+.pill.c{background:#E9E9E6;color:#111}
+.ib .dot{background:#E06C75}
