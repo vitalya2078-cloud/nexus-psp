@@ -115,6 +115,7 @@ var TOTAL = 32768, OTHER = 14000;
 /* ---------- helpers ---------- */
 function size(mb) { return mb >= 1000 ? (mb / 1024).toFixed(1).replace('.', ',') + ' ГБ' : Math.round(mb) + ' МБ'; }
 function hrs(min) { var h = Math.floor(min / 60), m = min % 60; return h ? h + ' ч' + (m ? ' ' + m + ' мин' : '') : m + ' мин'; }
+function plural(n, a, b, c) { var m = n % 10, h = n % 100; return n + ' ' + (m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c); }
 function inCon(g) { return S.con === 'all' || g.p === S.con; }
 function used() { return Object.keys(lib).filter(function (i) { return lib[i].s === 'ok' || lib[i].s === 'dl' || lib[i].s === 'pause' || lib[i].s === 'q'; }).reduce(function (a, i) { return a + byId[i].size; }, 0); }
 function free() { return TOTAL - OTHER - used(); }
@@ -195,8 +196,10 @@ function conChips(src) {
   var o = [['all', 'Все', '']].concat(Object.keys(PL).map(function (k) { return [k, PL[k].n, PL[k].c]; }));
   return '<div class="chips" role="tablist" aria-label="Консоль">' + o.map(function (x) { var n = src.filter(function (g) { return x[0] === 'all' || g.p === x[0]; }).length; return '<button class="chip' + (S.con === x[0] ? ' on' : '') + '" role="tab" aria-selected="' + (S.con === x[0]) + '" data-a="con" data-v="' + x[0] + '"' + (x[2] ? ' style="--c:' + x[2] + '"' : '') + '>' + (x[2] ? '<i></i>' : '') + x[1] + ' <small>' + n + '</small></button>'; }).join('') + '</div>';
 }
-function card(g, withAct) {
-  return '<div class="card" style="--pc:' + PL[g.p].c + '"><a class="art" href="#game-' + g.id + '" data-vt="' + g.id + '" style="background-image:' + art(g, 300, 400) + '"><span class="pl">' + PL[g.p].n + '</span>' + badge(g.id) + '</a><b>' + g.t + '</b><small>' + g.genre + ' · ' + size(g.size) + '</small>' + (withAct ? act(g, 'b-xs') : '') + '</div>';
+function card(g, withAct, mine) {
+  var L = lib[g.id], info = g.genre + ' · ' + size(g.size);
+  if (mine && L) info = L.s === 'ok' ? (L.play ? 'Наиграно ' + hrs(L.play) : 'Не запускалась') : L.s === 'own' ? 'Не установлена · ' + size(g.size) : stat(g.id).lbl + ' · ' + size(g.size);
+  return '<div class="card" data-lp="' + g.id + '" style="--pc:' + PL[g.p].c + '"><a class="art" href="#game-' + g.id + '" data-vt="' + g.id + '" style="background-image:' + art(g, 300, 400) + '"><span class="pl">' + PL[g.p].n + '</span>' + badge(g.id) + '</a><b>' + g.t + '</b><small>' + info + '</small>' + (withAct ? act(g, 'b-xs') : '') + '</div>';
 }
 function myList() {
   var ord = { ok: 0, dl: 1, pause: 1, q: 1, own: 2 };
@@ -220,7 +223,7 @@ function vGames() {
   if (!focusId || !lib[focusId] || !list.some(function (g) { return g.id === focusId; })) focusId = list[0].id;
   h += '<div class="car" id="car">' + list.map(function (g) {
     var L = lib[g.id], dl = L.s === 'dl' || L.s === 'pause' || L.s === 'q';
-    return '<button class="cc' + (g.id === focusId ? ' on' : '') + (L.s === 'own' ? ' own' : '') + '" data-a="cc" data-id="' + g.id + '" style="--pc:' + PL[g.p].c + ';background-image:' + art(g, 300, 400) + '" aria-label="' + esc(g.t) + '"><span class="pl">' + PL[g.p].n + '</span>' + (L.s === 'ok' ? '' : badge(g.id)) + (dl ? '<span class="fill"><i data-bar="' + g.id + '" style="width:' + (L.pr || 0) + '%"></i></span>' : '') + '</button>';
+    return '<button data-lp="' + g.id + '" class="cc' + (g.id === focusId ? ' on' : '') + (L.s === 'own' ? ' own' : '') + '" data-a="cc" data-id="' + g.id + '" style="--pc:' + PL[g.p].c + ';background-image:' + art(g, 300, 400) + '" aria-label="' + esc(g.t) + '"><span class="pl">' + PL[g.p].n + '</span>' + (L.s === 'ok' ? '' : badge(g.id)) + (dl ? '<span class="fill"><i data-bar="' + g.id + '" style="width:' + (L.pr || 0) + '%"></i></span>' : '') + '</button>';
   }).join('') + '<a class="cc more" href="#library"><span>' + I('grid', 26) + 'Вся<br>библиотека</span></a></div>';
   return h + '<div class="g-info" id="ginfo">' + infoHtml(byId[focusId]) + '</div></div>';
 }
@@ -319,9 +322,9 @@ function oLibrary() {
     ['Все', 'Установленные', 'Не установленные', 'Загружаются', 'Избранное'].slice(1).map(function (f) { return '<button class="chip' + (S.lf === f ? ' on' : '') + '" data-a="lf" data-v="' + f + '">' + f + '</button>'; }).join('') + sep +
     Object.keys(cols).map(function (c) { return '<button class="chip' + (S.lc === c ? ' on' : '') + '" data-a="lcol" data-v="' + esc(c) + '">' + I('folder', 14) + esc(c) + ' <small>' + cols[c].length + '</small></button>'; }).join('') +
     (showNewCol ? '<label class="lsearch nc"><input id="newcol" placeholder="Название коллекции" value="' + esc(newCol) + '"></label><button class="chip" data-a="mkcol">' + I('check', 14) + 'Создать</button>' : '<button class="chip" data-a="newcol">' + I('plus', 14) + 'Коллекция</button>') + '</div>';
-  return '<div class="full" role="dialog" aria-label="Вся библиотека"><div class="ov-h lib-h"><h2>Библиотека <span class="hint num">' + list.length + '</span></h2><label class="lsearch">' + I('search', 18) + '<input id="lq" type="search" placeholder="Поиск в библиотеке" value="' + esc(S.lq || '') + '"></label>' +
+  return '<div class="full" role="dialog" aria-label="Вся библиотека"><div class="ov-h lib-h"><h2>Библиотека <span class="hint num">' + plural(list.length, 'игра', 'игры', 'игр') + '</span></h2><label class="lsearch">' + I('search', 18) + '<input id="lq" type="search" placeholder="Поиск в библиотеке" value="' + esc(S.lq || '') + '"></label>' +
     '<button class="b b-soft b-sm" data-a="sortcyc">' + I('list', 16) + S.sort + '</button><button class="b b-soft b-rd" data-a="close" aria-label="Закрыть">' + I('x') + '</button></div>' + chipsRow +
-    '<div class="ov-b">' + (list.length ? '<div class="lgrid">' + list.map(function (g) { return card(g, true); }).join('') + '</div>' : '<div class="banner">' + I('search', 18) + 'Ничего не нашлось. Сбрось фильтры или добавь игры в магазине.</div>') + '</div></div>';
+    '<div class="ov-b">' + (list.length ? '<div class="lgrid">' + list.map(function (g) { return card(g, true, true); }).join('') + '</div>' : (S.lc ? '<div class="banner">' + I('folder', 18) + '<span>В коллекции «' + esc(S.lc) + '» пока пусто. Открой карточку игры и нажми на название коллекции — игра добавится сюда. Или удерживай обложку.</span></div>' : '<div class="banner">' + I('search', 18) + 'Ничего не нашлось. Сбрось фильтры или добавь игры в магазине.</div>')) + '</div></div>';
 }
 /* search (п. 8) */
 function sMatch(g, q) { return (g.t + ' ' + g.genre + ' ' + PL[g.p].full + ' ' + PL[g.p].n).toLowerCase().indexOf(q) >= 0; }
@@ -455,7 +458,7 @@ function topState() {
   var b = document.getElementById('dlBtn');
   b.classList.toggle('busy', a.length > 0);
   b.setAttribute('aria-label', a.length ? 'Загрузки: ' + a.length + ', ' + Math.floor(pr) + '%' : 'Загрузки');
-  b.innerHTML = a.length ? '<span class="dlcap"><i style="width:' + pr.toFixed(0) + '%"></i><b class="num">' + Math.floor(pr) + '%</b></span>' : I('dl', 20);
+  b.innerHTML = a.length ? '<span class="dlcap"><i style="width:' + Math.max(8, pr).toFixed(0) + '%"></i><em>' + I('dl', 14) + '</em><b class="num">' + Math.floor(pr) + '%</b></span>' : I('dl', 20);
   document.getElementById('quickBtn').innerHTML = I('grid', 20) + (alerts.some(function (x) { return x.u; }) ? '<span class="dot"></span>' : '');
 }
 function mini() { var m = document.getElementById('mini'); if (m) m.classList.remove('on'); }
@@ -509,6 +512,7 @@ document.addEventListener('click', function (e) {
     case 'pause': lib[id].s = 'pause'; pump(); refresh(); break;
     case 'resume': Object.keys(lib).forEach(function (i) { if (lib[i].s === 'dl') lib[i].s = 'q'; }); lib[id].s = 'dl'; refresh(); break;
     case 'cancel': lib[id].s = 'own'; delete lib[id].pr; pump(); toast('Установка «' + g.t + '» отменена — игра осталась в библиотеке'); refresh(); break;
+    case 'unlib': delete lib[id]; Object.keys(cols).forEach(function (c) { var ix = cols[c].indexOf(id); if (ix >= 0) cols[c].splice(ix, 1); }); delete favs[id]; toast('«' + g.t + '» убрана из библиотеки'); refresh(); break;
     case 'uninstall': lib[id] = { s: 'own', t: lib[id].t, saves: lib[id].saves }; toast(I('trash', 18) + '«' + g.t + '» удалена с телефона, осталась в библиотеке'); refresh(); break;
     case 'fav': if (favs[id]) delete favs[id]; else favs[id] = 1; refresh(); break;
     case 'togcol': var c = cols[v], ix = c.indexOf(id); if (ix >= 0) c.splice(ix, 1); else c.push(id); refresh(); break;
@@ -637,6 +641,47 @@ function splash(forceFull) {
   if (!S.launched) { S.launched = true; save(); }
   return full;
 }
+
+
+/* ---------- long press menu (шлифовка 3) ---------- */
+var lpT = null, lpFired = false;
+function closeCtx() { var c = document.getElementById('ctx'); if (c) c.remove(); }
+function openCtx(id, el) {
+  closeCtx(); var g = byId[id], L = lib[id], r = el.getBoundingClientRect(), m = document.createElement('div');
+  m.id = 'ctx'; m.className = 'ctx'; m.setAttribute('role', 'menu');
+  var items = '<div class="ctx-h"><span class="th" style="background-image:' + art(g, 300, 300) + '"></span><b>' + g.t + '</b></div>' + '<div class="ctx-a">' + act(g, 'b-sm') + '</div>' +
+    '<a class="ctx-i" href="#game-' + id + '">' + I('info', 18) + 'Об игре</a>' +
+    (L ? '<button class="ctx-i" data-a="fav" data-id="' + id + '">' + I(favs[id] ? 'heartF' : 'heart', 18) + (favs[id] ? 'Убрать из избранного' : 'В избранное') + '</button>' +
+      Object.keys(cols).map(function (c) { var on = cols[c].indexOf(id) >= 0; return '<button class="ctx-i" data-a="togcol" data-id="' + id + '" data-v="' + esc(c) + '">' + I(on ? 'check' : 'folder', 18) + (on ? 'В коллекции «' : 'Добавить в «') + esc(c) + '»</button>'; }).join('') +
+      (L.s === 'ok' ? '<button class="ctx-i bad" data-a="uninstall" data-id="' + id + '">' + I('trash', 18) + 'Удалить с телефона</button>' : '') +
+      '<button class="ctx-i bad" data-a="unlib" data-id="' + id + '">' + I('x', 18) + 'Убрать из библиотеки</button>' : '');
+  m.innerHTML = items; document.body.appendChild(m);
+  var cs = getComputedStyle(document.documentElement), sl = 12 + (parseFloat(cs.getPropertyValue('--sal')) || 0), sr = 12 + (parseFloat(cs.getPropertyValue('--sar')) || 0), w = m.offsetWidth, h = m.offsetHeight, x = Math.min(innerWidth - w - sr, Math.max(sl, r.left + r.width / 2 - w / 2)), y = r.top + h > innerHeight - 12 ? Math.max(12, innerHeight - h - 12) : r.top;
+  m.style.left = x + 'px'; m.style.top = y + 'px'; buzz(14);
+}
+document.addEventListener('pointerdown', function (e) {
+  var c = e.target.closest('[data-lp]'); if (!e.target.closest('#ctx')) closeCtx(); if (!c) return;
+  lpFired = false; var sx = e.clientX, sy = e.clientY;
+  lpT = setTimeout(function () { lpFired = true; openCtx(c.getAttribute('data-lp'), c); }, 480);
+  var mv = function (m) { if (Math.abs(m.clientX - sx) > 8 || Math.abs(m.clientY - sy) > 8) cancel(); };
+  var cancel = function () { clearTimeout(lpT); document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', cancel); };
+  document.addEventListener('pointermove', mv); document.addEventListener('pointerup', cancel);
+}, true);
+document.addEventListener('click', function (e) { if (lpFired && e.target.closest('[data-lp]')) { e.preventDefault(); e.stopPropagation(); lpFired = false; } if (e.target.closest('#ctx [data-a], #ctx a')) setTimeout(closeCtx, 0); }, true);
+document.addEventListener('contextmenu', function (e) { if (e.target.closest('[data-lp]')) e.preventDefault(); });
+
+/* ---------- swipe down closes game sheet (шлифовка 5) ---------- */
+document.addEventListener('pointerdown', function (e) {
+  var sh = e.target.closest('.sheet'); if (!sh || e.target.closest('button,a,input')) return;
+  var body = sh.querySelector('.gs-body'); if (body && body.scrollTop > 0 && !e.target.closest('.gs-top')) return;
+  var sy = e.clientY, dy = 0;
+  var mv = function (m) { dy = Math.max(0, m.clientY - sy); if (dy > 6) { sh.style.transition = 'none'; sh.style.transform = 'translateY(' + dy + 'px)'; } };
+  var up = function () { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); sh.style.transition = ''; if (dy > 110) { sh.style.transform = 'translateY(102%)'; setTimeout(close, 200); } else sh.style.transform = ''; };
+  document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
+});
+
+/* ---------- safe areas from native (вырез камеры) ---------- */
+window.kapsulaInsets = function (l, t, r, b) { var s = document.documentElement.style; s.setProperty('--sal', l + 'px'); s.setProperty('--sat', t + 'px'); s.setProperty('--sar', r + 'px'); s.setProperty('--sab', b + 'px'); };
 
 /* ---------- start ---------- */
 $$('[data-i]').forEach(function (el) { el.innerHTML = I(el.getAttribute('data-i'), 20); });

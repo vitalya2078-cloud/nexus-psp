@@ -11,6 +11,10 @@ import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import android.os.Build
+import android.view.WindowManager
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -23,6 +27,7 @@ import androidx.webkit.WebViewAssetLoader
 class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
+    private var safe: Insets = Insets.NONE
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,6 +35,12 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Рисуем и в области выреза камеры; интерфейс сам отступает от неё (см. pushInsets)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
         hideSystemBars()
 
         // https-адрес вместо file://, чтобы localStorage и шрифты работали как в браузере
@@ -38,7 +49,7 @@ class MainActivity : ComponentActivity() {
             .build()
 
         webView = WebView(this).apply {
-            setBackgroundColor(Color.parseColor("#121316"))
+            setBackgroundColor(Color.parseColor("#0B0C0F"))
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = true
@@ -48,9 +59,22 @@ class MainActivity : ComponentActivity() {
                     view: WebView,
                     request: WebResourceRequest
                 ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
+
+                override fun onPageFinished(view: WebView, url: String) {
+                    pushInsets()
+                }
             }
         }
         setContentView(webView)
+
+        // Безопасные зоны: вырез камеры (и системные панели, когда они показаны)
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
+            safe = insets.getInsets(
+                WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.systemBars()
+            )
+            pushInsets()
+            insets
+        }
 
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
@@ -73,6 +97,15 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         webView.saveState(outState)
+    }
+
+    /** Передаёт размеры выреза в интерфейс (CSS-переменные --sal/--sat/--sar/--sab в CSS-пикселях). */
+    private fun pushInsets() {
+        if (!::webView.isInitialized) return
+        val d = resources.displayMetrics.density
+        val js = "window.kapsulaInsets&&window.kapsulaInsets(" +
+            "${(safe.left / d).toInt()},${(safe.top / d).toInt()},${(safe.right / d).toInt()},${(safe.bottom / d).toInt()})"
+        webView.evaluateJavascript(js, null)
     }
 
     private fun hideSystemBars() {
