@@ -438,10 +438,23 @@ function endOnb() { var ks = Object.keys(onb.cons).filter(function (k) { return 
 /* ---------- router ---------- */
 var tab = 'games', layerKey = '';
 function hash() { try { return (location.hash || '').slice(1); } catch (e) { return ''; } }
+function grabScroll(root) {
+  if (!root) return null;
+  var els = Array.prototype.slice.call(root.querySelectorAll('.scroll,.ov-b,.row-c,.frow,.chips,.gs-body,.car,.qm-row'));
+  return els.map(function (el) { return [el.scrollTop, el.scrollLeft]; });
+}
+function putScroll(root, saved) {
+  if (!root || !saved) return;
+  var els = Array.prototype.slice.call(root.querySelectorAll('.scroll,.ov-b,.row-c,.frow,.chips,.gs-body,.car,.qm-row'));
+  els.forEach(function (el, i) { if (!saved[i] || el.classList.contains('car')) return; el.scrollTop = saved[i][0]; el.scrollLeft = saved[i][1]; });
+}
+var keepPage = false;
 function renderPage() {
+  var pg = document.getElementById('page'), sv = keepPage ? grabScroll(pg) : null;
   document.body.classList.toggle('store', tab === 'store');
   $$('.tabs a').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-tab') === tab); });
   $('#page').innerHTML = tab === 'games' ? vGames() : vStore();
+  putScroll(pg, sv);
   if (tab === 'games') { initCar(); if (focusId) tint(byId[focusId]); }
   else { var l = sList().filter(function (g) { return g.isNew; }); tint(l[featIdx % (l.length || 1)] || sList()[0]); }
 }
@@ -451,13 +464,14 @@ function render() {
   renderPage(); renderLayer(h); topState(); mini();
 }
 function renderLayer(h) {
-  var L = $('#layer'), html = '';
+  var L = $('#layer'), html = '', svL = layerKey === h ? grabScroll(L) : null;
   if (h.indexOf('game-') === 0) html = oGame(h.slice(5));
   else if (h.indexOf('gset-') === 0) html = oGSet(h.slice(5));
   else if (h.indexOf('play-') === 0) html = oPlay(h.slice(5));
   else html = ({ library: oLibrary, search: oSearch, downloads: oDownloads, alerts: oAlerts, quick: oQuick, settings: oSettings, profile: oProfile, pad: oPad }[h] || function () { return ''; })();
   var was = layerKey; layerKey = html ? h : '';
   L.innerHTML = html;
+  putScroll(L, svL);
   if (html && was !== h) { L.classList.remove('on'); void L.offsetWidth; requestAnimationFrame(function () { L.classList.add('on'); }); } else L.classList.toggle('on', !!html);
   if (h === 'search' && was !== h) setTimeout(function () { var q = $('#q'); if (q) q.focus(); }, 80);
   if (h.indexOf('play-') === 0) { var pid = h.slice(5); if (!booted[pid]) setTimeout(function () { booted[pid] = true; var el = $('#play'); if (el) el.classList.add('ready'); }, 1900); }
@@ -468,13 +482,26 @@ function go(h) { var run = function () { location.hash = h; }; if (document.star
 window.addEventListener('hashchange', function () { var h = hash(); if (h.indexOf('game-') === 0 && layerKey.indexOf('game-') !== 0) gTab = 'about'; if (h.indexOf('play-') !== 0) { paused = false; editKeys = false; } render(); });
 
 /* ---------- top bar, mini bar (п. 7, 15) ---------- */
+var dlBusy = null;
 function topState() {
-  var a = Object.keys(lib).filter(function (i) { return ['dl', 'pause', 'q'].indexOf(lib[i].s) >= 0; }), pr = a.length ? a.reduce(function (s, i) { return s + (lib[i].pr || 0); }, 0) / a.length : 0;
-  var b = document.getElementById('dlBtn');
-  b.classList.toggle('busy', a.length > 0);
-  b.setAttribute('aria-label', a.length ? 'Загрузки: ' + a.length + ', ' + Math.floor(pr) + '%' : 'Загрузки');
-  b.innerHTML = a.length ? '<span class="dlcap"><i style="width:' + Math.max(8, pr).toFixed(0) + '%"></i><em>' + I('dl', 14) + '</em><b class="num">' + Math.floor(pr) + '%</b></span>' : I('dl', 20);
-  document.getElementById('quickBtn').innerHTML = I('grid', 20) + (alerts.some(function (x) { return x.u; }) ? '<span class="dot"></span>' : '');
+  var a = Object.keys(lib).filter(function (i) { return ['dl', 'pause', 'q'].indexOf(lib[i].s) >= 0; });
+  var pr = a.length ? a.reduce(function (s, i) { return s + (lib[i].pr || 0); }, 0) / a.length : 0;
+  var paused = a.length && a.every(function (i) { return lib[i].s !== 'dl'; });
+  var b = document.getElementById('dlBtn'), busy = a.length > 0;
+  if (busy !== dlBusy) {
+    dlBusy = busy; b.classList.toggle('busy', busy);
+    b.innerHTML = busy ? '<span class="dlk"><span class="dlk-cap"><span class="dlk-fill"></span><span class="dlk-l"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v6M3.3 5.6 6 8.3l2.7-2.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="dlk-mid"></span><span class="dlk-r"><b></b><b></b><b></b></span></span><span class="dlk-pc num"></span></span>' : I('dl', 20);
+  }
+  if (busy) {
+    var cap = b.querySelector('.dlk');
+    cap.classList.toggle('paused', !!paused);
+    b.querySelector('.dlk-fill').style.transform = 'scaleX(' + Math.max(0.04, pr / 100).toFixed(3) + ')';
+    b.querySelectorAll('.dlk-r b').forEach(function (l, i) { l.classList.toggle('on', pr >= (i + 1) * 33); });
+    b.querySelector('.dlk-pc').textContent = paused ? 'пауза' : Math.floor(pr) + '%';
+  }
+  b.setAttribute('aria-label', busy ? 'Загрузки: ' + a.length + ', ' + Math.floor(pr) + '%' : 'Загрузки');
+  var qb = document.getElementById('quickBtn'), unread = alerts.some(function (x) { return x.u; });
+  if (qb.getAttribute('data-u') !== String(unread)) { qb.setAttribute('data-u', String(unread)); qb.innerHTML = I('grid', 20) + (unread ? '<span class="dot"></span>' : ''); }
 }
 function mini() { var m = document.getElementById('mini'); if (m) m.classList.remove('on'); }
 
@@ -494,7 +521,7 @@ setInterval(function () {
     if (L.pr >= 100) { lib[i] = { s: 'ok', play: 0, last: 'Ещё не запускалась', saves: 0, t: Date.now() }; done = true; alerts.unshift({ t: '«' + byId[i].t + '» установлена', d: 'Только что', u: 1, g: i }); toast(I('check', 18) + '«' + byId[i].t + '» установлена'); buzz(20); }
     else { $$('[data-pr="' + i + '"]').forEach(function (n) { n.textContent = Math.floor(L.pr) + '%'; }); $$('[data-bar="' + i + '"]').forEach(function (n) { n.style.width = L.pr + '%'; }); }
   });
-  if (done) { pump(); var keep = layerKey; renderPage(); if (keep) renderLayer(keep); }
+  if (done) { pump(); var keep = layerKey; keepPage = true; renderPage(); keepPage = false; if (keep) renderLayer(keep); }
   topState(); if (done) mini();
 }, 600);
 
@@ -509,7 +536,7 @@ function applyPrefs() {
   r.style.filter = S.bright < 100 ? 'brightness(' + S.bright / 100 + ')' : '';
   var m = $('meta[name=theme-color]'); if (m) m.setAttribute('content', getComputedStyle(r).getPropertyValue('--bg').trim() || '#0B0C0F');
 }
-function refresh() { applyPrefs(); var k = layerKey; renderPage(); if (k) renderLayer(k); topState(); mini(); }
+function refresh() { applyPrefs(); var k = layerKey; keepPage = true; renderPage(); keepPage = false; if (k) renderLayer(k); topState(); mini(); }
 
 /* ---------- actions ---------- */
 document.addEventListener('click', function (e) {
@@ -518,7 +545,7 @@ document.addEventListener('click', function (e) {
   var t = e.target.closest('[data-a]'); if (!t) return;
   var a = t.getAttribute('data-a'), id = t.getAttribute('data-id'), v = t.getAttribute('data-v'), k = t.getAttribute('data-k'), g = byId[id];
   switch (a) {
-    case 'con': S.con = v; save(); focusId = null; refresh(); break;
+    case 'con': S.con = v; save(); focusId = null; refresh(); break; // прокрутка сохраняется в refresh()
     case 'cc': e.preventDefault(); if (id === focusId) { if (lib[id].s === 'ok') go('play-' + id); else go('game-' + id); } else { var car = $('#car'); car.scrollTo({ left: t.offsetLeft + t.offsetWidth / 2 - car.clientWidth / 2, behavior: S.calm ? 'auto' : 'smooth' }); } break;
     case 'play': paused = false; buzz(12); click(660); go('play-' + id); break;
     case 'add': lib[id] = { s: 'own', t: Date.now() }; toast(I('plus', 18) + '«' + g.t + '» в библиотеке'); if (S.auto) install(id); refresh(); break;
