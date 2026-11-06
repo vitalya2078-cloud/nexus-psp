@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Системная заставка Android 12+ (знак KAPSULA); дальше — анимированная заставка интерфейса
+        // Системная заставка Android 12+ сделана невидимой; показывается только фирменная заставка интерфейса
         installSplashScreen()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
