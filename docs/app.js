@@ -129,14 +129,15 @@ var notifs=[
  {ic:'sparkle',color:'var(--neon)',text:'Новая игра в каталоге: «Неоновый Дрифт»',time:'2 дня назад',unread:true},
  {ic:'info',color:'var(--soft)',text:'Доступно обновление NEXUS 0.3.1: улучшена совместимость',time:'5 дней назад',unread:false}
 ];
-var defaults={accent:'violet',lang:'ru',start:'home',wifiOnly:true,parallel:'1',autoInstall:true,res:'2',backend:'vulkan',fps:false,frameskip:false,vol:80,haptic:true,nDl:true,nNew:true,nUpd:true,
+var defaults={accent:'ember',lang:'ru',start:'home',wifiOnly:true,parallel:'1',autoInstall:true,res:'2',backend:'vulkan',fps:false,frameskip:false,vol:80,haptic:true,nDl:true,nNew:true,nUpd:true,
   padOp:60,padSc:100,padLayout:'classic',padHaptic:true,padHide:true,padEdit:false,cloud:true};
 var S={};
 try{S=JSON.parse(localStorage.getItem('nexus-proto-settings')||'{}')||{};}catch(e){S={};}
 Object.keys(defaults).forEach(function(k){if(S[k]===undefined)S[k]=defaults[k];});
+if(S.accent==='violet'||S.accent==='cyan'||S.accent==='pink'||S.accent==='lime')S.accent='ember';
 function saveS(){try{localStorage.setItem('nexus-proto-settings',JSON.stringify(S));}catch(e){}}
-var ACCENTS={violet:{n:'Фиолет',neon:'#9B5CFF',btn:'#7B3FF2',ink:'#FFFFFF',soft:'rgba(155,92,255,.16)'},cyan:{n:'Циан',neon:'#35D7FF',btn:'#35D7FF',ink:'#04131A',soft:'rgba(53,215,255,.14)'},pink:{n:'Неон-розовый',neon:'#FF4FD8',btn:'#FF4FD8',ink:'#1A0414',soft:'rgba(255,79,216,.15)'},lime:{n:'Лайм',neon:'#B6F03C',btn:'#B6F03C',ink:'#0F1404',soft:'rgba(182,240,60,.13)'}};
-function applyAccent(){var a=ACCENTS[S.accent]||ACCENTS.violet,st=document.documentElement.style;st.setProperty('--neon',a.neon);st.setProperty('--btn',a.btn);st.setProperty('--btn-ink',a.ink);st.setProperty('--neon-soft',a.soft);}
+var ACCENTS={ember:{n:'Огонь',neon:'#FF4A1C',btn:'#FF4A1C',ink:'#140400',soft:'rgba(255,74,28,.14)'},ice:{n:'Лёд',neon:'#7FB2FF',btn:'#7FB2FF',ink:'#06102A',soft:'rgba(127,178,255,.14)'},gold:{n:'Золото',neon:'#FFC23D',btn:'#FFC23D',ink:'#1A1200',soft:'rgba(255,194,61,.14)'},toxic:{n:'Токсик',neon:'#B6F03C',btn:'#B6F03C',ink:'#0F1404',soft:'rgba(182,240,60,.13)'}};
+function applyAccent(){var a=ACCENTS[S.accent]||ACCENTS.ember,st=document.documentElement.style;st.setProperty('--neon',a.neon);st.setProperty('--btn',a.btn);st.setProperty('--btn-ink',a.ink);st.setProperty('--neon-soft',a.soft);}
 
 /* ---------- helpers ---------- */
 function fmtSize(mb){return mb>=1000?(mb/1024).toFixed(1).replace('.',',')+' ГБ':Math.round(mb)+' МБ';}
@@ -333,12 +334,14 @@ function vGamepad(){
   return h;
 }
 
+function xpHtml(play,saves){var xp=play*2+saves*25+Object.keys(lib).length*50,lvl=Math.floor(xp/1000)+1,cur=xp%1000;
+  return '<div class="xp"><div class="xp-top"><span>УРОВЕНЬ <b>'+lvl+'</b></span><span>'+cur+' / 1000 XP</span></div><div class="xp-bar"><i style="width:'+(cur/10)+'%"></i></div></div>';}
 function vProfile(){
   var ids=Object.keys(lib), inst=ids.filter(function(i){return lib[i].status==='installed';});
   var play=inst.reduce(function(a,i){return a+lib[i].play;},0), saves=inst.reduce(function(a,i){return a+lib[i].saves;},0), maxPlay=Math.max.apply(null,inst.map(function(i){return lib[i].play;}).concat([0]));
   var genres={};inst.forEach(function(i){genres[byId[i].genre]=1;});
   var B=[['bolt','Первый запуск','Запусти любую игру',inst.length>0],['lib','Коллекционер','5 игр в библиотеке',ids.length>=5],['clock','Марафонец','10 часов в одной игре',maxPlay>=600],['save','Осторожный игрок','10 сохранений',saves>=10],['sparkle','Исследователь','Игры 5 разных жанров',Object.keys(genres).length>=5],['trophy','Легенда','100 часов в NEXUS',play>=6000]];
-  var h='<div class="p-head"><span class="p-ava">N</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><span class="eyebrow">NEXUS ID</span><h1>Твой ник</h1><span class="p-id">Профиль на этом устройстве · с ноября 2026</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" data-act="toast" data-msg="Здесь будет смена ника и аватара">Изменить</button><button class="btn btn-primary btn-sm" data-act="toast" data-msg="Вход через аккаунт — в планах">'+ic('user',16)+'Войти и синхронизировать</button></div></div>';
+  var h='<div class="p-head"><span class="p-ava">N</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><span class="eyebrow">NEXUS ID</span><h1>Твой ник</h1><span class="p-id">NEXUS ID · профиль на этом устройстве</span>'+xpHtml(play,saves)+'</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" data-act="toast" data-msg="Здесь будет смена ника и аватара">Изменить</button><button class="btn btn-primary btn-sm" data-act="toast" data-msg="Вход через аккаунт — в планах">'+ic('user',16)+'Войти и синхронизировать</button></div></div>';
   h+='<div class="tiles"><div class="tile">'+ic('clock',20,' style="color:var(--cyan)"')+'<b>'+fmtTime(play).split(' ').slice(0,2).join(' ')+'</b><span>наиграно всего</span></div><div class="tile">'+ic('lib',20,' style="color:var(--cyan)"')+'<b>'+ids.length+'</b><span>игр в библиотеке</span></div><div class="tile">'+ic('save',20,' style="color:var(--cyan)"')+'<b>'+saves+'</b><span>сохранений</span></div><div class="tile">'+ic('trophy',20,' style="color:var(--cyan)"')+'<b>'+B.filter(function(b){return b[3];}).length+' / '+B.length+'</b><span>достижений</span></div></div>';
   h+='<div class="p-cols"><section class="panel"><h2>Облачные сохранения <span class="soon-label">ПЛАНИРУЕТСЯ</span></h2><p style="font-size:13px;margin-bottom:14px">Сохранения копируются в облако. Сменишь телефон — продолжишь с того же места.</p><div class="set-group" style="background:var(--panel2)">'+row('Синхронизация','Последняя: только что',sw('cloud'))+row('Этот телефон','Основное устройство','<span class="st-ok" style="font-size:12px;font-weight:700">'+ic('check',12)+' Активно</span>')+'</div></section>';
   h+='<section class="panel"><h2>Недавняя активность</h2><div class="saves">'+inst.map(function(i){var g=byId[i];return '<a class="save" href="#game-'+g.id+'"><span class="cover" style="width:40px;border-radius:7px;background-image:'+art(g,300,420)+'"></span><div style="flex:1;min-width:0"><b>'+g.title+'</b><span>'+lib[i].last+' · '+fmtTime(lib[i].play)+'</span></div>'+ic('right',16)+'</a>';}).join('')+'</div></section></div>';
@@ -480,5 +483,8 @@ fsBtn.addEventListener('click',function(){
 document.addEventListener('fullscreenchange',function(){var on=!!document.fullscreenElement;fsBtn.setAttribute('aria-label',on?'Выйти из полноэкранного режима':'На весь экран');fsBtn.lastElementChild.textContent=on?'Свернуть':'На весь экран';});
 document.getElementById('rotateSkip').addEventListener('click',function(){document.getElementById('rotate').classList.add('dismissed');});
 
+(function(){var items=G.slice(0,6).map(function(g){return '<span><em>▲</em> НОВИНКА · <b>'+g.title.toUpperCase()+'</b> · '+g.genre+'</span>';});
+  items.push('<span><em>●</em> NEXUS 0.3.1 · улучшена совместимость</span>','<span><em>■</em> СКОРО · <b>ЗВЁЗДНЫЙ КУРЬЕР</b> · декабрь</span>');
+  var t=items.join('');document.getElementById('tickerTrack').innerHTML=t+t;})();
 applyAccent(); pump(); render(); restartHero();
 })();
