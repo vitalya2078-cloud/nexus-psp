@@ -110,6 +110,13 @@ private fun Carousel(list: List<Game>) {
     }
     val fg = list.getOrNull(focus.coerceAtMost(list.lastIndex))
     LaunchedEffect(fg?.id) { fg?.let { Ambient.color = Color(it.pal[2]); Act.buzz() } }
+    // широкий фон игры из её образа (PIC1) — мягко за каруселью
+    val pic = fg?.let { AppState.meta[it.id]?.pic }
+    Box(Modifier.fillMaxSize()) {
+    if (pic != null) {
+        com.nexus.psp.ui.FileImage(pic, Modifier.fillMaxSize(), alpha = .28f)
+        Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(K.bg.copy(alpha = .2f), K.bg.copy(alpha = .55f), K.bg))))
+    }
     Column(Modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
             val h = maxHeight * .92f
@@ -153,6 +160,7 @@ private fun Carousel(list: List<Game>) {
         if (fg != null) AnimatedContent(fg.id, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) }, label = "info") { id ->
             AppState.byId[id]?.let { Info(it) }
         }
+    }
     }
 }
 

@@ -14,6 +14,7 @@ import com.nexus.psp.emulator.CoreFiles
 import com.nexus.psp.emulator.GameLibrary
 import com.nexus.psp.ui.kit.K
 import com.nexus.psp.ui.kit.T
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -31,8 +32,11 @@ data class Alert(val t: String, val d: String, val u: Boolean, val g: String? = 
 
 data class Toast(val text: String, val icon: Int? = null, val action: String? = null, val onAction: (() -> Unit)? = null, val id: Long = System.nanoTime())
 
-/** Найденный при сканировании папки образ. */
-data class Found(val name: String, val uri: Uri, val sizeMb: Int)
+/** Найденный при сканировании папки образ; exists — такая игра уже есть в библиотеке (не копируется). */
+data class Found(val name: String, val uri: Uri, val sizeMb: Int, val exists: Boolean = false)
+
+/** Вопрос пользователю с вариантами ответа (диалог в App.kt). */
+data class Ask(val title: String, val text: String, val options: List<String>, val answer: kotlinx.coroutines.CompletableDeferred<Int>)
 
 /** Копирование своих файлов: текущий файл, доля 0..1, номер и всего в очереди. */
 data class Importing(val name: String, val p: Float, val n: Int, val total: Int)
@@ -72,6 +76,9 @@ class Settings(private val sp: SharedPreferences) {
     var onboarded by b("onboarded", false)
     var launched by b("launched", false)
     var recent by s("recent", "")
+    /** Обложки и названия игр из интернета (libretro) и только по Wi-Fi. */
+    var covers by b("covers", true)
+    var coversWifi by b("coversWifi", true)
     /** Сообщить, когда откроется магазин. */
     var storeNotify by b("storeNotify", false)
     /** Настройки ядра PSP (ключ ppsspp_* → значение), JSON. Пресет: quality / balance / battery / custom. */
@@ -102,11 +109,23 @@ object AppState {
     /** Результат «Найти игры на телефоне» — ждёт подтверждения. */
     var found by mutableStateOf<List<Found>?>(null)
     var scanning by mutableStateOf(false)
+    /** Сведения об играх: серийный номер, название из базы, обложка, картинки из образа. */
+    val meta = mutableStateMapOf<String, Meta>()
+    var ask by mutableStateOf<Ask?>(null)
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
+    private val inWork = HashSet<String>()
+
+    /** Спросить пользователя и дождаться ответа (индекс варианта, -1 — закрыл). */
+    suspend fun askUser(title: String, text: String, vararg options: String): Int {
+        val d = kotlinx.coroutines.CompletableDeferred<Int>()
+        ask = Ask(title, text, options.toList(), d)
+        return d.await().also { ask = null }
+    }
 
     fun init(c: Context) {
         // повторный вызов с тем же приложением — ничего не делаем; новый контекст (тесты) — начинаем с чистого состояния
         if (::sp.isInitialized && app === c.applicationContext) return
-        byId.clear(); lib.clear(); favs.clear(); alerts.clear(); history.clear(); cols = linkedMapOf(); importing = null; found = null
+        byId.clear(); lib.clear(); favs.clear(); alerts.clear(); history.clear(); meta.clear(); cols = linkedMapOf(); importing = null; found = null
         app = c.applicationContext
         sp = app.getSharedPreferences("kapsula", Context.MODE_PRIVATE)
         S = Settings(sp)
@@ -156,16 +175,67 @@ object AppState {
             val a = JSONArray(GameLibrary.list(app))
             for (i in 0 until a.length()) {
                 val f = a.getJSONObject(i)
-                val g = realGame(f.getString("id"), f.getString("name"), f.getString("file"), f.getString("path"), f.getDouble("size"), f.optString("plat", "psp"))
+                val g0 = realGame(f.getString("id"), f.getString("name"), f.getString("file"), f.getString("path"), f.getDouble("size"), f.optString("plat", "psp"))
+                val m = Covers.load(app, g0.id); meta[g0.id] = m
+                val g = if (m.title != null) g0.copy(t = m.title) else g0
                 byId[g.id] = g; found.add(g.id)
                 if (lib[g.id] == null) lib[g.id] = Lib()
             }
         } catch (e: Exception) { }
-        byId.keys.filter { it !in found }.forEach { byId.remove(it) }
+        byId.keys.filter { it !in found }.forEach { byId.remove(it); meta.remove(it) }
         lib.keys.filter { it !in found }.forEach { lib.remove(it) }
         favs.keys.filter { it !in found }.forEach { favs.remove(it) }
         if (cols.values.any { l -> l.any { it !in found } }) cols = LinkedHashMap(cols.mapValues { (_, v) -> v.filter { it in found } })
         consumeSession()
+        save()
+        // обложки: игры, которые ещё не обрабатывались или ждали интернета
+        byId.values.forEach { g -> val m = meta[g.id]; if (m == null || m.tried == 0L || (m.cover == null && m.tried == 1L)) fetchMeta(g.id) }
+    }
+
+    /** Фоновая обработка обложек (в тестах снимков экранов выключается). */
+    var autoFetch = true
+
+    /** Картинки из образа, название и обложка — в фоне; force — «Найти обложку заново». */
+    fun fetchMeta(id: String, force: Boolean = false) {
+        if (!autoFetch && !force) return
+        val g = byId[id] ?: return
+        if (!inWork.add(id)) return
+        scope.launch {
+            val net = S.covers && Covers.netAllowed(app, S.coversWifi)
+            val m = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Covers.process(app, g, net, force) }
+            inWork.remove(id)
+            meta[id] = m
+            byId[id]?.let { cur -> if (m.title != null && cur.t != m.title) byId[id] = cur.copy(t = m.title) }
+            if (force) say(if (m.cover != null) "Обложка обновлена" else if (!net) "Нет интернета (или не Wi-Fi) — обложка не загружена" else "Обложку для этой игры не нашли", com.nexus.psp.R.drawable.ph_check)
+        }
+    }
+
+    fun setUserCover(id: String, bytes: ByteArray) {
+        scope.launch {
+            val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Covers.setUserCover(app, id, bytes) }
+            meta[id] = Covers.load(app, id)
+            say(if (ok) "Обложка установлена" else "Не удалось открыть картинку", com.nexus.psp.R.drawable.ph_check)
+        }
+    }
+
+    fun clearUserCover(id: String) { Covers.clearUserCover(app, id); meta[id] = Covers.load(app, id) }
+
+    /** Игра с тем же названием (без формата и региона), но другим файлом — для вопроса «Заменить / Оставить обе». */
+    fun sameTitle(fileName: String): Game? {
+        val k = prettyName(fileName.substringBeforeLast('.')).lowercase()
+        return byId.values.firstOrNull { prettyName(it.file.substringBeforeLast('.')).lowercase() == k && !it.file.equals(fileName, true) }
+    }
+
+    fun hasFile(fileName: String) = byId.values.firstOrNull { it.file.equals(fileName, true) }
+
+    /** «Заменить»: статистика, избранное и коллекции переходят к новому файлу, старый удаляется. */
+    fun replaceWith(oldId: String, newId: String) {
+        val o = byId[oldId] ?: return
+        lib[oldId]?.let { e -> lib[newId] = (lib[newId] ?: Lib()).let { n -> n.copy(play = n.play + e.play, saves = n.saves + e.saves, last = e.last) } }
+        if (favs[oldId] == true) favs[newId] = true
+        cols = LinkedHashMap(cols.mapValues { (_, v) -> if (oldId in v && newId !in v) v.map { if (it == oldId) newId else it } else v - oldId })
+        GameLibrary.delete(app, o.path); Covers.remove(app, oldId)
+        lib.remove(oldId); byId.remove(oldId); favs.remove(oldId); meta.remove(oldId)
         save()
     }
 
@@ -183,9 +253,11 @@ object AppState {
 
     fun addImported(info: JSONObject): Game {
         val g = realGame(info.getString("id"), info.getString("name"), info.getString("file"), info.getString("path"), info.getDouble("size"), info.optString("plat", "psp"))
+        val isNew = lib[g.id] == null
         byId[g.id] = g; lib[g.id] = lib[g.id] ?: Lib()
-        alerts.add(0, Alert("«${g.t}» добавлена в библиотеку", "Только что", true, g.id))
+        if (isNew) alerts.add(0, Alert("«${g.t}» добавлена в библиотеку", "Только что", true, g.id))
         save()
+        fetchMeta(g.id)
         return g
     }
 
@@ -208,7 +280,7 @@ object AppState {
     fun uninstall(id: String) {
         val g = byId[id] ?: return
         if (GameLibrary.delete(app, g.path)) {
-            lib.remove(id); byId.remove(id); favs.remove(id)
+            lib.remove(id); byId.remove(id); favs.remove(id); meta.remove(id); Covers.remove(app, id)
             cols = LinkedHashMap(cols.mapValues { (_, v) -> v - id })
             say("«${g.t}» удалена с телефона", R.drawable.sl_trash); save()
         } else say("Не удалось удалить файл")

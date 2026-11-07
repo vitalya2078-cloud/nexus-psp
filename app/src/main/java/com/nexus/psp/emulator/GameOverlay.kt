@@ -111,7 +111,7 @@ private fun PauseMenu(a: GameActivity, ui: GameActivity.UiState, con: String, co
                 ActionTile(R.drawable.sb_play, "Продолжить", main = true) { a.setPaused(false) }
                 ActionTile(R.drawable.sl_save, "Сохранить") { a.saveQuick() }
                 ActionTile(R.drawable.sl_load, "Загрузить", enabled = ui.hasState) { a.loadQuick() }
-                ActionTile(R.drawable.sl_bolt, if (ui.fast) "Скорость ×1" else "Ускорить ×2") { a.toggleFast() }
+                ActionTile(R.drawable.sl_bolt, "Ускорение", on = ui.fast, sub = if (ui.fast) "×2 · вкл" else "Выкл") { a.toggleFast() }
                 ActionTile(R.drawable.sl_exit, "Выйти", danger = true) { a.exitGame() }
             }
             Text(

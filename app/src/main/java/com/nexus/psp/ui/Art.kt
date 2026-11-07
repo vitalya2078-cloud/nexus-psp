@@ -141,6 +141,23 @@ object Art {
 /** Обложка игры: процедурная, по названию файла — у каждой игры своя палитра и мотив. */
 @Composable
 fun Cover(g: Game, w: Int, h: Int, k: Int = 0, modifier: Modifier = Modifier) {
+    // найденная или своя обложка — важнее процедурной (только для вертикальных мест: карточки, карусель)
+    val f = com.nexus.psp.data.AppState.meta[g.id]?.cover
+    if (f != null && h >= w) { FileImage(f, modifier); return }
     val img = remember(g.id, w, h, k) { Art.bitmap(g, w, h, k) }
     Image(img, null, modifier, contentScale = ContentScale.Crop)
+}
+
+private val files = object : LruCache<String, ImageBitmap>(24 * 1024 * 1024) {
+    override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
+}
+
+/** Картинка из файла (обложка, фон из образа) с кэшем по пути и времени изменения. */
+@Composable
+fun FileImage(f: java.io.File, modifier: Modifier = Modifier, alpha: Float = 1f) {
+    val key = f.path + ":" + f.lastModified()
+    val img = remember(key) {
+        files.get(key) ?: try { android.graphics.BitmapFactory.decodeFile(f.path)?.asImageBitmap()?.also { files.put(key, it) } } catch (e: Exception) { null }
+    } ?: return
+    Image(img, null, modifier, contentScale = ContentScale.Crop, alpha = alpha)
 }

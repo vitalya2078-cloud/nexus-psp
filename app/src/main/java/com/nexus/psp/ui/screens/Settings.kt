@@ -110,6 +110,9 @@ private fun Downloads() {
     Opt("Папка с играми", com.nexus.psp.emulator.CoreFiles.gamesDir(ctx).absolutePath.replace("/storage/emulated/0/", "")) { Text("своя папка — позже", style = T.small) }
     Opt("Добавить игру", "Файл ISO, CSO, CHD или PBP — скопируется в папку KAPSULA") { KButton("Выбрать файл", R.drawable.ph_plus, small = true) { com.nexus.psp.ui.Act.addFile() } }
     Opt("Найти игры на телефоне", "Выбери папку — KAPSULA найдёт все образы в ней и вложенных папках") { KButton("Выбрать папку", R.drawable.sl_search, small = true) { com.nexus.psp.ui.Act.findGames() } }
+    Opt("Обложки из интернета", "По серийному номеру диска, из открытой базы libretro. Сохраняются на телефоне") { Toggle(S.covers) { S.covers = it; if (it) AppState.byId.keys.forEach { id -> AppState.fetchMeta(id) } } }
+    Opt("Обложки только по Wi-Fi", "Одна обложка — до 1 МБ") { Toggle(S.coversWifi) { S.coversWifi = it } }
+    Opt("Обновить обложки", "Поискать заново для всех игр") { KButton("Обновить", small = true) { AppState.byId.keys.forEach { id -> AppState.fetchMeta(id, force = true) } } }
     Opt("Память", "Игры KAPSULA ${com.nexus.psp.data.size(AppState.usedMb())} · свободно ${com.nexus.psp.data.size(AppState.freeMb())}") { }
 }
 
@@ -151,7 +154,7 @@ private fun About() {
     val ver = try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { "" }
     val core = try { ctx.assets.open("ppsspp/CORE.txt").bufferedReader().readText().trim() } catch (e: Exception) { "ядро не найдено в этой сборке" }
     Opt("KAPSULA", "Версия $ver · нативный интерфейс") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
-    Opt("Эмулятор PSP", core) { }
+    Opt("Эмулятор PSP", "KAPSULA на ядре PPSSPP · $core") { }
     Opt("PS1 и PS2", "Beetle PSX / PCSX-ReARMed и PCSX2 — будут подключены") { }
     Opt("Лицензии", "PPSSPP (GPL-2.0+), LibretroDroid (GPL-3.0), значки Solar (CC BY 4.0) и Phosphor (MIT), шрифт Manrope (OFL)") { }
     Opt("Конфиденциальность", "Данные хранятся только на телефоне") { }

@@ -63,7 +63,16 @@ fun StoreScreen() {
                     Text("Сообщить, когда откроется", style = T.label.copy(fontSize = 14.sp))
                     Text("Придёт уведомление в KAPSULA", style = T.small)
                 }
-                Toggle(S.storeNotify) { S.storeNotify = it; if (it) AppState.say("Сообщим, когда магазин откроется", R.drawable.ph_check) }
+                Toggle(S.storeNotify) { on ->
+                    if (!on) { S.storeNotify = false; return@Toggle }
+                    val ask = com.nexus.psp.ui.Act.ensureNotify
+                    if (ask == null) { S.storeNotify = true; return@Toggle }
+                    ask { ok ->
+                        S.storeNotify = ok
+                        if (ok) AppState.say("Сообщим, когда магазин откроется", R.drawable.ph_check)
+                        else AppState.say("Уведомления запрещены", R.drawable.sl_alert, "Разрешить") { com.nexus.psp.ui.Act.openNotifySettings?.invoke() }
+                    }
+                }
             }
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

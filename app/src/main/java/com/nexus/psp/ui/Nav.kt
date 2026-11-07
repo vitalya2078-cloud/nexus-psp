@@ -52,6 +52,9 @@ object Act {
     var pickFolder: (() -> Unit)? = null
     /** Скопировать найденные в папке игры по очереди. */
     var importAll: ((List<com.nexus.psp.data.Found>) -> Unit)? = null
+    var pickCover: ((String) -> Unit)? = null
+    var ensureNotify: (((Boolean) -> Unit) -> Unit)? = null
+    var openNotifySettings: (() -> Unit)? = null
 
     fun buzz() { if (S.vib) view?.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) }
     fun buzzLong() { if (S.vib) view?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS) }

@@ -338,19 +338,23 @@ fun Bar(fraction: Float, color: Color = K.acc, height: Dp = 4.dp, modifier: Modi
     }
 }
 
-/** Плитка действия меню паузы (как .qb). */
+/** Плитка действия меню паузы (как .qb). on — переключатель включён (подсвечен), sub — его состояние. */
 @Composable
-fun ActionTile(icon: Int, label: String, main: Boolean = false, danger: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
-    val bg = if (main) Color(0xFFF2F1EC) else Color(0xFF131419)
+fun ActionTile(icon: Int, label: String, main: Boolean = false, danger: Boolean = false, enabled: Boolean = true, on: Boolean = false, sub: String? = null, onClick: () -> Unit) {
+    val acc = Color(0xFF7FA7D9)
+    val bg = when { main -> Color(0xFFF2F1EC); on -> acc.copy(alpha = .22f); else -> Color(0xFF131419) }
     val fg = when { main -> Color(0xFF0B0C0F); danger -> Color(0xFFD98A8A); else -> Color(0xFFF2F1EC) }
     Column(
         Modifier.width(112.dp).clip(RoundedCornerShape(16.dp)).background(bg)
-            .border(BorderStroke(1.dp, if (main) Color.Transparent else Color(0x14FFFFFF)), RoundedCornerShape(16.dp))
+            .border(BorderStroke(if (on) 1.5.dp else 1.dp, if (main) Color.Transparent else if (on) acc else Color(0x14FFFFFF)), RoundedCornerShape(16.dp))
             .press(enabled, onClick).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(if (sub != null) 8.dp else 14.dp),
     ) {
-        SolarIcon(icon, 22.dp, if (enabled) fg else fg.copy(alpha = .35f))
-        Text(label, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = if (enabled) fg else fg.copy(alpha = .35f)))
+        SolarIcon(icon, 22.dp, if (!enabled) fg.copy(alpha = .35f) else if (on) acc else fg)
+        Column {
+            Text(label, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = if (enabled) fg else fg.copy(alpha = .35f)))
+            if (sub != null) Text(sub, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, color = if (on) acc else fg.copy(alpha = .5f)))
+        }
     }
 }
 

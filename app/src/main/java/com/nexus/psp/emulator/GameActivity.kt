@@ -294,7 +294,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         ui.fast = !ui.fast
         retro?.frameSpeed = if (ui.fast) 2 else 1
         controls.setToggle("ff", ui.fast)
-        toast(if (ui.fast) "Ускорение ×2" else "Обычная скорость")
+        toast(if (ui.fast) "Ускорение включено: ×2" else "Ускорение выключено")
     }
 
     fun exitGame() = finish()

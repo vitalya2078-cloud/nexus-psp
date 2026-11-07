@@ -159,10 +159,24 @@ private fun About(g: Game) {
         KvCell("Носитель", p.media, p.mediaImg)
         KvCell("BIOS", if (p.bios) "Нужен BIOS ${p.short}" else "Не нужен")
         KvCell("Управление", "Экран или геймпад")
-        KvCell("Эмулятор", if (p.ready) "PPSSPP" else "Скоро")
+        KvCell("Эмулятор", if (p.ready) "KAPSULA" else "Скоро")
     }
     if (!p.ready) StateCard("es-bios.png", "${p.full} пока не поддерживается.", "Ядро для ${p.short} подключим следующим — игра останется в библиотеке.")
-    Text("Описание и обложку можно будет выбрать позже — сейчас обложка создаётся по названию файла.", style = T.small)
+    val m = AppState.meta[g.id]
+    Sub("Обложка")
+    Text(
+        when {
+            m?.cover?.name == "cover_user.jpg" -> "Своя обложка из галереи."
+            m?.cover != null -> "Найдена в интернете по серийному номеру диска${m.serial?.let { " ($it)" } ?: ""}."
+            !S.covers -> "Загрузка обложек выключена в настройках — сейчас обложка создаётся по названию."
+            else -> "Обложку пока не нашли — показываем созданную по названию. Нужен интернет${if (S.coversWifi) " по Wi-Fi" else ""}."
+        }, style = T.small,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        KButton("Найти заново", R.drawable.sl_search, small = true) { AppState.fetchMeta(g.id, force = true) }
+        KButton("Из галереи", R.drawable.sl_folder, small = true) { com.nexus.psp.ui.Act.pickCover?.invoke(g.id) }
+        if (m?.cover?.name == "cover_user.jpg") KButton("Убрать свою", small = true) { AppState.clearUserCover(g.id) }
+    }
 }
 
 @Composable
@@ -181,6 +195,7 @@ private fun KvCell(k: String, v: String, img: String? = null) {
 private fun FileInfo(g: Game) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         KvCell("Файл", g.file); KvCell("Формат", g.format); KvCell("Размер", size(g.size)); KvCell("Консоль", g.plat.full)
+        AppState.meta[g.id]?.serial?.let { KvCell("Серийный номер", it) }
     }
     Text(g.path.replace("/storage/emulated/0/", ""), style = T.small)
 }

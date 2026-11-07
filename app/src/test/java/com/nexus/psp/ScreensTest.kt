@@ -38,6 +38,7 @@ class ScreensTest {
 
     private fun shot(name: String, withGames: Boolean, prep: () -> Unit) {
         if (withGames) games("Ridge_Racer_2 (Europe).iso" to 640, "Patapon 3.cso" to 410, "Lumines.iso" to 300, "Daxter (USA).cso" to 520)
+        AppState.autoFetch = false
         AppState.init(ApplicationProvider.getApplicationContext())
         AppState.S.onboarded = true; AppState.S.launched = true
         Nav.closeAll(); Nav.tab = "games"

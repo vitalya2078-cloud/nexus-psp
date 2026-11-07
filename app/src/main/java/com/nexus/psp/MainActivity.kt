@@ -48,9 +48,38 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Своя обложка из галереи для игры coverFor. */
+    private var coverFor: String? = null
+    private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val id = coverFor ?: return@registerForActivityResult
+        if (uri == null) return@registerForActivityResult
+        lifecycleScope.launch {
+            val bytes = withContext(Dispatchers.IO) { try { contentResolver.openInputStream(uri)?.use { it.readBytes() } } catch (e: Exception) { null } }
+            if (bytes != null) AppState.setUserCover(id, bytes) else AppState.say("Не удалось открыть картинку")
+        }
+    }
+
+    /** Разрешение на уведомления (Android 13+). */
+    private var notifyCb: ((Boolean) -> Unit)? = null
+    private val askNotify = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> notifyCb?.invoke(ok); notifyCb = null }
+
+    private fun ensureNotify(cb: (Boolean) -> Unit) {
+        if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) { cb(true); return }
+        notifyCb = cb; askNotify.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    private fun openNotifySettings() {
+        try {
+            startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName))
+        } catch (e: Exception) {
+            startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        }
+    }
+
     private fun scanTree(tree: Uri): List<Found> {
         val out = ArrayList<Found>()
         val known = AppState.byId.values.map { it.file.lowercase() }.toSet()
+        val knownTitles = AppState.byId.values.map { com.nexus.psp.data.prettyName(it.file.substringBeforeLast('.')).lowercase() }.toSet()
         fun walk(docId: String, depth: Int) {
             if (depth > 4 || out.size >= 200) return
             val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId)
@@ -60,8 +89,11 @@ class MainActivity : ComponentActivity() {
                     while (c.moveToNext()) {
                         val id = c.getString(0) ?: continue; val name = c.getString(1) ?: continue
                         if (c.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR) walk(id, depth + 1)
-                        else if (name.substringAfterLast('.', "").lowercase() in GameLibrary.EXT && name.lowercase() !in known)
-                            out.add(Found(name, DocumentsContract.buildDocumentUriUsingTree(tree, id), (c.getLong(3) / 1048576).toInt()))
+                        else if (name.substringAfterLast('.', "").lowercase() in GameLibrary.EXT) {
+                            // тот же файл или та же игра в другом формате — показываем «уже есть», не копируем
+                            val dup = name.lowercase() in known || com.nexus.psp.data.prettyName(name.substringBeforeLast('.')).lowercase() in knownTitles
+                            out.add(Found(name, DocumentsContract.buildDocumentUriUsingTree(tree, id), (c.getLong(3) / 1048576).toInt(), dup))
+                        }
                     }
                 }
             } catch (e: Exception) { }
@@ -77,6 +109,19 @@ class MainActivity : ComponentActivity() {
             var added: Game? = null; var count = 0
             for ((i, uri) in uris.withIndex()) {
                 val (name, bytes) = GameLibrary.displayName(this@MainActivity, uri)
+                // тот же файл уже в библиотеке — не копируем заново
+                val same = AppState.hasFile(name)
+                if (same != null) {
+                    if (uris.size == 1) AppState.say("«${same.t}» уже в библиотеке", R.drawable.ph_check, "Открыть") { Nav.open(com.nexus.psp.ui.Ov.Game(same.id)) }
+                    continue
+                }
+                // та же игра в другом формате — спросить
+                var replace: Game? = null
+                val twin = AppState.sameTitle(name)
+                if (twin != null) {
+                    val a = AppState.askUser("«${twin.t}» уже есть", "В библиотеке эта игра в формате ${twin.format}. Новый файл — ${name.substringAfterLast('.').uppercase()}.", "Заменить", "Оставить обе", "Не добавлять")
+                    if (a == 0) replace = twin else if (a != 1) continue
+                }
                 if (bytes > 0 && bytes / 1048576 > AppState.freeMb() - 200) { AppState.say("Мало места для «$name» — копирование остановлено", R.drawable.sl_alert); break }
                 AppState.importing = Importing(name, 0f, i + 1, uris.size)
                 try {
@@ -84,6 +129,8 @@ class MainActivity : ComponentActivity() {
                         GameLibrary.importFile(this@MainActivity, uri) { p -> runOnUiThread { AppState.importing = Importing(name, p.toFloat(), i + 1, uris.size) } }
                     }
                     added = AppState.addImported(GameLibrary.info(f)); count++
+                    val r = replace; val ad = added
+                    if (r != null && ad != null) AppState.replaceWith(r.id, ad.id)
                 } catch (e: Exception) {
                     AppState.say(e.message ?: "Не удалось добавить «$name»", R.drawable.sl_alert)
                 }
@@ -111,7 +158,10 @@ class MainActivity : ComponentActivity() {
         Act.view = window.decorView
         Act.pickFile = { pickGame.launch(arrayOf("*/*")) }
         Act.pickFolder = { pickTree.launch(null) }
-        Act.importAll = { l -> importQueue(l.map { it.uri }) }
+        Act.importAll = { l -> importQueue(l.filter { !it.exists }.map { it.uri }) }
+        Act.pickCover = { id -> coverFor = id; pickImage.launch("image/*") }
+        Act.ensureNotify = { cb -> ensureNotify(cb) }
+        Act.openNotifySettings = { openNotifySettings() }
         watchNetwork()
         setContent { KapsulaTheme { KapsulaApp() } }
     }

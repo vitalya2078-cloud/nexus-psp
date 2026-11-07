@@ -92,6 +92,7 @@ fun KapsulaApp() {
         Importing(Modifier.align(Alignment.BottomCenter))
         Scanning(Modifier.align(Alignment.BottomCenter))
         FoundDialog()
+        AskDialog()
         if (onb && !splash) Onboarding { onb = false }
         if (splash) Splash(full = !S.launched) { splash = false; S.launched = true }
         // яркость интерфейса (быстрая панель)
@@ -167,17 +168,33 @@ private fun FoundDialog() {
                     com.nexus.psp.ui.kit.KButton("Другая папка", small = true, kind = com.nexus.psp.ui.kit.BtnKind.Main) { AppState.found = null; Act.findGames() }
                 }
             } else {
-                val total = f.sumOf { it.sizeMb }
-                Text("Нашлось ${com.nexus.psp.data.plural(f.size, "игра", "игры", "игр")} · ${com.nexus.psp.data.size(total)}", style = T.h3)
+                val new = f.filter { !it.exists }
+                val total = new.sumOf { it.sizeMb }
+                Text(if (new.isEmpty()) "Все найденные игры уже в библиотеке" else "Новых игр: ${new.size} · ${com.nexus.psp.data.size(total)}" + if (new.size < f.size) " (ещё ${f.size - new.size} уже есть)" else "", style = T.h3)
                 Text("Файлы скопируются в папку KAPSULA. Свободно ${com.nexus.psp.data.size(AppState.freeMb())}.", style = T.body)
                 Column(Modifier.heightIn(max = 180.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    f.forEach { Text("• ${it.name} — ${com.nexus.psp.data.size(it.sizeMb)}", style = T.small.copy(color = K.ink2), maxLines = 1) }
+                    f.forEach { Text("• ${it.name} — " + if (it.exists) "уже есть" else com.nexus.psp.data.size(it.sizeMb), style = T.small.copy(color = if (it.exists) K.ink3 else K.ink2), maxLines = 1) }
                 }
                 if (total > AppState.freeMb()) Text("Места не хватит на все игры — скопируются, пока есть место.", style = T.small.copy(color = K.warn))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                     com.nexus.psp.ui.kit.KButton("Отмена", small = true) { AppState.found = null }
-                    com.nexus.psp.ui.kit.KButton("Добавить все", com.nexus.psp.R.drawable.ph_plus, com.nexus.psp.ui.kit.BtnKind.Main, small = true) { val l = f; AppState.found = null; Act.importAll?.invoke(l) }
+                    if (new.isNotEmpty()) com.nexus.psp.ui.kit.KButton(if (new.size == 1) "Добавить" else "Добавить все", com.nexus.psp.R.drawable.ph_plus, com.nexus.psp.ui.kit.BtnKind.Main, small = true) { val l = f; AppState.found = null; Act.importAll?.invoke(l) }
                 }
+            }
+        }
+    }
+}
+
+/** Вопрос с вариантами (например, «Заменить / Оставить обе»). */
+@Composable
+private fun AskDialog() {
+    val a = AppState.ask ?: return
+    androidx.compose.ui.window.Dialog({ a.answer.complete(-1) }) {
+        Column(Modifier.width(460.dp).clip(RoundedCornerShape(22.dp)).background(K.s1).padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(a.title, style = T.h3)
+            Text(a.text, style = T.body)
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                a.options.forEachIndexed { i, o -> com.nexus.psp.ui.kit.KButton(o, small = true, kind = if (i == 0) com.nexus.psp.ui.kit.BtnKind.Main else com.nexus.psp.ui.kit.BtnKind.Soft) { a.answer.complete(i) } }
             }
         }
     }
