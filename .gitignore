@@ -5,3 +5,5 @@ local.properties
 *.iml
 .externalNativeBuild/
 .cxx/
+app/src/main/jniLibs/
+app/src/main/assets/ppsspp/

@@ -121,7 +121,39 @@ var alerts = [
 var D = { con: 'all', theme: 'dark', big: false, contrast: false, calm: false, mirror: false, saver: false, wifi: true, auto: true, res: '2x', fps: false, vol: 80, bright: 100, vib: true, sound: false, op: 55, sc: 100, hide: true, cloud: true, ctlMode: 'touch', kp: {}, lang: 'RU', fit: false, sort: 'Недавние', lf: 'Все', lc: '', onboarded: false, launched: false, recent: [] };
 var S = JSON.parse(JSON.stringify(D));
 try { var sv = JSON.parse(localStorage.getItem('kapsula') || '{}'); for (var k in sv) S[k] = sv[k]; } catch (e) {}
-function save() { try { localStorage.setItem('kapsula', JSON.stringify(S)); } catch (e) {} }
+function save() { if (GM) return; try { localStorage.setItem('kapsula', JSON.stringify(S)); } catch (e) {} }
+/* ---------- ядро: мост с Android (п. 48) ---------- */
+var N = window.KapsulaNative || null, GM = !!N && /[?&]game=1/.test(location.search), BOOT = null;
+/* коды кнопок Android → LibretroDroid → кнопки PSP (низ = крест, право = круг, верх = треугольник, лево = квадрат) */
+var KEYC = { ft: 99, fr: 96, fb: 97, fl: 100, l1: 102, r1: 103, l2: 104, r2: 105, select: 109, start: 108 };
+var DIRC = { u: 19, d: 20, l: 21, r: 22 };
+function nkey(kid, down) { if (!GM) return; var c = KEYC[kid.split(':')[1]]; if (c) N.key(c, down); }
+function ndir(old, nw) { if (!GM) return; if (old && DIRC[old]) N.key(DIRC[old], false); if (nw && DIRC[nw]) N.key(DIRC[nw], true); }
+function addReal(f) {
+  var id = f.id; if (!id) return null;
+  byId[id] = { id: id, t: f.name || f.title || 'Игра', p: f.plat || 'psp', genre: 'Свой файл', year: '—', size: Math.max(1, Math.round(f.size || 0)), kind: 'Из файла', pal: ['#1A1C22', '#0B0C0F', '#7FA7D9'], m: 'sun', desc: 'Твой образ игры с телефона. Запускается в ядре PPSSPP.', feat: ['Файл с устройства: ' + (f.file || ''), 'Работает без интернета'], noArt: true, seed: 3, rev: 0, compat: 3, path: f.path, real: true };
+  if (!lib[id] || lib[id].s !== 'ok') lib[id] = { s: 'ok', play: 0, last: 'Ещё не запускалась', saves: 0, t: Date.now() };
+  return byId[id];
+}
+function loadReal() { if (!N || GM) return; try { JSON.parse(N.listGames()).forEach(addReal); } catch (e) {} }
+function launch(id) {
+  var g = byId[id]; lib[id].last = 'Только что';
+  N.startGame(JSON.stringify({ id: id, name: g.t, path: g.path, plat: g.p, size: g.size, s: { ctlMode: S.ctlMode, op: S.op, sc: S.sc, mirror: S.mirror, kp: S.kp, vib: S.vib, hide: S.hide, calm: S.calm, theme: S.theme } }));
+}
+var nPaused = false;
+function setPause(p) { paused = p; var el = $('#play'); if (el) el.classList.toggle('paused', p); if (GM && nPaused !== p) { nPaused = p; if (p) N.pause(); else N.resume(); } }
+window.kapsulaFile = function (e) {
+  if (e.type === 'progress') toast(I('folder', 18) + 'Копирую «' + esc(e.name) + '» · ' + Math.round(e.p * 100) + '%', 60000);
+  else if (e.type === 'done') { var g = addReal(e.game); refresh(); toast(I('check', 18) + '«' + esc(g.t) + '» в библиотеке<button data-a="play" data-id="' + g.id + '">Играть</button>', 6000); }
+  else if (e.type === 'error') toast(I('alert', 18) + esc(e.msg || 'Не удалось добавить файл'), 4000);
+};
+window.kapsulaResume = function () { if (!GM) { loadReal(); refresh(); } };
+window.kapsulaGame = function (e) {
+  var id = BOOT && BOOT.id, el = $('#play');
+  if (e.type === 'ready') { booted[id] = true; if (el) el.classList.add('ready'); }
+  if (e.type === 'error' && el) { el.classList.remove('ready', 'paused'); var bt = el.querySelector('.boot'); if (bt) bt.innerHTML = I('alert', 40) + '<b>Игра не запустилась</b><span style="letter-spacing:0;font-size:13px;max-width:420px;text-align:center">' + esc(e.msg || '') + '</span><button class="b b-main" data-a="exitgame" data-id="' + id + '">Выйти</button>'; }
+};
+window.kapsulaBack = function () { if (editKeys) { editKeys = false; renderLayer(hash()); return; } setPause(!paused); };
 var TOTAL = 32768, OTHER = 14000;
 
 /* ---------- helpers ---------- */
@@ -282,7 +314,7 @@ function opt(t, d, c) { return '<div class="opt"><span class="tx"><b>' + t + '</
 function tg(k) { return '<button class="tg" role="switch" aria-checked="' + !!S[k] + '" data-a="tg" data-k="' + k + '" aria-label="Переключить"></button>'; }
 function seg(k, o, lbl) { return '<div class="seg">' + o.map(function (v, i) { return '<button class="' + (String(S[k]) === String(v) ? 'on' : '') + '" data-a="set" data-k="' + k + '" data-v="' + v + '">' + (lbl ? lbl[i] : v) + '</button>'; }).join('') + '</div>'; }
 function rng(k, a, b, u) { return '<div class="rng"><input type="range" min="' + a + '" max="' + b + '" value="' + S[k] + '" data-k="' + k + '" aria-label="' + k + '"><output class="num" id="o-' + k + '">' + S[k] + (u || '%') + '</output></div>'; }
-function slot(g, i, label, when, cls) { return '<button class="' + (cls || 'slot') + '" data-a="loadslot" data-id="' + g.id + '"><span class="shot" style="background-image:' + art(g, 480, 272, 30 + i) + '"></span><b>' + label + '</b><span>' + when + '</span></button>'; }
+function slot(g, i, label, when, cls) { return '<button class="' + (cls || 'slot') + '" data-a="loadslot" data-id="' + g.id + '" data-v="' + i + '"><span class="shot" style="background-image:' + art(g, 480, 272, 30 + i) + '"></span><b>' + label + '</b><span>' + when + '</span></button>'; }
 function saves(g) { var n = (lib[g.id] && lib[g.id].saves) || 0, W = ['5 минут назад', 'вчера', '3 дня назад', 'неделю назад', 'месяц назад']; var o = []; for (var i = 0; i < Math.min(n, 4); i++) o.push(slot(g, i, i === 0 ? 'Быстрое сохранение' : 'Слот ' + (i + 1), W[i])); return o.join(''); }
 
 /* game sheet (п. 3, 18, 9) */
@@ -382,7 +414,7 @@ function oSettings() {
   if (setTab === 'ctl') b = opt('Экранный геймпад', CMODE[S.ctlMode] + ' · раскладка, размер, прозрачность', '<a class="b b-main b-sm" href="#pad">Настроить</a>') + opt('Скрывать кнопки', 'Когда подключён геймпад', tg('hide')) + opt('Подключённый геймпад', padState(), '<span class="hint">профиль подбирается автоматически</span>');
   if (setTab === 'bios') b = '<div class="state">' + IMG('ic-bios', 'ill sm') + '<span><b>BIOS — прошивка консоли.</b> Для PS1 и PS2 нужен файл BIOS с твоей приставки. KAPSULA проверит его по контрольной сумме.</span></div>' + Object.keys(PL).map(function (k) { var p = PL[k]; return '<div class="biosrow">' + IMG(CONIMG[k], 'bios-ill') + opt('BIOS ' + p.full, !p.bios ? 'Не требуется' : BIOS[k] ? 'Найден и проверен' : 'Не найден — нужен свой файл BIOS', p.bios ? (BIOS[k] ? '<span class="pill ok">' + I('check', 14) + 'OK</span>' : '<button class="b b-main b-sm" data-a="toast" data-v="Выбор файла BIOS (демо)">Добавить файл</button>') : '<span class="pill">—</span>') + '</div>'; }).join('');
   if (setTab === 'a11y') b = opt('Крупный текст', '', tg('big')) + opt('Высокий контраст', '', tg('contrast')) + opt('Уменьшить движение', 'Без анимаций', tg('calm')) + opt('Раскладка для левшей', 'Зеркальные экранные кнопки', tg('mirror'));
-  if (setTab === 'about') b = opt('KAPSULA', 'Версия 0.9.0 · прототип интерфейса', '<button class="b b-soft b-sm" data-a="replay">Показать заставку</button>') + opt('Эмуляторы', 'PPSSPP (PSP), Beetle PSX или PCSX-ReARMed (PS1), PCSX2 (PS2) — будут подключены', '') + opt('Лицензии', 'Иконки: Solar by 480 Design (CC BY 4.0), Phosphor (MIT). Эмуляторы — GPL', '<button class="b b-soft b-sm" data-a="toast" data-v="Список лицензий появится с подключением ядер">Открыть</button>') + opt('Конфиденциальность', 'Какие данные хранятся и где', '<button class="b b-soft b-sm" data-a="toast" data-v="Политика будет опубликована до релиза">Открыть</button>') + opt('Знакомство', 'Пройти первый запуск заново', '<button class="b b-soft b-sm" data-a="onb">Запустить</button>');
+  if (setTab === 'about') b = opt('KAPSULA', 'Версия 0.10.0 · ' + (N && N.coreInfo() ? 'ядро: ' + N.coreInfo() : 'прототип интерфейса'), '<button class="b b-soft b-sm" data-a="replay">Показать заставку</button>') + opt('Эмуляторы', 'PPSSPP (PSP), Beetle PSX или PCSX-ReARMed (PS1), PCSX2 (PS2) — будут подключены', '') + opt('Лицензии', 'Ядро PPSSPP (GPL-2.0+), LibretroDroid (GPL-3.0). Иконки: Solar by 480 Design (CC BY 4.0), Phosphor (MIT)', '<button class="b b-soft b-sm" data-a="toast" data-v="Список лицензий появится с подключением ядер">Открыть</button>') + opt('Конфиденциальность', 'Какие данные хранятся и где', '<button class="b b-soft b-sm" data-a="toast" data-v="Политика будет опубликована до релиза">Открыть</button>') + opt('Знакомство', 'Пройти первый запуск заново', '<button class="b b-soft b-sm" data-a="onb">Запустить</button>');
   return '<div class="full" role="dialog" aria-label="Настройки"><div class="ov-h"><h2>Настройки</h2><button class="b b-soft b-rd" data-a="close" aria-label="Закрыть">' + I('x') + '</button></div><div class="ov-b"><div class="set"><nav class="set-nav">' + nav.map(function (n) { return '<button class="' + (setTab === n[0] ? 'on' : '') + '" data-a="stab" data-v="' + n[0] + '">' + (setTab === n[0] ? ID(n[2], 21) : I(n[2], 20)) + n[1] + '</button>'; }).join('') + '</nav><div>' + b + '</div></div></div></div>';
 }
 /* profile (п. 10) */
@@ -459,10 +491,10 @@ function oPad() {
 /* касания: мультитач, отклик сразу при нажатии */
 function ctlAct(a, k, c) {
   var gid = c.getAttribute('data-gid');
-  if (a === 'pause') { if (layerKey.indexOf('play-') === 0) { paused = true; editKeys = false; $('#play').classList.add('paused'); } else toast('В игре эта кнопка открывает меню'); }
-  else if (a === 'save') { if (gid && lib[gid]) lib[gid].saves = (lib[gid].saves || 0) + 1; toast(I('save', 18) + 'Быстрое сохранение'); }
-  else if (a === 'load') toast(I('load', 18) + 'Быстрое сохранение загружено');
-  else if (a === 'ff') { ffOn = !ffOn; k.classList.toggle('on', ffOn); toast(ffOn ? 'Ускорение ×2' : 'Обычная скорость'); }
+  if (a === 'pause') { if (layerKey.indexOf('play-') === 0) { editKeys = false; setPause(true); } else toast('В игре эта кнопка открывает меню'); }
+  else if (a === 'save') { var sv = GM ? N.saveState(0) : true; if (gid && lib[gid]) lib[gid].saves = (lib[gid].saves || 0) + 1; toast(I('save', 18) + (sv ? 'Быстрое сохранение' : 'Не удалось сохранить')); }
+  else if (a === 'load') { var ld = GM ? (N.hasState(0) && N.loadState(0)) : true; toast(I('load', 18) + (ld ? 'Быстрое сохранение загружено' : 'Быстрых сохранений пока нет')); }
+  else if (a === 'ff') { ffOn = !ffOn; k.classList.toggle('on', ffOn); if (GM) N.setSpeed(ffOn ? 2 : 1); toast(ffOn ? 'Ускорение ×2' : 'Обычная скорость'); }
   else if (a === 'tilt') { tiltOn = !tiltOn; k.classList.toggle('on', tiltOn); toast(tiltOn ? 'Руль — наклоном телефона' : 'Руль — кнопками'); }
   else if (a === 'swap' || a === 'ctx') {
     var to = a === 'swap' ? (c.getAttribute('data-lay') === 'drive' ? 'foot' : 'drive') : k.getAttribute('data-to');
@@ -476,12 +508,12 @@ function switchLay(c, to) {
 }
 function dpDir(k, ev) { var r = k.getBoundingClientRect(), dx = ev.clientX - r.left - r.width / 2, dy = ev.clientY - r.top - r.height / 2; if (Math.abs(dx) < r.width * .12 && Math.abs(dy) < r.height * .12) return ''; if (k.closest('.mirror')) dx = -dx; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'r' : 'l') : (dy > 0 ? 'd' : 'u'); }
 function stickGo(stk, e, float) {
-  var c = stk.parentNode, cr = c.getBoundingClientRect(), mir = c.classList.contains('mirror'), knob = stk.querySelector('b'), keep = stk.getAttribute('style');
+  var c = stk.parentNode, cr = c.getBoundingClientRect(), mir = c.classList.contains('mirror'), knob = stk.querySelector('b'), keep = stk.getAttribute('style'), right = /:rs$/.test(stk.getAttribute('data-key') || '');
   if (float) { var w = stk.offsetWidth, x = mir ? cr.right - e.clientX : e.clientX - cr.left; stk.style.left = (x - w / 2) + 'px'; stk.style.top = (e.clientY - cr.top - w / 2) + 'px'; stk.style.bottom = 'auto'; stk.style.translate = 'none'; }
   stk.classList.add('live'); stk.setPointerCapture(e.pointerId);
   var r = stk.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R = r.width * .3;
-  var mv = function (m) { if (m.pointerId !== e.pointerId) return; var dx = m.clientX - cx, dy = m.clientY - cy, d = Math.hypot(dx, dy); if (d > R) { dx = dx / d * R; dy = dy / d * R; } knob.style.transform = 'translate(' + (mir ? -dx : dx) + 'px,' + dy + 'px)'; };
-  var up = function (m) { if (m.pointerId !== e.pointerId) return; knob.style.transform = ''; stk.classList.remove('live'); if (float) stk.setAttribute('style', keep); stk.removeEventListener('pointermove', mv); stk.removeEventListener('pointerup', up); stk.removeEventListener('pointercancel', up); };
+  var mv = function (m) { if (m.pointerId !== e.pointerId) return; var dx = m.clientX - cx, dy = m.clientY - cy, d = Math.hypot(dx, dy); if (d > R) { dx = dx / d * R; dy = dy / d * R; } knob.style.transform = 'translate(' + (mir ? -dx : dx) + 'px,' + dy + 'px)'; if (GM) N.stick(right, dx / R, dy / R); };
+  var up = function (m) { if (m.pointerId !== e.pointerId) return; knob.style.transform = ''; if (GM) N.stick(right, 0, 0); stk.classList.remove('live'); if (float) stk.setAttribute('style', keep); stk.removeEventListener('pointermove', mv); stk.removeEventListener('pointerup', up); stk.removeEventListener('pointercancel', up); };
   stk.addEventListener('pointermove', mv); stk.addEventListener('pointerup', up); stk.addEventListener('pointercancel', up); mv(e);
 }
 document.addEventListener('pointerdown', function (e) {
@@ -489,10 +521,11 @@ document.addEventListener('pointerdown', function (e) {
   var k = e.target.closest('.k');
   if (k && !k.classList.contains('stk')) {
     e.preventDefault(); k.classList.add('press'); buzz(8); k.setPointerCapture(e.pointerId);
-    if (k.classList.contains('dp')) k.setAttribute('data-dir', dpDir(k, e));
+    var kid = k.getAttribute('data-key'); nkey(kid, true);
+    if (k.classList.contains('dp')) { k.setAttribute('data-dir', dpDir(k, e)); ndir('', k.getAttribute('data-dir')); }
     var a = k.getAttribute('data-act'); if (a) ctlAct(a, k, c);
-    var mv = function (m) { if (m.pointerId === e.pointerId && k.classList.contains('dp')) { var d = dpDir(k, m); if (d !== k.getAttribute('data-dir')) { k.setAttribute('data-dir', d); if (d) buzz(5); } } };
-    var up = function (m) { if (m.pointerId !== e.pointerId) return; k.classList.remove('press'); k.removeAttribute('data-dir'); k.removeEventListener('pointermove', mv); k.removeEventListener('pointerup', up); k.removeEventListener('pointercancel', up); };
+    var mv = function (m) { if (m.pointerId === e.pointerId && k.classList.contains('dp')) { var d = dpDir(k, m); if (d !== k.getAttribute('data-dir')) { ndir(k.getAttribute('data-dir'), d); k.setAttribute('data-dir', d); if (d) buzz(5); } } };
+    var up = function (m) { if (m.pointerId !== e.pointerId) return; k.classList.remove('press'); nkey(kid, false); ndir(k.getAttribute('data-dir'), ''); k.removeAttribute('data-dir'); k.removeEventListener('pointermove', mv); k.removeEventListener('pointerup', up); k.removeEventListener('pointercancel', up); };
     k.addEventListener('pointermove', mv); k.addEventListener('pointerup', up); k.addEventListener('pointercancel', up);
     return;
   }
@@ -509,8 +542,8 @@ function oPlay(id) {
   return '<div class="play' + (booted[id] ? ' ready' : '') + (paused ? ' paused' : '') + '" id="play" style="--pc:' + p.c + '"><div class="play-g" style="background-image:' + art(g, 1600, 900, 11) + '"></div>' + ctl(editKeys, { plat: g.p, gid: id }) +
     '<div class="play-tb">' + (editKeys ? '<button class="on" data-a="editkeys">' + I('check', 14) + 'Готово</button>' : S.ctlMode === 'pad' ? '<button data-a="pausegame">' + I('pause', 14) + 'Меню</button>' : '') + '</div>' +
     '<div class="qm"><div class="qm-in"><span class="pill c" style="align-self:flex-start;--pc:' + p.c + '">' + p.full + '</span><h2>' + g.t + '</h2><div class="qm-row">' +
-    [['main', 'play', 'Продолжить', 'resumegame'], ['', 'save', 'Сохранить', 'qsave'], ['', 'cam', 'Скриншот', 'qshot'], ['', 'sliders', 'Настройки игры', 'qset'], ['', 'move', 'Кнопки', 'editkeys'], ['bad', 'exit', 'Выйти', 'exitgame']].map(function (b) { return '<button class="qb ' + b[0] + '" data-a="' + b[3] + '" data-id="' + id + '">' + I(b[1], 22) + b[2] + '</button>'; }).join('') +
-    '</div><div class="qm-row">' + [0, 1, 2, 3].map(function (i) { return slot(g, i, i === 0 ? 'Быстрое' : 'Слот ' + (i + 1), W[i], 'qslot'); }).join('') + '</div></div></div>' +
+    [['main', 'play', 'Продолжить', 'resumegame'], ['', 'save', 'Сохранить', 'qsave'], ['', 'cam', 'Скриншот', 'qshot']].concat(GM ? [] : [['', 'sliders', 'Настройки игры', 'qset']], [['', 'move', 'Кнопки', 'editkeys'], ['bad', 'exit', 'Выйти', 'exitgame']]).map(function (b) { return '<button class="qb ' + b[0] + '" data-a="' + b[3] + '" data-id="' + id + '">' + I(b[1], 22) + b[2] + '</button>'; }).join('') +
+    '</div><div class="qm-row">' + (GM ? [0] : [0, 1, 2, 3]).map(function (i) { return slot(g, i, i === 0 ? 'Быстрое' : 'Слот ' + (i + 1), GM ? (N.hasState(i) ? 'есть сохранение' : 'пусто') : W[i], 'qslot'); }).join('') + '</div></div></div>' +
     '<div class="boot">' + boot + '<b>' + g.t + '</b><span>' + p.full.toUpperCase() + '</span></div></div>';
 }
 
@@ -567,10 +600,10 @@ function renderLayer(h) {
   putScroll(L, svL);
   if (html && was !== h) { L.classList.remove('on'); void L.offsetWidth; requestAnimationFrame(function () { L.classList.add('on'); }); } else L.classList.toggle('on', !!html);
   if (h === 'search' && was !== h) setTimeout(function () { var q = $('#q'); if (q) q.focus(); }, 80);
-  if (h.indexOf('play-') === 0) { var pid = h.slice(5); if (!booted[pid]) setTimeout(function () { booted[pid] = true; var el = $('#play'); if (el) el.classList.add('ready'); }, 1900); }
+  if (h.indexOf('play-') === 0 && !GM) { var pid = h.slice(5); if (!booted[pid]) setTimeout(function () { booted[pid] = true; var el = $('#play'); if (el) el.classList.add('ready'); }, 1900); }
   bindDrag();
 }
-function close() { location.hash = tab; }
+function close() { if (GM) return; location.hash = tab; }
 function go(h) { var run = function () { location.hash = h; }; if (document.startViewTransition && !S.calm) document.startViewTransition(run); else run(); }
 window.addEventListener('hashchange', function () { var h = hash(); if (h.indexOf('game-') === 0 && layerKey.indexOf('game-') !== 0) gTab = 'about'; if (h.indexOf('play-') !== 0) { paused = false; editKeys = false; } render(); });
 
@@ -655,20 +688,20 @@ document.addEventListener('click', function (e) {
   var a = t.getAttribute('data-a'), id = t.getAttribute('data-id'), v = t.getAttribute('data-v'), k = t.getAttribute('data-k'), g = byId[id];
   switch (a) {
     case 'con': S.con = v; save(); focusId = null; refresh(); break; // прокрутка сохраняется в refresh()
-    case 'cc': e.preventDefault(); if (id === focusId) { if (lib[id].s === 'ok') go('play-' + id); else go('game-' + id); } else { var car = $('#car'); car.scrollTo({ left: t.offsetLeft + t.offsetWidth / 2 - car.clientWidth / 2, behavior: S.calm ? 'auto' : 'smooth' }); } break;
-    case 'play': readyIds = readyIds.filter(function (x) { return x !== id; }); paused = false; buzz(12); click(660); go('play-' + id); break;
+    case 'cc': e.preventDefault(); if (id === focusId) { if (lib[id].s === 'ok') { if (N && byId[id].real) launch(id); else go('play-' + id); } else go('game-' + id); } else { var car = $('#car'); car.scrollTo({ left: t.offsetLeft + t.offsetWidth / 2 - car.clientWidth / 2, behavior: S.calm ? 'auto' : 'smooth' }); } break;
+    case 'play': readyIds = readyIds.filter(function (x) { return x !== id; }); paused = false; buzz(12); click(660); if (N && !GM && g && g.real) { launch(id); refresh(); break; } go('play-' + id); break;
     case 'add': lib[id] = { s: 'own', t: Date.now() }; toast(I('plus', 18) + '«' + g.t + '» в библиотеке'); if (S.auto) install(id); refresh(); break;
     case 'addinstall': lib[id] = { s: 'own', t: Date.now() }; install(id); refresh(); break;
     case 'install': install(id); refresh(); break;
     case 'pause': lib[id].s = 'pause'; pump(); refresh(); break;
     case 'resume': Object.keys(lib).forEach(function (i) { if (lib[i].s === 'dl') lib[i].s = 'q'; }); lib[id].s = 'dl'; refresh(); break;
     case 'cancel': lib[id].s = 'own'; delete lib[id].pr; pump(); toast('Установка «' + g.t + '» отменена — игра осталась в библиотеке'); refresh(); break;
-    case 'unlib': delete lib[id]; Object.keys(cols).forEach(function (c) { var ix = cols[c].indexOf(id); if (ix >= 0) cols[c].splice(ix, 1); }); delete favs[id]; toast('«' + g.t + '» убрана из библиотеки'); refresh(); break;
-    case 'uninstall': lib[id] = { s: 'own', t: lib[id].t, saves: lib[id].saves }; toast(I('trash', 18) + '«' + g.t + '» удалена с телефона, осталась в библиотеке'); refresh(); break;
+    case 'unlib': if (g && g.real) { toast('Свой файл убирается кнопкой «Удалить с телефона»'); break; } delete lib[id]; Object.keys(cols).forEach(function (c) { var ix = cols[c].indexOf(id); if (ix >= 0) cols[c].splice(ix, 1); }); delete favs[id]; toast('«' + g.t + '» убрана из библиотеки'); refresh(); break;
+    case 'uninstall': if (g && g.real) { if (N.deleteGame(g.path)) { delete lib[id]; delete byId[id]; toast(I('trash', 18) + '«' + g.t + '» удалена с телефона'); } else toast('Не удалось удалить файл'); close(); refresh(); break; } lib[id] = { s: 'own', t: lib[id].t, saves: lib[id].saves }; toast(I('trash', 18) + '«' + g.t + '» удалена с телефона, осталась в библиотеке'); refresh(); break;
     case 'fav': if (favs[id]) delete favs[id]; else favs[id] = 1; refresh(); break;
     case 'togcol': var c = cols[v], ix = c.indexOf(id); if (ix >= 0) c.splice(ix, 1); else c.push(id); refresh(); break;
     case 'lcol': S.lc = S.lc === v ? '' : v; save(); refresh(); break;
-    case 'ownfile': var nid = 'own' + Date.now(); var og = { id: nid, t: 'Мой образ ' + (Object.keys(byId).filter(function (x) { return x.indexOf('own') === 0; }).length + 1), p: 'psp', genre: 'Свой файл', year: '—', size: 640, kind: 'Из файла', pal: ['#1A1C22', '#0B0C0F', '#7FA7D9'], m: 'sun', desc: 'Образ, добавленный с телефона. Обложку можно будет выбрать позже.', feat: ['Файл ISO/CSO с устройства', 'Работает без интернета'], noArt: true, seed: 1, rev: 0, compat: 3 };
+    case 'ownfile': if (N) { N.pickGame(); break; } var nid = 'own' + Date.now(); var og = { id: nid, t: 'Мой образ ' + (Object.keys(byId).filter(function (x) { return x.indexOf('own') === 0; }).length + 1), p: 'psp', genre: 'Свой файл', year: '—', size: 640, kind: 'Из файла', pal: ['#1A1C22', '#0B0C0F', '#7FA7D9'], m: 'sun', desc: 'Образ, добавленный с телефона. Обложку можно будет выбрать позже.', feat: ['Файл ISO/CSO с устройства', 'Работает без интернета'], noArt: true, seed: 1, rev: 0, compat: 3 };
       byId[nid] = og; lib[nid] = { s: 'ok', play: 0, last: 'Ещё не запускалась', saves: 0, t: Date.now() }; toast(I('folder', 18) + 'Добавлено: «' + og.t + '» (демо выбора файла)'); refresh(); break;
     case 'lf': S.lf = S.lf === v ? 'Все' : v; save(); refresh(); break;
     case 'sortcyc': var so = ['Недавние', 'По названию', 'По времени игры']; S.sort = so[(so.indexOf(S.sort) + 1) % so.length]; save(); refresh(); break;
@@ -690,14 +723,14 @@ document.addEventListener('click', function (e) {
     case 'padreset': S.op = 55; S.sc = 100; S.ctlMode = 'touch'; S.kp = {}; save(); renderLayer('pad'); toast('Раскладка сброшена'); break;
     case 'padprev': padPrev = v; renderLayer('pad'); break;
     case 'toast': toast(v); break;
-    case 'pausegame': paused = true; editKeys = false; $('#play').classList.add('paused'); break;
-    case 'resumegame': paused = false; $('#play').classList.remove('paused'); break;
-    case 'editkeys': editKeys = !editKeys; paused = false; renderLayer(hash()); if (editKeys) toast(I('move', 18) + 'Перетаскивай кнопки пальцем'); break;
-    case 'qsave': lib[id].saves = (lib[id].saves || 0) + 1; toast(I('save', 18) + 'Сохранено · слот ' + lib[id].saves); buzz(10); break;
-    case 'loadslot': if (layerKey.indexOf('play-') === 0) { paused = false; $('#play').classList.remove('paused'); toast(I('load', 18) + 'Сохранение загружено'); } else { paused = false; go('play-' + id); toast(I('load', 18) + 'Запуск с сохранения'); } break;
-    case 'qshot': toast(I('cam', 18) + 'Скриншот сохранён в галерею'); break;
+    case 'pausegame': editKeys = false; setPause(true); break;
+    case 'resumegame': setPause(false); break;
+    case 'editkeys': editKeys = !editKeys; setPause(editKeys ? true : false); renderLayer(hash()); if (editKeys) toast(I('move', 18) + 'Перетаскивай кнопки пальцем'); break;
+    case 'qsave': if (GM) { var ok = N.saveState(0); toast(I('save', 18) + (ok ? 'Сохранено в быстрый слот' : 'Не удалось сохранить')); buzz(10); renderLayer(hash()); break; } lib[id].saves = (lib[id].saves || 0) + 1; toast(I('save', 18) + 'Сохранено · слот ' + lib[id].saves); buzz(10); break;
+    case 'loadslot': if (GM) { var sl = +(v || 0); if (!N.hasState(sl)) { toast('В этом слоте пусто'); break; } var lo = N.loadState(sl); setPause(false); toast(I('load', 18) + (lo ? 'Сохранение загружено' : 'Не удалось загрузить')); break; } if (layerKey.indexOf('play-') === 0) { paused = false; $('#play').classList.remove('paused'); toast(I('load', 18) + 'Сохранение загружено'); } else { paused = false; go('play-' + id); toast(I('load', 18) + 'Запуск с сохранения'); } break;
+    case 'qshot': if (GM) { toast('Скриншоты из игры — на следующем этапе'); break; } toast(I('cam', 18) + 'Скриншот сохранён в галерею'); break;
     case 'qset': go('gset-' + id); break;
-    case 'exitgame': lib[id].last = 'Только что'; go('games'); break;
+    case 'exitgame': if (GM) { N.exitGame(); break; } lib[id].last = 'Только что'; go('games'); break;
     case 'replay': splash(true); break;
     case 'onb': onb.step = 0; close(); showOnb(); break;
     case 'onbc': if (onb.cons[v]) delete onb.cons[v]; else onb.cons[v] = 1; showOnb(); break;
@@ -741,7 +774,7 @@ function moveFocus(dir) {
   if (best) { best.focus({ preventScroll: false }); best.scrollIntoView({ block: 'nearest', inline: 'center', behavior: S.calm ? 'auto' : 'smooth' }); mark(best); click(1000); }
 }
 function mark(el) { $$('.gp-focus').forEach(function (x) { x.classList.remove('gp-focus'); }); el.classList.add('gp-focus'); }
-function back() { if ($('#onb')) return; if (layerKey.indexOf('play-') === 0) { paused = !paused; $('#play').classList.toggle('paused', paused); } else if (layerKey) close(); }
+function back() { if ($('#onb')) return; if (layerKey.indexOf('play-') === 0) setPause(!paused); else if (layerKey) close(); }
 function switchTab(d) { go(d > 0 ? 'store' : 'games'); }
 document.addEventListener('keydown', function (e) {
   var typing = /INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || '');
@@ -753,6 +786,7 @@ document.addEventListener('keydown', function (e) {
 });
 var gpPrev = {};
 function gpLoop() {
+  if (GM) return; // в игре геймпад идёт прямо в ядро
   var pads = navigator.getGamepads ? Array.prototype.filter.call(navigator.getGamepads(), Boolean) : [];
   if (pads.length) {
     var p = pads[0], b = function (i) { return p.buttons[i] && p.buttons[i].pressed; }, ax = p.axes[0] || 0, ay = p.axes[1] || 0;
@@ -839,9 +873,17 @@ window.kapsulaInsets = function (l, t, r, b) { var s = document.documentElement.
 
 /* ---------- start ---------- */
 $$('[data-i]').forEach(function (el) { el.innerHTML = I(el.getAttribute('data-i'), 20); });
-applyPrefs();
-var firstEver = !S.onboarded;
-splash(false);
-render();
-if (firstEver) setTimeout(showOnb, 1900);
+if (GM) {
+  try { BOOT = JSON.parse(N.boot()); } catch (e) { BOOT = {}; }
+  var bs = BOOT.s || {}; for (var bk in bs) S[bk] = bs[bk];
+  addReal(BOOT); document.documentElement.classList.add('gm');
+  applyPrefs(); location.replace('#play-' + BOOT.id); render();
+} else {
+  loadReal();
+  applyPrefs();
+  var firstEver = !S.onboarded;
+  splash(false);
+  render();
+  if (firstEver) setTimeout(showOnb, 1900);
+}
 })();

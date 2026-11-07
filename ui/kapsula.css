@@ -551,3 +551,11 @@ svg.i.sol.duo [opacity]{fill:var(--acc);stroke:var(--acc);opacity:.9}
 .ctl-hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:18px;background:rgba(8,9,12,.6);color:rgba(242,241,236,.85);font-size:12.5px;font-weight:700;white-space:nowrap}
 .has-pad .play .ctl:not(.edit){display:none}
 .chips.pv{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+
+/* v0.10.0: экран игры поверх ядра (картинка ядра под прозрачным WebView) */
+html.gm,html.gm body{background:transparent!important}
+.gm .top,.gm #page,.gm #bg,.gm #mini{display:none!important}
+.gm .play{background:transparent}
+.gm .play-g{display:none}
+.gm .play.paused .qm{background:linear-gradient(0deg,rgba(0,0,0,.94),rgba(0,0,0,.55) 75%)}
+.boot>svg.i{color:var(--warn)}

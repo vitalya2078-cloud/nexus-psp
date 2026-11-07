@@ -19,6 +19,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
+import android.webkit.JavascriptInterface
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
+import com.nexus.psp.emulator.GameActivity
+import com.nexus.psp.emulator.GameLibrary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 /**
  * Временная оболочка: показывает интерфейс KAPSULA из папки docs/ (упакована в assets).
@@ -28,6 +37,36 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
     private var safe: Insets = Insets.NONE
+
+    /** Выбор своего образа игры (ISO/CSO/CHD/PBP) через системный файловый менеджер. */
+    private val pickGame = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) { fileEvent(JSONObject().put("type", "cancel")); return@registerForActivityResult }
+        lifecycleScope.launch {
+            val name = GameLibrary.displayName(this@MainActivity, uri).first
+            fileEvent(JSONObject().put("type", "progress").put("name", name).put("p", 0))
+            try {
+                val f = withContext(Dispatchers.IO) {
+                    GameLibrary.importFile(this@MainActivity, uri) { p -> fileEvent(JSONObject().put("type", "progress").put("name", name).put("p", p)) }
+                }
+                fileEvent(JSONObject().put("type", "done").put("game", GameLibrary.info(f)))
+            } catch (e: Exception) {
+                fileEvent(JSONObject().put("type", "error").put("msg", e.message ?: "Не удалось добавить файл"))
+            }
+        }
+    }
+
+    private fun fileEvent(o: JSONObject) = runOnUiThread {
+        if (::webView.isInitialized) webView.evaluateJavascript("window.kapsulaFile&&kapsulaFile($o)", null)
+    }
+
+    /** Мост для веб-интерфейса: настоящие игры и запуск ядра. */
+    inner class Bridge {
+        @JavascriptInterface fun listGames(): String = GameLibrary.list(this@MainActivity)
+        @JavascriptInterface fun pickGame() = runOnUiThread { pickGame.launch(arrayOf("*/*")) }
+        @JavascriptInterface fun deleteGame(path: String): Boolean = GameLibrary.delete(this@MainActivity, path)
+        @JavascriptInterface fun startGame(bootJson: String) = runOnUiThread { GameActivity.start(this@MainActivity, bootJson) }
+        @JavascriptInterface fun coreInfo(): String = try { assets.open("ppsspp/CORE.txt").bufferedReader().readText() } catch (e: Exception) { "" }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,6 +93,7 @@ class MainActivity : ComponentActivity() {
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = true
             overScrollMode = View.OVER_SCROLL_NEVER
+            addJavascriptInterface(Bridge(), "KapsulaNative")
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(
                     view: WebView,
@@ -87,6 +127,12 @@ class MainActivity : ComponentActivity() {
                 if (webView.canGoBack()) webView.goBack() else finish()
             }
         })
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // после выхода из игры — обновить библиотеку и время «последний запуск»
+        if (::webView.isInitialized) webView.evaluateJavascript("window.kapsulaResume&&kapsulaResume()", null)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

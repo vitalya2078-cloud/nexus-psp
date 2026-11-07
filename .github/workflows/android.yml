@@ -34,6 +34,17 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
+      - name: Fetch PPSSPP libretro core and system files
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/jniLibs/arm64-v8a app/src/main/assets/ppsspp
+          curl -fsSL --retry 4 -o core.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/ppsspp_libretro_android.so.zip
+          unzip -p core.zip ppsspp_libretro_android.so > app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so
+          curl -fsSL --retry 4 -o app/src/main/assets/ppsspp/PPSSPP.zip https://buildbot.libretro.com/assets/system/PPSSPP.zip
+          CORE_SHA=$(sha256sum app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so | cut -c1-16)
+          echo "PPSSPP libretro · buildbot nightly $(date -u +%Y-%m-%d) · sha256 ${CORE_SHA}" | tee app/src/main/assets/ppsspp/CORE.txt
+          ls -la app/src/main/jniLibs/arm64-v8a app/src/main/assets/ppsspp
+
       - name: Restore stable signing key
         run: |
           base64 --decode nexus-debug.keystore.b64 > nexus-debug.keystore

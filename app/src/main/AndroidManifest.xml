@@ -18,5 +18,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Экран игры: отдельный процесс, чтобы ядро libretro полностью выгружалось после выхода -->
+        <activity
+            android:name=".emulator.GameActivity"
+            android:process=":game"
+            android:theme="@style/Theme.Kapsula"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|smallestScreenSize|uiMode"
+            android:exported="false" />
     </application>
 </manifest>
