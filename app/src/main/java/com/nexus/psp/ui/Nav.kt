@@ -70,6 +70,7 @@ object Act {
             .put("s", JSONObject().put("ctlMode", S.ctlMode).put("op", S.op).put("sc", S.sc).put("mirror", S.mirror).put("vib", S.vib).put("hide", S.hide).put("fps", S.fps).put("keyPos", kp))
             .put("vars", vars)
         boot.put("path", g.path)
+        AppState.meta[id]?.backdrop?.let { boot.put("bg", it.path) }
         GameActivity.start(ctx, boot.toString())
     }
 

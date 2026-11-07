@@ -14,7 +14,20 @@ import java.net.URL
 import java.net.URLEncoder
 
 /** Что известно об игре сверх файла: серийный номер, название из базы, обложка, картинки из образа. */
-data class Meta(val serial: String? = null, val title: String? = null, val cover: File? = null, val pic: File? = null, val icon: File? = null, val tried: Long = 0)
+data class Meta(
+    val serial: String? = null, val title: String? = null, val cover: File? = null, val pic: File? = null, val icon: File? = null, val tried: Long = 0,
+    /** Скриншот из игры и титульный экран (libretro Named_Snaps / Named_Titles). */
+    val snap: File? = null, val titleImg: File? = null,
+    /** Основной цвет обложки (ARGB) — для подсветки фона, если картинок нет. */
+    val color: Int? = null,
+    /** Когда искали скриншоты (0 — ещё не искали). */
+    val extra: Long = 0,
+) {
+    /** Фон игры: картинка из образа → титульный экран → скриншот. */
+    val backdrop get() = pic ?: titleImg ?: snap
+    /** Все кадры для вкладки «Скриншоты». */
+    val shots get() = listOfNotNull(snap, titleImg, pic)
+}
 
 /**
  * Обложки и названия игр.
@@ -27,6 +40,8 @@ object Covers {
     private const val TAG = "KapsulaCovers"
     private const val DB_URL = "https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/no-intro/Sony%20-%20PlayStation%20Portable.dat"
     private const val THUMBS = "https://thumbnails.libretro.com/Sony%20-%20PlayStation%20Portable/Named_Boxarts/"
+    private const val SNAPS = "https://thumbnails.libretro.com/Sony%20-%20PlayStation%20Portable/Named_Snaps/"
+    private const val TITLES = "https://thumbnails.libretro.com/Sony%20-%20PlayStation%20Portable/Named_Titles/"
     private const val DB_MAX_AGE = 30L * 24 * 3600 * 1000
 
     fun dir(c: Context, id: String) = File(c.filesDir, "meta/$id").apply { mkdirs() }
@@ -36,11 +51,16 @@ object Covers {
         val d = File(c.filesDir, "meta/$id")
         val j = try { JSONObject(File(d, "meta.json").readText()) } catch (e: Exception) { JSONObject() }
         fun f(n: String) = File(d, n).takeIf { it.exists() && it.length() > 0 }
-        return Meta(j.optString("serial").ifEmpty { null }, j.optString("title").ifEmpty { null }, f("cover_user.jpg") ?: f("cover.jpg"), f("pic.png"), f("icon.png"), j.optLong("tried"))
+        return Meta(
+            j.optString("serial").ifEmpty { null }, j.optString("title").ifEmpty { null }, f("cover_user.jpg") ?: f("cover.jpg"), f("pic.png"), f("icon.png"), j.optLong("tried"),
+            f("snap.jpg"), f("title.jpg"), if (j.has("color")) j.optInt("color") else null, j.optLong("extra"),
+        )
     }
 
-    private fun saveJson(c: Context, id: String, serial: String?, title: String?, tried: Long) {
-        File(dir(c, id), "meta.json").writeText(JSONObject().put("serial", serial ?: "").put("title", title ?: "").put("tried", tried).toString())
+    private fun saveJson(c: Context, id: String, serial: String?, title: String?, tried: Long, color: Int?, extra: Long) {
+        val o = JSONObject().put("serial", serial ?: "").put("title", title ?: "").put("tried", tried).put("extra", extra)
+        if (color != null) o.put("color", color)
+        File(dir(c, id), "meta.json").writeText(o.toString())
     }
 
     /** Можно ли сейчас ходить в сеть за обложками (настройка «Только по Wi-Fi»). */
@@ -71,23 +91,38 @@ object Covers {
         }
         var title = old.title
         var tried = old.tried
-        // 2–3) из интернета
-        if (online && (old.cover == null || force)) {
+        var extra = old.extra
+        // 2–3) из интернета: обложка, а также скриншот и титульный экран для фона
+        val needCover = old.cover == null || force
+        val needExtra = old.extra == 0L || force
+        if (online && (needCover || needExtra)) {
             val db = database(c)
             val name = serial?.let { db?.bySerial?.get(it) } ?: db?.byTitle(sfoTitle ?: g.file.substringBeforeLast('.'))
             if (name != null) {
                 title = cleanTitle(name)
-                if (!File(d, "cover_user.jpg").exists()) download(THUMBS + thumbName(name) + ".png")?.let { saveCover(it, File(d, "cover.jpg")) }
+                if (needCover && !File(d, "cover_user.jpg").exists()) download(THUMBS + thumbName(name) + ".png")?.let { saveImage(it, File(d, "cover.jpg"), 600, byWidth = false) }
+                if (needExtra) {
+                    download(SNAPS + thumbName(name) + ".png")?.let { saveImage(it, File(d, "snap.jpg"), 960, byWidth = true) }
+                    download(TITLES + thumbName(name) + ".png")?.let { saveImage(it, File(d, "title.jpg"), 960, byWidth = true) }
+                }
             } else if (sfoTitle != null && title == null) title = cleanTitle(sfoTitle!!)
-            tried = System.currentTimeMillis()
+            tried = System.currentTimeMillis(); extra = System.currentTimeMillis()
         } else if (title == null && sfoTitle != null) title = cleanTitle(sfoTitle!!)
         if (tried == 0L) tried = 1 // образ прочитан, сеть — позже
-        saveJson(c, g.id, serial, title, tried)
+        // основной цвет обложки (или картинки из образа) — для подсветки фона
+        val src = File(d, "cover_user.jpg").takeIf { it.exists() } ?: File(d, "cover.jpg").takeIf { it.exists() } ?: File(d, "pic.png").takeIf { it.exists() }
+        val color = if (force || old.color == null) src?.let { dominant(it) } ?: old.color else old.color
+        saveJson(c, g.id, serial, title, tried, color, extra)
         return load(c, g.id)
     }
 
     /** Своя обложка из галереи (важнее найденной). */
-    fun setUserCover(c: Context, id: String, bytes: ByteArray): Boolean = saveCover(bytes, File(dir(c, id), "cover_user.jpg"))
+    fun setUserCover(c: Context, id: String, bytes: ByteArray): Boolean {
+        val f = File(dir(c, id), "cover_user.jpg")
+        val ok = saveImage(bytes, f, 600, byWidth = false)
+        if (ok) { val m = load(c, id); saveJson(c, id, m.serial, m.title, m.tried, dominant(f) ?: m.color, m.extra) }
+        return ok
+    }
 
     fun clearUserCover(c: Context, id: String) { File(dir(c, id), "cover_user.jpg").delete() }
 
@@ -143,12 +178,35 @@ object Covers {
         try { if (con.responseCode == 200) con.inputStream.use { it.readBytes() } else null } finally { con.disconnect() }
     } catch (e: Exception) { Log.w(TAG, "download $url", e); null }
 
-    /** Обложка → JPEG высотой до 600 px (оригиналы около 800 КБ). */
-    private fun saveCover(bytes: ByteArray, out: File): Boolean = try {
+    /** Картинка → JPEG: обложка — высотой до 600 px (оригиналы около 800 КБ), фоны — шириной до 960 px. */
+    private fun saveImage(bytes: ByteArray, out: File, max: Int, byWidth: Boolean): Boolean = try {
         val b = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: throw IllegalStateException("bad image")
-        val k = minOf(1f, 600f / b.height)
+        val side = if (byWidth) b.width else b.height
+        val k = minOf(1f, max.toFloat() / side)
         val s = if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt(), (b.height * k).toInt(), true) else b
         out.outputStream().use { s.compress(Bitmap.CompressFormat.JPEG, 88, it) }
         true
-    } catch (e: Exception) { Log.w(TAG, "cover", e); false }
+    } catch (e: Exception) { Log.w(TAG, "image", e); false }
+
+    /**
+     * Основной цвет картинки: среднее по насыщенным пикселям уменьшенной копии,
+     * приглушённое под тёмную палитру KAPSULA. Без сторонних библиотек.
+     */
+    fun dominant(f: File): Int? = try {
+        val o = BitmapFactory.Options().apply { inSampleSize = 8 }
+        val b = BitmapFactory.decodeFile(f.path, o) ?: throw IllegalStateException()
+        val sm = Bitmap.createScaledBitmap(b, 24, 24, true)
+        var r = 0.0; var g = 0.0; var bl = 0.0; var w = 0.0
+        val hsv = FloatArray(3)
+        for (y in 0 until 24) for (x in 0 until 24) {
+            val p = sm.getPixel(x, y)
+            android.graphics.Color.colorToHSV(p, hsv)
+            val wt = (hsv[1] * hsv[2]).toDouble().let { it * it } + .02 // насыщенные и светлые — важнее
+            r += android.graphics.Color.red(p) * wt; g += android.graphics.Color.green(p) * wt; bl += android.graphics.Color.blue(p) * wt; w += wt
+        }
+        val c = android.graphics.Color.rgb((r / w).toInt(), (g / w).toInt(), (bl / w).toInt())
+        android.graphics.Color.colorToHSV(c, hsv)
+        hsv[1] = minOf(hsv[1], .55f); hsv[2] = hsv[2].coerceIn(.45f, .85f)
+        android.graphics.Color.HSVToColor(hsv)
+    } catch (e: Exception) { null }
 }

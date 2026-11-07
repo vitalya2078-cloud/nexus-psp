@@ -69,4 +69,6 @@ class ScreensTest {
     @Test fun g05_quick() = shot("g05-quick", true) { Nav.open(Ov.Quick) }
     @Test fun g06_settings_core() = shot("g06-settings-core", true) { Nav.settingsTab = "core"; Nav.open(Ov.Settings) }
     @Test fun g07_pad() = shot("g07-pad", true) { Nav.open(Ov.Pad) }
+    @Test fun g08_profile() = shot("g08-profile", true) { Nav.open(Ov.Profile) }
+    @Test fun g09_quick_light() = shot("g09-quick-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Quick) }
 }

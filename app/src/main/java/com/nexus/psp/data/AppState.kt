@@ -189,7 +189,7 @@ object AppState {
         consumeSession()
         save()
         // обложки: игры, которые ещё не обрабатывались или ждали интернета
-        byId.values.forEach { g -> val m = meta[g.id]; if (m == null || m.tried == 0L || (m.cover == null && m.tried == 1L)) fetchMeta(g.id) }
+        byId.values.forEach { g -> val m = meta[g.id]; if (m == null || m.tried == 0L || (m.cover == null && m.tried == 1L) || (m.extra == 0L && m.tried > 1L)) fetchMeta(g.id) }
     }
 
     /** Фоновая обработка обложек (в тестах снимков экранов выключается). */

@@ -89,13 +89,19 @@ fun GameSheet(id: String) {
 
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)).tap { Nav.back() })
+        // фон игры за листом: виден в верхней части листа и плавно уходит в цвет фона
+        Box(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(.94f)
+                .offset { IntOffset(0, (drag.value + enter.value * 600).roundToInt()) }
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(K.bg),
+        ) { com.nexus.psp.ui.GameBackdrop(g, Modifier.fillMaxSize(), strength = .6f) }
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(.94f)
                 .offset { IntOffset(0, (drag.value + enter.value * 600).roundToInt()) }
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(K.bg).tap { }
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).tap { }
                 .windowInsetsPadding(WindowInsets.displayCutout),
         ) {
-            // полоска-ручка: потянуть вниз — закрыть
+            // полоска-ручка: потянуть вниз — закрыть (фон игры — под листом, см. SheetBackdrop)
             Box(
                 Modifier.fillMaxWidth().height(18.dp).pointerInput(id) {
                     detectVerticalDragGestures(onDragEnd = { scope.launch { if (drag.value > 140f) Nav.back() else drag.animateTo(0f) } }) { _, dy ->
@@ -123,11 +129,12 @@ fun GameSheet(id: String) {
                         AppState.cols.forEach { (c, ids) -> Chip(c, id in ids, icon = if (id in ids) R.drawable.ph_check else R.drawable.ph_plus) { AppState.toggleCol(c, id) } }
                         Chip("Избранное", AppState.favs[id] == true, icon = if (AppState.favs[id] == true) R.drawable.sb_heart else R.drawable.sl_heart) { AppState.toggleFav(id) }
                     }
-                    val tabs = listOf("about" to "Обзор", "saves" to "Сохранения", "file" to "Файл")
+                    val tabs = listOf("about" to "Обзор", "shots" to "Скриншоты", "saves" to "Сохранения", "file" to "Файл")
                     Seg(tabs.map { it.second }, tabs.indexOfFirst { it.first == tab }.coerceAtLeast(0)) { tab = tabs[it].first }
                     when (tab) {
                         "about" -> About(g)
                         "saves" -> Saves(g)
+                        "shots" -> Shots(g)
                         else -> FileInfo(g)
                     }
                     Box(Modifier.height(12.dp))
@@ -155,12 +162,10 @@ fun GameSheet(id: String) {
 @Composable
 private fun About(g: Game) {
     val p = g.plat
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        KvCell("Носитель", p.media, p.mediaImg)
-        KvCell("BIOS", if (p.bios) "Нужен BIOS ${p.short}" else "Не нужен")
-        KvCell("Управление", "Экран или геймпад")
-        KvCell("Эмулятор", if (p.ready) "KAPSULA" else "Скоро")
-    }
+    KvGrid(listOf(
+        Triple("Носитель", p.media, p.mediaImg), Triple("BIOS", if (p.bios) "Нужен BIOS ${p.short}" else "Не нужен", null),
+        Triple("Управление", "Экран или геймпад", null), Triple("Эмулятор", if (p.ready) "KAPSULA" else "Скоро", null),
+    ))
     if (!p.ready) StateCard("es-bios.png", "${p.full} пока не поддерживается.", "Ядро для ${p.short} подключим следующим — игра останется в библиотеке.")
     val m = AppState.meta[g.id]
     Sub("Обложка")
@@ -179,25 +184,69 @@ private fun About(g: Game) {
     }
 }
 
+/** Блок сведений; в сетке все блоки одной ширины и высоты. */
 @Composable
-private fun KvCell(k: String, v: String, img: String? = null) {
+private fun KvCell(k: String, v: String, img: String? = null, modifier: Modifier = Modifier) {
     Row(
-        Modifier.clip(RoundedCornerShape(14.dp)).background(K.s1).padding(horizontal = 13.dp, vertical = 10.dp),
+        modifier.height(64.dp).clip(RoundedCornerShape(14.dp)).background(K.s1.copy(alpha = .85f)).padding(horizontal = 13.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (img != null) AssetImage(img, Modifier.size(32.dp))
-        Column { Text(k.uppercase(), style = T.caps.copy(fontSize = 10.sp)); Text(v, style = T.label) }
+        Column { Text(k.uppercase(), style = T.caps.copy(fontSize = 10.sp), maxLines = 1); Ellip(v, T.label) }
+    }
+}
+
+/** Ровная сетка блоков: по cols в ряд, одинаковой ширины. */
+@Composable
+private fun KvGrid(cells: List<Triple<String, String, String?>>, cols: Int = 4) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        cells.chunked(cols).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (k, v, img) -> KvCell(k, v, img, Modifier.weight(1f)) }
+                repeat(cols - row.size) { Box(Modifier.weight(1f)) }
+            }
+        }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FileInfo(g: Game) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        KvCell("Файл", g.file); KvCell("Формат", g.format); KvCell("Размер", size(g.size)); KvCell("Консоль", g.plat.full)
-        AppState.meta[g.id]?.serial?.let { KvCell("Серийный номер", it) }
-    }
+    KvGrid(listOfNotNull(
+        Triple("Формат", g.format, null), Triple("Размер", size(g.size), null), Triple("Консоль", g.plat.full, null),
+        AppState.meta[g.id]?.serial?.let { Triple("Серийный номер", it, null) },
+    ))
+    KvGrid(listOf(Triple("Файл", g.file, null)), cols = 1)
     Text(g.path.replace("/storage/emulated/0/", ""), style = T.small)
+}
+
+/** Скриншоты: кадр из игры и титульный экран (libretro), картинка из образа. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Shots(g: Game) {
+    val m = AppState.meta[g.id]
+    val shots = m?.shots.orEmpty()
+    if (shots.isEmpty()) {
+        StateCard(null, "Скриншотов пока нет", if (!S.covers) "Загрузка из интернета выключена в настройках." else "Найдём их вместе с обложкой, когда будет интернет${if (S.coversWifi) " по Wi-Fi" else ""}.") {
+            KButton("Найти", R.drawable.sl_search, small = true) { AppState.fetchMeta(g.id, force = true) }
+        }
+        return
+    }
+    var open by remember { mutableStateOf<java.io.File?>(null) }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        shots.forEach { f ->
+            Box(Modifier.width(240.dp).aspectRatio(480f / 272f).clip(RoundedCornerShape(12.dp)).border(1.dp, K.line, RoundedCornerShape(12.dp)).tap { open = f }) {
+                com.nexus.psp.ui.FileImage(f, Modifier.fillMaxSize())
+            }
+        }
+    }
+    open?.let { f ->
+        androidx.compose.ui.window.Dialog({ open = null }, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .9f)).tap { open = null }, contentAlignment = Alignment.Center) {
+                com.nexus.psp.ui.FileImage(f, Modifier.fillMaxWidth(.85f).aspectRatio(480f / 272f).clip(RoundedCornerShape(14.dp)))
+            }
+        }
+    }
 }
 
 /** Сохранения: настоящий быстрый слот из меню паузы. */

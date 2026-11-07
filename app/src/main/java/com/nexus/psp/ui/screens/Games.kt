@@ -109,14 +109,10 @@ private fun Carousel(list: List<Game>) {
         }
     }
     val fg = list.getOrNull(focus.coerceAtMost(list.lastIndex))
-    LaunchedEffect(fg?.id) { fg?.let { Ambient.color = Color(it.pal[2]); Act.buzz() } }
-    // широкий фон игры из её образа (PIC1) — мягко за каруселью
-    val pic = fg?.let { AppState.meta[it.id]?.pic }
+    LaunchedEffect(fg?.id) { fg?.let { Ambient.color = AppState.meta[it.id]?.color?.let { c -> Color(c) } ?: Color(it.pal[2]); Act.buzz() } }
+    // фон игры в фокусе — плавно меняется при перелистывании карусели
     Box(Modifier.fillMaxSize()) {
-    if (pic != null) {
-        com.nexus.psp.ui.FileImage(pic, Modifier.fillMaxSize(), alpha = .28f)
-        Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(K.bg.copy(alpha = .2f), K.bg.copy(alpha = .55f), K.bg))))
-    }
+    com.nexus.psp.ui.GameBackdrop(fg, Modifier.fillMaxSize(), strength = .55f)
     Column(Modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
             val h = maxHeight * .92f

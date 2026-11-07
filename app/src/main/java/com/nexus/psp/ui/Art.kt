@@ -13,6 +13,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -160,4 +164,30 @@ fun FileImage(f: java.io.File, modifier: Modifier = Modifier, alpha: Float = 1f)
         files.get(key) ?: try { android.graphics.BitmapFactory.decodeFile(f.path)?.asImageBitmap()?.also { files.put(key, it) } } catch (e: Exception) { null }
     } ?: return
     Image(img, null, modifier, contentScale = ContentScale.Crop, alpha = alpha)
+}
+
+/**
+ * Фон игры во весь экран: картинка из образа → титульный экран → скриншот (с лёгким размытием и затемнением,
+ * чтобы текст читался); картинок нет — мягкая подсветка основным цветом обложки. Плавно сменяется при смене игры.
+ */
+@Composable
+fun GameBackdrop(g: Game?, modifier: Modifier = Modifier, strength: Float = .5f, fadeLeft: Boolean = true) {
+    val m = g?.let { com.nexus.psp.data.AppState.meta[it.id] }
+    val key = m?.backdrop?.path ?: ("c:" + (m?.color ?: 0))
+    androidx.compose.animation.Crossfade(key, modifier, animationSpec = androidx.compose.animation.core.tween(600), label = "backdrop") { k ->
+        val bg = com.nexus.psp.ui.kit.K.bg
+        androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+            if (!k.startsWith("c:")) {
+                FileImage(java.io.File(k), androidx.compose.ui.Modifier.fillMaxSize().blur(4.dp), alpha = strength)
+            } else {
+                val c = m?.color?.let { androidx.compose.ui.graphics.Color(it) } ?: g?.let { androidx.compose.ui.graphics.Color(it.pal[2]) }
+                if (c != null) androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().background(
+                    androidx.compose.ui.graphics.Brush.radialGradient(listOf(c.copy(alpha = strength * .55f), androidx.compose.ui.graphics.Color.Transparent), radius = 1400f),
+                ))
+            }
+            // затемнение: снизу — под информацию, слева — под заголовок
+            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(bg.copy(alpha = .25f), bg.copy(alpha = .45f), bg.copy(alpha = .92f)))))
+            if (fadeLeft) androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(bg.copy(alpha = .55f), androidx.compose.ui.graphics.Color.Transparent))))
+        }
+    }
 }

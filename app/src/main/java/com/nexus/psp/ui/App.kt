@@ -59,7 +59,7 @@ import com.nexus.psp.ui.screens.GamesScreen
 import com.nexus.psp.ui.screens.LibraryScreen
 import com.nexus.psp.ui.screens.Onboarding
 import com.nexus.psp.ui.screens.PadScreen
-import com.nexus.psp.ui.screens.ProfileDrawer
+import com.nexus.psp.ui.screens.ProfileScreen
 import com.nexus.psp.ui.screens.QuickPanel
 import com.nexus.psp.ui.screens.SearchScreen
 import com.nexus.psp.ui.screens.SettingsScreen
@@ -116,7 +116,7 @@ private fun Overlays() {
             Ov.Alerts -> AlertsDrawer()
             Ov.Quick -> QuickPanel()
             Ov.Settings -> SettingsScreen()
-            Ov.Profile -> ProfileDrawer()
+            Ov.Profile -> ProfileScreen()
             Ov.Pad -> PadScreen()
         }
     }

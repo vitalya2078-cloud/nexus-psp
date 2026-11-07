@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -240,7 +241,7 @@ fun CoreQuality() {
         SolarDuo(R.drawable.sd_chip, 20.dp)
         Text("Подобрано под твой телефон: ${names[rec]}", style = T.label.copy(fontSize = 13.sp, color = K.ink2))
     }
-    Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(top = 12.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(
             Triple("quality", "1440×816 · текстуры ×2", "для мощных телефонов" to 4),
             Triple("balance", "960×544 · чётко", "и плавно" to 3),
@@ -249,7 +250,7 @@ fun CoreQuality() {
         ).forEach { (id, l1, rest) ->
             val on = S.corePreset == id
             Column(
-                Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if (on) K.acc.copy(alpha = .1f) else K.s1)
+                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(14.dp)).background(if (on) K.acc.copy(alpha = .1f) else K.s1)
                     .border(1.5.dp, if (on) K.acc else K.line, RoundedCornerShape(14.dp))
                     .then(if (id != "custom") Modifier.press { applyPreset(id) } else Modifier).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp),

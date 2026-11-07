@@ -21,8 +21,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 18
-        versionName = "0.14.0"
+        versionCode = 19
+        versionName = "0.15.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a") // ядро PPSSPP собрано только под 64-бит ARM
@@ -48,7 +48,8 @@ android {
     }
 
     // рендер экранов на JVM (Robolectric + Roborazzi) для проверки без телефона: ./gradlew :app:testDebugUnitTest
-    testOptions { unitTests { isIncludeAndroidResources = true } }
+    // каждый тестовый класс — в своей JVM: состояние приложения и кэши картинок не протекают между тестами
+    testOptions { unitTests { isIncludeAndroidResources = true; all { it.forkEvery = 1 } } }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

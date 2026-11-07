@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.nexus.psp.R
 import com.nexus.psp.data.AppState
 import com.nexus.psp.data.AppState.S
@@ -173,7 +175,7 @@ private fun QTile(t: Tile, modifier: Modifier) {
         modifier.height(96.dp).clip(RoundedCornerShape(18.dp)).background(if (t.on) K.ink else K.s1).press(onClick = t.onClick).padding(14.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        if (t.on) SolarIcon(t.icon, 24.dp, K.bg) else SolarDuo(t.icon, 24.dp)
+        if (t.on) SolarDuo(t.icon, 24.dp, main = K.bg, accent = K.bg.copy(alpha = .55f)) else SolarDuo(t.icon, 24.dp)
         Column {
             Text(t.title, style = T.label.copy(color = if (t.on) K.bg else K.ink))
             Text(t.sub, style = T.small.copy(color = if (t.on) K.bg.copy(alpha = .65f) else K.ink3))
@@ -181,72 +183,95 @@ private fun QTile(t: Tile, modifier: Modifier) {
     }
 }
 
-/** Профиль (п. 10): без нулей — пока игр не было, вместо статистики приглашение; достижения с прогрессом. */
-@OptIn(ExperimentalLayoutApi::class)
+/** Профиль игрока (п. 10) — отдельный экран: слева игрок и цифры, справа достижения, неделя, избранное. */
 @Composable
-fun ProfileDrawer() {
+fun ProfileScreen() {
     val ctx = LocalContext.current
     val play = AppState.lib.values.sumOf { it.play }
     val svs = AppState.lib.values.sumOf { it.saves }
     val xp = play * 2 + svs * 30
-    Drawer("Профиль") {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Box(Modifier.size(58.dp).clip(CircleShape).background(K.ink), contentAlignment = Alignment.Center) { Text("N", style = T.h2.copy(color = K.bg)) }
-            Column {
-                Text("Игрок", style = T.h2)
-                Text("Уровень ${xp / 1000 + 1} · ${xp % 1000} / 1000 XP", style = T.small)
-                Bar((xp % 1000) / 1000f, modifier = Modifier.width(200.dp).padding(top = 6.dp))
-            }
-        }
-        if (play == 0) {
-            StateCard("ach-first.png", "Сыграй первую игру", "Здесь появится твоя статистика: время в играх, сохранения и история по дням.") {
-                KButton(if (AppState.byId.isEmpty()) "Добавить игру" else "Играть", if (AppState.byId.isEmpty()) R.drawable.ph_plus else R.drawable.sb_play, BtnKind.Main, small = true) {
-                    val first = AppState.myList().firstOrNull()
-                    if (first == null) Act.addFile() else Act.play(ctx, first.id)
+    com.nexus.psp.ui.Full {
+        com.nexus.psp.ui.OvHead("Профиль")
+        Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            // ---- игрок ----
+            Column(Modifier.width(300.dp).androidx_verticalScroll(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(K.s1).padding(18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Box(Modifier.size(76.dp).clip(CircleShape).background(K.ink), contentAlignment = Alignment.Center) { Text("N", style = T.h1.copy(color = K.bg)) }
+                    Text("Игрок", style = T.h2)
+                    Text("Уровень ${xp / 1000 + 1} · ${xp % 1000} / 1000 XP", style = T.small)
+                    Bar((xp % 1000) / 1000f, modifier = Modifier.padding(top = 4.dp))
+                }
+                // цифры — ровной сеткой 2×2
+                val stats = listOf(
+                    (if (play > 0) hrs(play) else "—") to "наиграно", "${AppState.lib.size}" to "в библиотеке",
+                    "$svs" to "сохранений", "${AppState.favs.size}" to "в избранном",
+                )
+                stats.chunked(2).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { (n, l) ->
+                            Column(Modifier.weight(1f).height(68.dp).clip(RoundedCornerShape(14.dp)).background(K.s1).padding(horizontal = 14.dp), verticalArrangement = Arrangement.Center) {
+                                Text(n, style = T.h3, maxLines = 1); Text(l, style = T.small, maxLines = 1)
+                            }
+                        }
+                    }
                 }
             }
-        } else Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(hrs(play) to "наиграно", "${AppState.lib.size}" to "в библиотеке", "$svs" to "сохранений", "${AppState.favs.size}" to "в избранном").forEach { (n, l) ->
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(K.s1).padding(10.dp)) { Text(n, style = T.h3); Text(l, style = T.small) }
-            }
-        }
-        Sub("Достижения")
-        val consoles = AppState.byId.values.filter { (AppState.lib[it.id]?.play ?: 0) > 0 }.map { it.p }.toSet().size
-        val ach = listOf(
-            Triple("ach-first.png", "Первый запуск", minOf(1f, play.toFloat())),
-            Triple("ach-marathon.png", "10 часов в игре", (AppState.lib.values.maxOfOrNull { it.play } ?: 0) / 600f),
-            Triple("ach-saves.png", "10 сохранений", svs / 10f),
-            Triple("ach-consoles.png", "Три консоли", consoles / 3f),
-            Triple("ach-trophy.png", "100 часов", play / 6000f),
-            Triple("ach-fav.png", "5 в избранном", AppState.favs.size / 5f),
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 3) {
-            ach.forEach { (img, t, p) ->
-                val got = p >= 1f
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(K.s1).padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    AssetImage(img, Modifier.size(52.dp), gray = !got)
-                    Text(t, style = T.small.copy(color = if (got) K.ink else K.ink3, fontSize = 11.sp), modifier = Modifier.padding(top = 4.dp))
-                    if (!got) Bar(p.coerceIn(0f, 1f), height = 3.dp, modifier = Modifier.padding(top = 5.dp))
+            // ---- достижения, неделя, избранное ----
+            Column(Modifier.weight(1f).androidx_verticalScroll().padding(bottom = 20.dp)) {
+                if (play == 0) StateCard("ach-first.png", "Сыграй первую игру", "Здесь появится твоя статистика: время в играх, сохранения и история по дням.") {
+                    KButton(if (AppState.byId.isEmpty()) "Добавить игру" else "Играть", if (AppState.byId.isEmpty()) R.drawable.ph_plus else R.drawable.sb_play, BtnKind.Main, small = true) {
+                        val first = AppState.myList().firstOrNull()
+                        if (first == null) Act.addFile() else Act.play(ctx, first.id)
+                    }
                 }
-            }
-        }
-        val week = AppState.week()
-        if (week.any { it.second > 0 }) {
-            Sub("Последние 7 дней")
-            val mx = week.maxOf { it.second }.coerceAtLeast(1)
-            week.forEach { (d, m) ->
-                Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(d, style = T.label, modifier = Modifier.width(70.dp))
-                    Box(Modifier.width((maxOf(4f, m.toFloat() / mx * 180f)).dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(if (m > 0) K.acc else K.s3))
-                    Text(if (m > 0) hrs(m) else "—", style = T.small)
+                Sub("Достижения")
+                val consoles = AppState.byId.values.filter { (AppState.lib[it.id]?.play ?: 0) > 0 }.map { it.p }.toSet().size
+                val ach = listOf(
+                    Triple("ach-first.png", "Первый запуск", minOf(1f, play.toFloat())),
+                    Triple("ach-marathon.png", "10 часов в игре", (AppState.lib.values.maxOfOrNull { it.play } ?: 0) / 600f),
+                    Triple("ach-saves.png", "10 сохранений", svs / 10f),
+                    Triple("ach-consoles.png", "Три консоли", consoles / 3f),
+                    Triple("ach-trophy.png", "100 часов", play / 6000f),
+                    Triple("ach-fav.png", "5 в избранном", AppState.favs.size / 5f),
+                )
+                ach.chunked(3).forEach { row ->
+                    Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { (img, t, p) ->
+                            val got = p >= 1f
+                            Column(Modifier.weight(1f).height(124.dp).clip(RoundedCornerShape(14.dp)).background(K.s1).padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
+                                AssetImage(img, Modifier.size(52.dp), gray = !got)
+                                Text(t, style = T.small.copy(color = if (got) K.ink else K.ink3, fontSize = 11.5.sp), maxLines = 1)
+                                Bar(p.coerceIn(0f, 1f), color = if (got) K.ok else K.acc, height = 3.dp)
+                            }
+                        }
+                    }
                 }
+                val week = AppState.week()
+                Sub("Последние 7 дней")
+                if (week.none { it.second > 0 }) Text("Пока нет сыгранных дней — здесь появится время в играх по дням.", style = T.small)
+                else {
+                    val mx = week.maxOf { it.second }.coerceAtLeast(1)
+                    week.forEach { (d, m) ->
+                        Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(d, style = T.label, modifier = Modifier.width(80.dp))
+                            Box(Modifier.width((maxOf(4f, m.toFloat() / mx * 260f)).dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(if (m > 0) K.acc else K.s3))
+                            Text(if (m > 0) hrs(m) else "—", style = T.small)
+                        }
+                    }
+                }
+                if (AppState.favs.isNotEmpty()) {
+                    Sub("Избранное")
+                    AppState.favs.keys.mapNotNull { AppState.byId[it] }.forEach { g -> Item(g.id, g.t, g.plat.short + " · " + size(g.size), onClick = { Nav.open(Ov.Game(g.id)) }) }
+                }
+                Sub("Облако")
+                Opt("Продолжить на другом устройстве", "Сохранения и библиотека в аккаунте (в планах)") { Toggle(S.cloud) { S.cloud = it } }
             }
-        }
-        Sub("Облако")
-        Opt("Продолжить на другом устройстве", "Сохранения и библиотека в аккаунте (в планах)") { Toggle(S.cloud) { S.cloud = it } }
-        if (AppState.favs.isNotEmpty()) {
-            Sub("Избранное")
-            AppState.favs.keys.mapNotNull { AppState.byId[it] }.forEach { g -> Item(g.id, g.t, g.plat.short + " · " + size(g.size), onClick = { Nav.open(Ov.Game(g.id)) }) }
         }
     }
 }
+
+@Composable
+private fun Modifier.androidx_verticalScroll(): Modifier = this.then(Modifier.verticalScroll(rememberScrollState()))

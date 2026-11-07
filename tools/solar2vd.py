@@ -1,7 +1,7 @@
 """Значки Solar (CC BY 4.0) и Phosphor (MIT) из ui/kapsula.js → векторные значки Android (res/drawable).
 
 sl_* — linear (обводка, красится tint), sb_* — bold (заливка, tint),
-sd_* — bold duotone: основная часть цветом слоновой кости, полупрозрачная — стальным синим (цвета зашиты).
+sd_* / sda_* — bold duotone, разделённый на основную и акцентную части; обе красятся по теме.
 Запуск: python3 tools/solar2vd.py
 """
 import json, os, re
@@ -46,15 +46,19 @@ def walk(el, inh, out):
 
 
 def vd(body, mode):
+    """mode: line — всё одним цветом; duo_main / duo_acc — только основная / только полупрозрачная (акцентная) часть,
+    обе красятся tint'ом по теме (SolarDuo рисует их слоями: основа — цвет текста, акцент — стальной синий)."""
     root = ET.fromstring('<svg>' + body + '</svg>')
     parts = []
     walk(root, {}, parts)
     paths = []
     for d, st in parts:
         alpha = st.get('opacity')
-        color = INK if mode == 'duo' else '#FFFFFFFF'
-        if mode == 'duo' and alpha is not None:
-            color, alpha = ACC, None
+        if mode == 'duo_main' and alpha is not None: continue
+        if mode == 'duo_acc':
+            if alpha is None: continue
+            alpha = None
+        color = '#FFFFFFFF'
         a = [f'android:pathData="{d}"']
         fill = st.get('fill', 'currentColor')
         if fill != 'none':
@@ -80,7 +84,7 @@ def main():
     o = objects()
     os.makedirs(OUT, exist_ok=True)
     n = 0
-    for key, prefix, mode in (('SL', 'sl_', 'line'), ('SB', 'sb_', 'line'), ('SD', 'sd_', 'duo')):
+    for key, prefix, mode in (('SL', 'sl_', 'line'), ('SB', 'sb_', 'line'), ('SD', 'sd_', 'duo_main'), ('SD', 'sda_', 'duo_acc')):
         for name, body in o[key].items():
             open(os.path.join(OUT, prefix + snake(name) + '.xml'), 'w', encoding='utf-8').write(vd(body, mode))
             n += 1

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solar by 480 Design, CC BY 4.0. Сгенерировано tools/solar2vd.py -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M14.1803 18.6963C14.6569 18.6963 15.0672 19.0327 15.1608 19.5L15.4577 21.25H8.54262L8.8395 19.5C8.93305 19.0327 9.34337 18.6963 9.81997 18.6963H14.1803Z" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M12.0006 2C13.784 2.00002 15.2536 2.15704 16.3776 2.34668C17.5161 2.53877 18.0855 2.63489 18.5612 3.2207C19.0368 3.80653 19.0118 4.43984 18.9616 5.70605C18.7808 10.259 17.7603 15.9998 12.0006 16C6.24069 16 5.22046 10.2591 5.03969 5.70605C4.98943 4.43991 4.96354 3.80651 5.43911 3.2207C5.91482 2.63481 6.48495 2.53881 7.62368 2.34668C8.74769 2.15705 10.2173 2 12.0006 2Z" android:fillColor="#FFFFFFFF" />
+</vector>

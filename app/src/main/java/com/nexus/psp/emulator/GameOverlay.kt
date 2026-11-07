@@ -58,7 +58,7 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
     Box(Modifier.fillMaxSize()) {
         // заставка, пока ядро не нарисовало первый кадр
         AnimatedVisibility(ui.phase == "loading", enter = fadeIn(), exit = fadeOut(tween(500))) {
-            Boot(a.title, conName, conColor)
+            Boot(a.title, conName, conColor, a.bgFile)
         }
         AnimatedVisibility(ui.phase == "ready" && ui.paused, enter = fadeIn(tween(160)), exit = fadeOut(tween(160))) {
             PauseMenu(a, ui, conName, conColor)
@@ -75,10 +75,16 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
 }
 
 @Composable
-private fun Boot(title: String, con: String, color: Color) {
+private fun Boot(title: String, con: String, color: Color, bg: java.io.File?) {
     val pulse by rememberInfiniteTransition(label = "boot").animateFloat(.35f, 1f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "p")
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    // фон игры, пока стартует ядро
+    if (bg != null) {
+        com.nexus.psp.ui.FileImage(bg, Modifier.fillMaxSize(), alpha = .55f)
+        Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Black.copy(alpha = .35f), Color.Black.copy(alpha = .55f), Color.Black.copy(alpha = .9f)))))
+    }
     Column(
-        Modifier.fillMaxSize().background(Color.Black),
+        Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -91,6 +97,7 @@ private fun Boot(title: String, con: String, color: Color) {
         Spacer(Modifier.height(6.dp))
         Text(con.uppercase(), style = T.caps.copy(color = K.ink3))
     }
+}
 }
 
 @Composable
@@ -108,11 +115,11 @@ private fun PauseMenu(a: GameActivity, ui: GameActivity.UiState, con: String, co
             ConsolePill(con, color)
             Text(a.title, style = T.h1)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionTile(R.drawable.sb_play, "Продолжить", main = true) { a.setPaused(false) }
-                ActionTile(R.drawable.sl_save, "Сохранить") { a.saveQuick() }
-                ActionTile(R.drawable.sl_load, "Загрузить", enabled = ui.hasState) { a.loadQuick() }
-                ActionTile(R.drawable.sl_bolt, "Ускорение", on = ui.fast, sub = if (ui.fast) "×2 · вкл" else "Выкл") { a.toggleFast() }
-                ActionTile(R.drawable.sl_exit, "Выйти", danger = true) { a.exitGame() }
+                ActionTile(R.drawable.sb_play, "Продолжить", main = true, sub = "Вернуться в игру") { a.setPaused(false) }
+                ActionTile(R.drawable.sl_save, "Сохранить", sub = "Быстрый слот") { a.saveQuick() }
+                ActionTile(R.drawable.sl_load, "Загрузить", enabled = ui.hasState, sub = if (ui.hasState) "Быстрый слот" else "Пусто") { a.loadQuick() }
+                ActionTile(R.drawable.sl_bolt, "Ускорение", on = ui.fast, sub = if (ui.fast) "×2 · включено" else "Выключено") { a.toggleFast() }
+                ActionTile(R.drawable.sl_exit, "Выйти", danger = true, sub = "В библиотеку") { a.exitGame() }
             }
             Text(
                 if (ui.hasState) "Быстрое сохранение есть — «Загрузить» вернёт к нему" else "Быстрых сохранений пока нет",

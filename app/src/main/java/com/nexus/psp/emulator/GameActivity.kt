@@ -79,6 +79,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     val title: String get() = boot.optString("name", "Игра")
     val platform: String get() = boot.optString("plat", "psp")
     val gameId: String get() = boot.optString("id")
+    /** Фон игры для экрана загрузки (картинка из образа или титульный экран). */
+    val bgFile: File? get() = boot.optString("bg").takeIf { it.isNotEmpty() }?.let { File(it) }?.takeIf { it.exists() }
     private var preset: List<String>? = null
     private var layName = ""
     private var tilt = false

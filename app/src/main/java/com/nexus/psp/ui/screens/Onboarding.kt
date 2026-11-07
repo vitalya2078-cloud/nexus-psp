@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -75,7 +76,7 @@ fun Onboarding(onDone: () -> Unit) {
                         listOf("Выбери консоли — KAPSULA настроит под них библиотеку.", "Можно поменять в любой момент в настройках.", "Образ своего диска или бесплатная homebrew-игра: ISO, CSO, CHD или PBP.")[st],
                         style = T.body, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         when (st) {
                             0 -> PLATFORMS.forEach { p ->
                                 val on = p.id in cons
@@ -122,7 +123,7 @@ fun Onboarding(onDone: () -> Unit) {
 @Composable
 private fun Opt(on: Boolean, modifier: Modifier, onClick: () -> Unit, content: @Composable () -> Unit) {
     Column(
-        modifier.clip(RoundedCornerShape(18.dp)).background(if (on) K.acc.copy(alpha = .1f) else K.s1)
+        modifier.fillMaxHeight().clip(RoundedCornerShape(18.dp)).background(if (on) K.acc.copy(alpha = .1f) else K.s1)
             .border(1.5.dp, if (on) K.acc else K.line, RoundedCornerShape(18.dp)).press(onClick = onClick).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) { content() }

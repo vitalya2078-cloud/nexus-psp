@@ -53,7 +53,10 @@ class CoversTest {
         println("META ${m.serial} | ${m.title} | cover=${m.cover?.length()} pic=${m.pic?.length()}")
         assertEquals("ULES-01298", m.serial)
         assertEquals("Soulcalibur — Broken Destiny", m.title)
-        assertNotNull(m.cover); assertNotNull(m.pic)
+        assertNotNull(m.cover); assertNotNull(m.pic); assertNotNull(m.snap); assertNotNull(m.titleImg); assertNotNull(m.color)
+        println("EXTRA snap=${m.snap?.length()} title=${m.titleImg?.length()} color=${Integer.toHexString(m.color!!)}")
+        // фон на главной берём из скриншота: картинка из тестового образа — однотонная заглушка
+        File(Covers.dir(ctx, g.id), "pic.png").delete()
         // снимок: библиотека и карточка с найденной обложкой
         AppState.autoFetch = false
         AppState.init(ctx); AppState.S.onboarded = true; AppState.S.launched = true
