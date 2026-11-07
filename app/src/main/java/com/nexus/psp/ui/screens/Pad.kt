@@ -66,7 +66,7 @@ fun PadScreen() {
     val modes = listOf("touch", "classic", "pad")
     var prev by rememberSaveable { mutableStateOf("touch") }
     val chips = when (S.ctlMode) {
-        "classic" -> listOf("classic:ps2" to "PS1 / PS2", "classic:psp" to "PSP")
+        "classic" -> listOf("classic:psp" to "PSP", "classic:ps1" to "PS1", "classic:ps2" to "PS2")
         "touch" -> listOf("touch:psp" to "PSP", "touch:ps2" to "PS1 / PS2", "foot" to "Пример пресета: пешком", "drive" to "Пример: за рулём")
         else -> emptyList()
     }
@@ -74,7 +74,7 @@ fun PadScreen() {
     val bg: Game = com.nexus.psp.data.PREVIEW_GAME
     Full {
         OvHead("Экранный геймпад", actions = {
-            KButton("Сбросить", small = true) { S.op = 55; S.sc = 100; S.ctlMode = "touch"; S.keyPos = "{}"; AppState.say("Раскладка сброшена") }
+            KButton("Сбросить", small = true) { S.op = 55; S.sc = 100; S.ctlMode = "touch"; S.keyPos = "{}"; S.keyIcon = "{}"; S.keyTurbo = "{}"; AppState.say("Раскладка сброшена") }
         })
         Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             Column(Modifier.weight(1.6f)) {
@@ -83,12 +83,15 @@ fun PadScreen() {
                     if (S.ctlMode == "pad") Text("Экранные кнопки скрыты — играй на геймпаде", style = T.label.copy(color = androidx.compose.ui.graphics.Color(0xFFF2F1EC)), modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(16.dp)).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = .6f)).padding(12.dp))
                     else {
                         val lay = when { pv.startsWith("classic") -> "classic"; pv == "foot" || pv == "drive" -> pv; else -> "touch" }
-                        val plat = if (pv.endsWith("psp")) "psp" else "ps2"
+                        val plat = if (pv.contains(':')) pv.substringAfter(':') else "psp"
                         val op = S.op; val sc = S.sc; val mir = S.mirror; val kp = S.keyPos
                         AndroidView(
                             factory = { c -> ControlsView(c, object : ControlsView.Listener { override fun key(code: Int, down: Boolean) {}; override fun stick(right: Boolean, x: Float, y: Float) {}; override fun action(act: String) {} }) },
                             update = { v ->
-                                v.editMode = true; v.layName = "$lay:$plat"; v.mirror = mir; v.scaleK = sc / 100f; v.alpha = (op / 100f).coerceAtLeast(.15f)
+                                v.editMode = true; v.layName = "$lay:$plat"; v.style = if (lay == "classic") "classic" else "touch"; v.platform = plat
+                                v.customIcons.clear(); try { JSONObject(S.keyIcon).let { o -> o.keys().forEach { k -> v.customIcons[k] = o.getString(k) } } } catch (e: Exception) { }
+                                v.turbo.clear(); try { JSONObject(S.keyTurbo).let { o -> o.keys().forEach { k -> v.turbo.add(k) } } } catch (e: Exception) { }
+                                v.mirror = mir; v.scaleK = sc / 100f; v.alpha = (op / 100f).coerceAtLeast(.15f)
                                 loadOffsets(v, kp)
                                 v.onMoved = { key, x, y -> val o = try { JSONObject(S.keyPos) } catch (e: Exception) { JSONObject() }; o.put(key, org.json.JSONArray(listOf(x.toDouble(), y.toDouble()))); S.keyPos = o.toString() }
                                 v.setLayout(if (lay == "foot" || lay == "drive") ControlLayout.preset(lay, true) else ControlLayout.layout(lay, plat))
@@ -104,8 +107,8 @@ fun PadScreen() {
                 Opt("Режим", null) { Seg(listOf("Touch", "Классика", "Геймпад"), modes.indexOf(S.ctlMode).coerceAtLeast(0), small = true) { S.ctlMode = modes[it] } }
                 Text(
                     when (S.ctlMode) {
-                        "touch" -> "Стик появляется там, где коснулся палец. Кнопки действий — дугой под большой палец. Если у игры есть пресет, на кнопках — смысл действий, а раскладка сама меняется: «пешком» → «за рулём»."
-                        "classic" -> "Раскладка как у геймпада консоли: крестовина, стики, кнопки ромбом. Сверху — ускорение, сохранить, загрузить, пауза."
+                        "touch" -> "Стик появляется там, где коснулся палец. Кнопки действий — дугой под большой палец. В игре: пауза → Настройки → Управление → «Переставить», нажми на кнопку — выберешь значок действия и турбо."
+                        "classic" -> "Свой джойстик для каждой консоли — выбирается сам по игре: у PSP — L/R, крестовина и «таблетка», у PS1 — L1/L2/R1/R2, у PS2 — два стика. Сверху — ускорение, сохранить, загрузить, пауза."
                         else -> "Экранные кнопки скрыты. Подключи геймпад по Bluetooth или USB."
                     }, style = T.small, modifier = Modifier.padding(vertical = 8.dp),
                 )

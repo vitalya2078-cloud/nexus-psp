@@ -8,7 +8,7 @@ import android.view.KeyEvent
  */
 data class Btn(
     val id: String,
-    val icon: String?,          // имя PNG в assets/web/img/ctl, null — стик
+    val icon: String?,          // значок: res/drawable/ctl_<имя>.xml; ft/fr/fb/fl — фигуры; null — стик
     val size: Float,
     val pos: String,            // "l16 t14", "r24 b30", "c-30 b14"
     val color: Long? = null,    // цвет кольца, null — слоновая кость
@@ -16,6 +16,8 @@ data class Btn(
     val dpad: Boolean = false,
     val stick: String? = null,  // "fix" | "float"
     val right: Boolean = false, // правый стик
+    val w: Float? = null,       // ширина для вытянутых кнопок (L/R, Select/Start); null — круглая
+    val label: String? = null,  // надпись на вытянутой кнопке
 )
 
 object ControlLayout {
@@ -63,27 +65,57 @@ object ControlLayout {
         ) + (if (swap) listOf(Btn("swap", "swap", 40f, "c26 b14", act = "swap")) else emptyList())
     }
 
+    /** Служебный ряд сверху: ускорение, сохранить, загрузить, пауза. */
+    private fun utilRow() = listOf(
+        Btn("ff", "ff", 34f, "c-66 t13", act = "ff"), Btn("save", "save", 34f, "c-22 t13", act = "save"),
+        Btn("load", "load", 34f, "c22 t13", act = "load"), Btn("pause", "pause", 34f, "c66 t13", act = "pause"),
+    )
+
+    /** Кнопки действий ромбом; координаты — центр ромба (cx от правого края, cy от низа) и шаг. */
+    private fun faceAt(r: Int, b: Int, gap: Int, size: Int): List<Btn> {
+        val h = size / 2
+        // dx > 0 — правее, dy > 0 — выше
+        fun at(dx: Int, dy: Int) = "r${r - dx - h} b${b + dy - h}"
+        return listOf(
+            Btn("ft", "ft", size.toFloat(), at(0, gap), AMBER), Btn("fr", "fr", size.toFloat(), at(gap, 0), BLUE),
+            Btn("fb", "fb", size.toFloat(), at(0, -gap), GREEN), Btn("fl", "fl", size.toFloat(), at(-gap, 0), ROSE),
+        )
+    }
+
+    /** «Классика» — свой джойстик для каждой консоли (выбирается по платформе игры). */
+    private fun classic(plat: String): List<Btn> = when (plat) {
+        "psp" -> listOf(
+            Btn("l1", "l1", 40f, "l16 t14", w = 150f, label = "L"), Btn("r1", "r1", 40f, "r16 t14", w = 150f, label = "R"),
+            Btn("dpad", "dpad", 120f, "l58 b162", dpad = true), Btn("ls", null, 92f, "l72 b42", stick = "fix"),
+        ) + faceAt(120, 208, 54, 54) + listOf(
+            Btn("select", "select", 18f, "r127 b29", w = 46f, label = "SELECT"), Btn("start", "start", 18f, "r67 b29", w = 46f, label = "START"),
+        ) + utilRow()
+        "ps1" -> listOf(
+            Btn("l2", "l2", 34f, "l16 t10", w = 96f, label = "L2"), Btn("l1", "l1", 36f, "l16 t50", w = 128f, label = "L1"),
+            Btn("r2", "r2", 34f, "r16 t10", w = 96f, label = "R2"), Btn("r1", "r1", 36f, "r16 t50", w = 128f, label = "R1"),
+            Btn("dpad", "dpad", 140f, "l54 b108", dpad = true),
+        ) + faceAt(126, 178, 58, 58) + listOf(
+            Btn("select", "select", 18f, "c-36 b31", w = 46f, label = "SELECT"), Btn("start", "start", 18f, "c36 b31", w = 46f, label = "START"),
+        ) + utilRow()
+        else -> listOf(
+            Btn("l2", "l2", 34f, "l16 t10", w = 96f, label = "L2"), Btn("l1", "l1", 36f, "l16 t50", w = 128f, label = "L1"),
+            Btn("r2", "r2", 34f, "r16 t10", w = 96f, label = "R2"), Btn("r1", "r1", 36f, "r16 t50", w = 128f, label = "R1"),
+            Btn("dpad", "dpad", 112f, "l48 b148", dpad = true),
+            Btn("ls", null, 116f, "l176 b32", stick = "fix"), Btn("rs", null, 116f, "r176 b32", stick = "fix", right = true),
+        ) + faceAt(106, 194, 50, 50) + listOf(
+            Btn("select", "select", 18f, "c-34 b29", w = 46f, label = "SELECT"), Btn("start", "start", 18f, "c34 b29", w = 46f, label = "START"),
+        ) + utilRow()
+    }
+
     /** mode: touch | classic; plat: psp | ps1 | ps2. */
     fun layout(mode: String, plat: String): List<Btn> {
+        if (mode == "classic") return classic(plat)
         val ps = plat != "psp"
         val pause = Btn("pause", "pause", 40f, "c0 b14", act = "pause")
-        return if (mode == "classic") {
-            (if (ps) listOf(Btn("l2", "l2", 52f, "l16 t14"), Btn("l1", "l1", 60f, "l80 t24"), Btn("r2", "r2", 52f, "r16 t14"), Btn("r1", "r1", 60f, "r80 t24"))
-            else listOf(Btn("l1", "l1", 62f, "l20 t16"), Btn("r1", "r1", 62f, "r20 t16"))) +
-                listOf(Btn("dpad", "dpad", 104f, "l40 t104", dpad = true), Btn("ls", null, 110f, "l170 b30", stick = "fix")) +
-                (if (ps) listOf(Btn("rs", null, 96f, "r250 b30", stick = "fix", right = true)) else emptyList()) +
-                faceDiamond() +
-                listOf(
-                    Btn("ff", "ff", 36f, "c-66 t12", act = "ff"), Btn("save", "save", 36f, "c-22 t12", act = "save"),
-                    Btn("load", "load", 36f, "c22 t12", act = "load"), Btn("pause", "pause", 36f, "c66 t12", act = "pause"),
-                    Btn("select", "select", 44f, "c-30 b14"), Btn("start", "start", 44f, "c30 b14"),
-                )
-        } else {
-            (if (ps) listOf(Btn("l1", "l1", 56f, "l16 t12"), Btn("l2", "l2", 46f, "l82 t10"), Btn("r1", "r1", 56f, "r16 t12"), Btn("r2", "r2", 46f, "r82 t10"))
+        return (if (ps) listOf(Btn("l1", "l1", 56f, "l16 t12"), Btn("l2", "l2", 46f, "l82 t10"), Btn("r1", "r1", 56f, "r16 t12"), Btn("r2", "r2", 46f, "r82 t10"))
             else listOf(Btn("l1", "l1", 58f, "l16 t12"), Btn("r1", "r1", 58f, "r16 t12"))) +
-                listOf(Btn("dpad", "dpad", 80f, "l22 t84", dpad = true), Btn("ls", null, 128f, "l80 b46", stick = "float")) +
-                faceArc() +
-                listOf(Btn("select", "select", 38f, "c-24 t12"), Btn("start", "start", 38f, "c24 t12"), pause)
-        }
+            listOf(Btn("dpad", "dpad", 80f, "l22 t84", dpad = true), Btn("ls", null, 128f, "l80 b46", stick = "float")) +
+            faceArc() +
+            listOf(Btn("select", "select", 38f, "c-24 t12"), Btn("start", "start", 38f, "c24 t12"), pause)
     }
 }

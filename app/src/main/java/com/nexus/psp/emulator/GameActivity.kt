@@ -89,6 +89,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var volume by mutableStateOf(50)
         /** Увеличивается при каждом изменении настроек ядра — для перерисовки панели. */
         var tick by mutableStateOf(0)
+        /** Редактор: кнопка, для которой выбирают значок ("раскладка:кнопка"), её значок по умолчанию и турбо. */
+        var picking by mutableStateOf<String?>(null)
+        var pickingDefault by mutableStateOf("")
+        var pickingTurbo by mutableStateOf(false)
     }
 
     data class Slot(val i: Int, val exists: Boolean, val time: Long, val thumb: File?)
@@ -144,6 +148,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             vibrate = s.optBoolean("vib", true)
             visibility = View.GONE
             s.optJSONObject("keyPos")?.let { o -> o.keys().forEach { k -> val a = o.getJSONArray(k); offsets[k] = android.graphics.PointF(a.getDouble(0).toFloat(), a.getDouble(1).toFloat()) } }
+            s.optJSONObject("keyIcon")?.let { o -> o.keys().forEach { k -> customIcons[k] = o.getString(k) } }
+            s.optJSONObject("keyTurbo")?.let { o -> o.keys().forEach { k -> if (o.optBoolean(k)) turbo.add(k) } }
         }
         ui.ctlMode = s.optString("ctlMode", "touch"); ui.op = s.optInt("op", 55); ui.sc = s.optInt("sc", 100); ui.mirror = s.optBoolean("mirror", false)
         ui.showFps = s.optBoolean("fps", false)
@@ -151,6 +157,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         ui.scopeGame = boot.optBoolean("own", false)
         ui.volume = audioVolume()
         boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> vars.put(k, o.get(k)) } }
+        controls.onTap = { key, b -> ui.picking = key; ui.pickingDefault = b.icon ?: ""; ui.pickingTurbo = key in controls.turbo; controls.visibility = View.GONE }
         controls.onMoved = { key, x, y -> persist { o -> o.put("keyPos", (o.optJSONObject("keyPos") ?: JSONObject()).put(key, org.json.JSONArray(listOf(x.toDouble(), y.toDouble())))) } }
         val classic = s.optString("ctlMode") == "classic"
         preset = if (!classic) ControlLayout.PRESETS[gameId] else null
@@ -248,9 +255,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     /** Раскладка: touch / classic / foot / drive; положения кнопок хранятся по имени «раскладка:консоль». */
     private fun applyLayout(lay: String) {
-        val plat = if (platform == "psp") "psp" else "ps2"
         layName = lay
-        controls.layName = "$lay:$plat"
+        controls.layName = "$lay:$platform"
+        controls.style = if (lay == "classic") "classic" else "touch"
+        controls.platform = platform
         controls.setLayout(if (lay == "foot" || lay == "drive") ControlLayout.preset(lay, (preset?.size ?: 0) > 1) else ControlLayout.layout(lay, platform))
     }
 
@@ -293,6 +301,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private fun backPressed() {
         when {
             ui.phase == "error" -> finish()
+            ui.picking != null -> closePicker()
             ui.editing -> stopEditing()
             ui.settings -> ui.settings = false
             ui.phase == "ready" -> setPaused(!ui.paused)
@@ -507,15 +516,42 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     // ---------- редактор кнопок поверх игры ----------
-    fun startEditing() { ui.settings = false; ui.editing = true; controls.releaseAll(); controls.editMode = true; updateControlsVisibility(); toast("Перетаскивай кнопки пальцем") }
+    fun startEditing() { ui.settings = false; ui.editing = true; controls.releaseAll(); controls.editMode = true; updateControlsVisibility(); toast(if (ui.ctlMode == "classic") "Перетаскивай кнопки пальцем" else "Перетаскивай кнопки · нажми на кнопку — выбрать значок") }
+    /** Свой значок кнопки Touch (null — как было). */
+    fun setIcon(key: String, name: String?) {
+        if (name == null) controls.customIcons.remove(key) else controls.customIcons[key] = name
+        controls.invalidate()
+        persist { o -> o.put("keyIcon", iconsJson()) }
+    }
+
+    fun currentIcon(key: String): String = controls.customIcons[key] ?: ui.pickingDefault
+
+    // полный набор, а не изменение: так общие настройки и настройки игры не расходятся
+    private fun iconsJson() = JSONObject().also { j -> controls.customIcons.forEach { (k, v) -> j.put(k, v) } }
+    private fun turboJson() = JSONObject().also { j -> controls.turbo.forEach { j.put(it, true) } }
+
+    fun closePicker() { ui.picking = null; updateControlsVisibility() }
+
+    /** Турбо для кнопки: пока палец на ней, она быстро нажимается сама. */
+    fun setTurbo(key: String, on: Boolean) {
+        if (on) controls.turbo.add(key) else controls.turbo.remove(key)
+        ui.pickingTurbo = on; controls.invalidate()
+        persist { o -> o.put("keyTurbo", turboJson()) }
+    }
+
     /** Вернуть кнопки текущей раскладки на места по умолчанию. */
     fun resetButtons() {
         val pre = controls.layName + ":"
         val gone = controls.offsets.keys.filter { it.startsWith(pre) }
         gone.forEach { controls.offsets.remove(it) }
         controls.invalidate()
-        persist { o -> val kp = o.optJSONObject("keyPos") ?: JSONObject(); gone.forEach { kp.remove(it) }; o.put("keyPos", kp) }
-        toast("Кнопки на местах по умолчанию")
+        val icons = controls.customIcons.keys.filter { it.startsWith(pre) }; icons.forEach { controls.customIcons.remove(it) }
+        val tb = controls.turbo.filter { it.startsWith(pre) }; controls.turbo.removeAll(tb.toSet())
+        persist { o ->
+            val kp = o.optJSONObject("keyPos") ?: JSONObject(); gone.forEach { kp.remove(it) }; o.put("keyPos", kp)
+            o.put("keyIcon", iconsJson()); o.put("keyTurbo", turboJson())
+        }
+        toast("Кнопки как по умолчанию: места, значки, турбо")
     }
     fun stopEditing() { ui.editing = false; controls.editMode = false; controls.invalidate(); updateControlsVisibility(); toast("Положение кнопок сохранено") }
 

@@ -75,8 +75,11 @@ object Act {
         own.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> vars.put(k, o.get(k)) } }
         val kp = try { JSONObject(S.keyPos) } catch (e: Exception) { JSONObject() }
         own.optJSONObject("keyPos")?.let { o -> o.keys().forEach { k -> kp.put(k, o.get(k)) } }
+        // значки и турбо: у игры со своими настройками — её набор целиком, иначе общий
+        val ki = own.optJSONObject("keyIcon") ?: try { JSONObject(S.keyIcon) } catch (e: Exception) { JSONObject() }
+        val kt = own.optJSONObject("keyTurbo") ?: try { JSONObject(S.keyTurbo) } catch (e: Exception) { JSONObject() }
         val s = JSONObject().put("ctlMode", own.optString("ctlMode", S.ctlMode)).put("op", own.optInt("op", S.op)).put("sc", own.optInt("sc", S.sc))
-            .put("mirror", own.optBoolean("mirror", S.mirror)).put("vib", S.vib).put("hide", S.hide).put("fps", own.optBoolean("fps", S.fps)).put("keyPos", kp)
+            .put("mirror", own.optBoolean("mirror", S.mirror)).put("vib", S.vib).put("hide", S.hide).put("fps", own.optBoolean("fps", S.fps)).put("keyPos", kp).put("keyIcon", ki).put("keyTurbo", kt)
         val boot = JSONObject().put("id", id).put("name", g.t).put("plat", g.p).put("size", g.size).put("path", g.path).put("s", s).put("vars", vars)
             .put("own", own.optBoolean("own", false)).put("preset", if (own.optBoolean("own")) own.optString("preset", "custom") else S.corePreset)
         AppState.meta[id]?.backdrop?.let { boot.put("bg", it.path) }

@@ -50,6 +50,8 @@ class GameMenuTest {
         shot(a, "p03_settings_restart")
         ui.settings = false; ui.editing = true
         shot(a, "p04_editing")
+        ui.picking = "touch:psp:fr"; ui.pickingDefault = "fr"
+        shot(a, "p05_icon_picker")
         c.pause().stop().destroy()
     }
 }

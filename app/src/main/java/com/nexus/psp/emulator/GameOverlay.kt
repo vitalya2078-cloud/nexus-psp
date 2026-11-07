@@ -83,7 +83,8 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
         AnimatedVisibility(ui.phase == "ready" && ui.paused && ui.settings && !ui.editing, enter = fadeIn(tween(160)), exit = fadeOut(tween(160))) {
             SettingsPanel(a, ui)
         }
-        if (ui.editing) Box(Modifier.align(Alignment.TopCenter).padding(top = 12.dp)) { EditBar(a) }
+        if (ui.editing && ui.picking == null) Box(Modifier.align(Alignment.TopCenter).padding(top = 12.dp)) { EditBar(a) }
+        ui.picking?.let { key -> IconPicker(a, ui, key) }
         // счётчик кадров
         if (ui.showFps && ui.phase == "ready" && !ui.paused) Text(
             "${ui.fps} FPS",
@@ -300,6 +301,71 @@ private fun Controls(a: GameActivity, ui: GameActivity.UiState) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             KButton("Сбросить", small = true) { a.resetButtons() }
             KButton("Переставить", icon = R.drawable.ph_move, kind = BtnKind.Main, small = true, enabled = ui.ctlMode != "pad") { a.startEditing() }
+        }
+    }
+}
+
+/** Значок-фигура кнопки действия (как на экранных кнопках). */
+@Composable
+fun GlyphIcon(g: String, color: Color, size: androidx.compose.ui.unit.Dp) {
+    androidx.compose.foundation.Canvas(Modifier.size(size)) {
+        val w = this.size.minDimension; val c = androidx.compose.ui.geometry.Offset(w / 2, w / 2); val a = w * .36f
+        val st = androidx.compose.ui.graphics.drawscope.Stroke(width = w * .1f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+        when (g) {
+            "ft" -> drawPath(androidx.compose.ui.graphics.Path().apply { moveTo(c.x, c.y - a); lineTo(c.x + a * 1.05f, c.y + a * .72f); lineTo(c.x - a * 1.05f, c.y + a * .72f); close() }, color, style = st)
+            "fr" -> drawCircle(color, a * .82f, c, style = st)
+            "fb" -> { val q = a * .74f; drawLine(color, c.copy(c.x - q, c.y - q), c.copy(c.x + q, c.y + q), w * .1f, androidx.compose.ui.graphics.StrokeCap.Round); drawLine(color, c.copy(c.x + q, c.y - q), c.copy(c.x - q, c.y + q), w * .1f, androidx.compose.ui.graphics.StrokeCap.Round) }
+            else -> { val q = a * .7f; drawRoundRect(color, androidx.compose.ui.geometry.Offset(c.x - q, c.y - q), androidx.compose.ui.geometry.Size(q * 2, q * 2), androidx.compose.ui.geometry.CornerRadius(q * .14f), style = st) }
+        }
+    }
+}
+
+private val GLYPH_COLOR = mapOf("ft" to Color(0xFFD9B36C), "fr" to Color(0xFF7FA7D9), "fb" to Color(0xFF8FC9A3), "fl" to Color(0xFFD98A8A))
+
+/** Выбор значка для кнопки KAPSULA Touch + турбо. Запоминается для игры или для всех (как остальные настройки). */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var group by remember { mutableStateOf(0) }
+    var cur by remember(key) { mutableStateOf(a.currentIcon(key)) }
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)).clickable(remember { MutableInteractionSource() }, indication = null) { a.closePicker() }) {
+        Column(
+            Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.7f).widthIn(min = 500.dp).background(K.bg)
+                .clickable(remember { MutableInteractionSource() }, indication = null) {}
+                .windowInsetsPadding(WindowInsets.displayCutout).padding(start = 20.dp, end = 20.dp, top = 14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Значок кнопки", style = T.h2, modifier = Modifier.weight(1f))
+                KButton("Как было", small = true) { a.setIcon(key, null); cur = ui.pickingDefault }
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).press { a.closePicker() }, contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_x, 18.dp) }
+            }
+            Opt("Турбо", "Пока держишь — кнопка быстро нажимается сама") { Toggle(ui.pickingTurbo) { a.setTurbo(key, it) } }
+            Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                CtlIcons.GROUPS.forEachIndexed { i, (g, _) -> com.nexus.psp.ui.kit.Chip(g, group == i) { group = i } }
+            }
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CtlIcons.GROUPS[group].second.forEach { (name, label) ->
+                    val on = name == cur
+                    Column(
+                        Modifier.width(76.dp).clip(RoundedCornerShape(14.dp)).background(if (on) K.acc.copy(alpha = .16f) else K.s1)
+                            .border(1.5.dp, if (on) K.acc else K.line, RoundedCornerShape(14.dp))
+                            .press { a.setIcon(key, name); cur = name }.padding(vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        val gc = GLYPH_COLOR[name]
+                        if (gc != null) GlyphIcon(name, gc, 30.dp)
+                        else {
+                            val id = remember(name) { ctx.resources.getIdentifier("ctl_$name", "drawable", ctx.packageName) }
+                            if (id != 0) SolarIcon(id, 30.dp, K.ink)
+                        }
+                        Text(label, style = T.small.copy(fontSize = 11.sp, color = K.ink2), maxLines = 1)
+                    }
+                }
+            }
         }
     }
 }

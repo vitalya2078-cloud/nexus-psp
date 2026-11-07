@@ -86,6 +86,9 @@ class Settings(private val sp: SharedPreferences) {
     var coreVars by s("coreVars", "{}")
     /** Положение кнопок в редакторе: "раскладка:консоль:кнопка" → смещение в точках макета 844×390, JSON. */
     var keyPos by s("keyPos", "{}")
+    /** Свои значки и турбо кнопок KAPSULA Touch: "раскладка:кнопка" → значок / true. */
+    var keyIcon by s("keyIcon", "{}")
+    var keyTurbo by s("keyTurbo", "{}")
 }
 
 object AppState {
@@ -253,6 +256,9 @@ object AppState {
             if (o.has("mirror")) S.mirror = o.getBoolean("mirror")
             if (o.has("fps")) S.fps = o.getBoolean("fps")
             o.optJSONObject("keyPos")?.let { v -> val cur = try { JSONObject(S.keyPos) } catch (e: Exception) { JSONObject() }; v.keys().forEach { k -> cur.put(k, v.get(k)) }; S.keyPos = cur.toString() }
+            // значки и турбо: удалённые ключи тоже переносятся (сброс к «как было»)
+            o.optJSONObject("keyIcon")?.let { v -> S.keyIcon = v.toString() }
+            o.optJSONObject("keyTurbo")?.let { v -> S.keyTurbo = v.toString() }
         } catch (e: Exception) { }
         f.delete()
     }
