@@ -78,6 +78,14 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     val title: String get() = boot.optString("name", "Игра")
     val platform: String get() = boot.optString("plat", "psp")
+    val gameId: String get() = boot.optString("id")
+    /** Игра демо-каталога: ядро не запускается, экран нужен, чтобы опробовать управление и раскладки. */
+    val demo: Boolean get() = boot.optBoolean("demo", false)
+    private var preset: List<String>? = null
+    private var layName = ""
+    private var tilt = false
+    private var startedAt = 0L
+    private var savesMade = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,9 +116,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             scaleK = (s.optDouble("sc", 100.0) / 100.0).toFloat()
             alpha = (s.optDouble("op", 55.0) / 100.0).toFloat().coerceIn(.15f, 1f)
             vibrate = s.optBoolean("vib", true)
-            setLayout(ControlLayout.layout(if (s.optString("ctlMode") == "classic") "classic" else "touch", platform))
             visibility = View.GONE
+            s.optJSONObject("keyPos")?.let { o -> o.keys().forEach { k -> val a = o.getJSONArray(k); offsets[k] = android.graphics.PointF(a.getDouble(0).toFloat(), a.getDouble(1).toFloat()) } }
         }
+        val classic = s.optString("ctlMode") == "classic"
+        preset = if (!classic) ControlLayout.PRESETS[gameId] else null
+        applyLayout(preset?.first() ?: if (classic) "classic" else "touch")
         hideWithPad = s.optBoolean("hide", true)
         val mode = s.optString("ctlMode", "touch")
         if (mode != "pad") root.addView(controls, full)
@@ -132,6 +143,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             override fun onInputDeviceChanged(id: Int) = updateControlsVisibility()
         }, null)
 
+        startedAt = System.currentTimeMillis()
+        if (demo) {
+            // без ядра: показываем фон-обложку и сразу даём управление
+            lifecycleScope.launch { delay(900); ui.phase = "ready"; updateControlsVisibility(); toast("Демо-игра каталога: проверь управление") }
+            return
+        }
         lifecycleScope.launch {
             val ok = withContext(Dispatchers.IO) { CoreFiles.ensureSystem(this@GameActivity) }
             if (!ok) { fail("Не удалось подготовить системные файлы PPSSPP"); return@launch }
@@ -192,6 +209,22 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         return v.map { Variable(it.key, it.value) }.toTypedArray()
     }
 
+    /** Раскладка: touch / classic / foot / drive; положения кнопок хранятся по имени «раскладка:консоль». */
+    private fun applyLayout(lay: String) {
+        val plat = if (platform == "psp") "psp" else "ps2"
+        layName = lay
+        controls.layName = "$lay:$plat"
+        controls.setLayout(if (lay == "foot" || lay == "drive") ControlLayout.preset(lay, (preset?.size ?: 0) > 1) else ControlLayout.layout(lay, platform))
+    }
+
+    private fun switchLayout(to: String) {
+        val p = preset ?: return
+        if (to !in p || to == layName) return
+        applyLayout(to)
+        toast(if (to == "drive") "Раскладка: за рулём" else "Раскладка: пешком")
+        controls.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+    }
+
     private fun fail(msg: String) {
         ui.error = msg; ui.phase = "error"; ui.paused = false
         updateControlsVisibility()
@@ -207,6 +240,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     fun setPaused(p: Boolean) {
         if (ui.phase != "ready") return
+        if (demo) { ui.paused = p; controls.releaseAll(); updateControlsVisibility(); return }
         ui.paused = p
         controls.releaseAll()
         setCorePaused(p)
@@ -252,7 +286,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     fun saveQuick() = lifecycleScope.launch {
         val ok = try { running { retro?.serializeState()?.also { stateFile(0).writeBytes(it) }?.isNotEmpty() ?: false } } catch (e: Exception) { Log.e(TAG, "save", e); false }
-        if (ok) ui.hasState = true
+        if (ok) { ui.hasState = true; savesMade++ }
         toast(if (ok) "Сохранено в быстрый слот" else "Не удалось сохранить")
     }
 
@@ -283,11 +317,15 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     override fun action(act: String) {
-        when (act) {
-            "pause" -> setPaused(true)
-            "save" -> saveQuick()
-            "load" -> loadQuick()
-            "ff" -> toggleFast()
+        when {
+            act == "pause" -> setPaused(true)
+            act == "save" -> if (demo) toast("В демо-игре сохранений нет") else saveQuick()
+            act == "load" -> if (demo) toast("В демо-игре сохранений нет") else loadQuick()
+            act == "ff" -> toggleFast()
+            act == "tilt" -> { tilt = !tilt; controls.setToggle("tilt", tilt); toast(if (tilt) "Руль — наклоном телефона (скоро)" else "Руль — кнопками") }
+            act == "swap" -> switchLayout(if (layName == "drive") "foot" else "drive")
+            // умный триггер «сесть/выйти»: кнопка уходит в игру, раскладка меняется через полсекунды
+            act.startsWith("ctx:") -> lifecycleScope.launch { delay(500); switchLayout(act.removePrefix("ctx:")) }
         }
     }
 
@@ -320,6 +358,17 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         // свернули приложение посреди игры — открываем меню паузы
         else if (ui.phase == "ready" && !ui.paused && !isFinishing) setPaused(true)
     }
+
+    /** Итог сессии для главного процесса: минуты в игре и новые сохранения. */
+    private fun writeSession() {
+        if (gameId.isEmpty() || startedAt == 0L) return
+        val min = ((System.currentTimeMillis() - startedAt) / 60000).toInt()
+        try {
+            File(filesDir, "last_session.json").writeText(JSONObject().put("id", gameId).put("minutes", min).put("saves", savesMade).toString())
+        } catch (e: Exception) { Log.w(TAG, "session", e) }
+    }
+
+    override fun finish() { writeSession(); super.finish() }
 
     override fun onDestroy() {
         super.onDestroy()

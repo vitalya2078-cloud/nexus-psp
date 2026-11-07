@@ -56,6 +56,8 @@ private val CONSOLE = mapOf("psp" to ("PlayStation Portable" to K.psp), "ps1" to
 fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
     val (conName, conColor) = CONSOLE[a.platform] ?: CONSOLE.getValue("psp")
     Box(Modifier.fillMaxSize()) {
+        // демо-игра каталога: вместо картинки ядра — её обложка
+        if (a.demo) com.nexus.psp.data.GAMES.firstOrNull { it.id == a.gameId }?.let { g -> com.nexus.psp.ui.Cover(g, 1600, 900, 11, Modifier.fillMaxSize()) }
         // заставка, пока ядро не нарисовало первый кадр
         AnimatedVisibility(ui.phase == "loading", enter = fadeIn(), exit = fadeOut(tween(500))) {
             Boot(a.title, conName, conColor)
@@ -109,13 +111,15 @@ private fun PauseMenu(a: GameActivity, ui: GameActivity.UiState, con: String, co
             Text(a.title, style = T.h1)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ActionTile(R.drawable.sb_play, "Продолжить", main = true) { a.setPaused(false) }
-                ActionTile(R.drawable.sl_save, "Сохранить") { a.saveQuick() }
-                ActionTile(R.drawable.sl_load, "Загрузить", enabled = ui.hasState) { a.loadQuick() }
+                if (!a.demo) {
+                    ActionTile(R.drawable.sl_save, "Сохранить") { a.saveQuick() }
+                    ActionTile(R.drawable.sl_load, "Загрузить", enabled = ui.hasState) { a.loadQuick() }
+                }
                 ActionTile(R.drawable.sl_bolt, if (ui.fast) "Скорость ×1" else "Ускорить ×2") { a.toggleFast() }
                 ActionTile(R.drawable.sl_exit, "Выйти", danger = true) { a.exitGame() }
             }
             Text(
-                if (ui.hasState) "Быстрое сохранение есть — «Загрузить» вернёт к нему" else "Быстрых сохранений пока нет",
+                if (a.demo) "Демо-игра каталога: ядро не запускается, можно опробовать управление и раскладки" else if (ui.hasState) "Быстрое сохранение есть — «Загрузить» вернёт к нему" else "Быстрых сохранений пока нет",
                 style = T.small,
             )
         }
@@ -135,7 +139,7 @@ private fun ErrorScreen(msg: String, onExit: () -> Unit) {
         Spacer(Modifier.height(6.dp))
         Text(msg, style = T.body.copy(color = K.ink2, fontWeight = FontWeight.Medium), textAlign = TextAlign.Center, modifier = Modifier.width(420.dp))
         Spacer(Modifier.height(18.dp))
-        Box(Modifier.clip(RoundedCornerShape(22.dp)).background(K.ink).press(onExit).padding(horizontal = 22.dp, vertical = 12.dp)) {
+        Box(Modifier.clip(RoundedCornerShape(22.dp)).background(K.ink).press(onClick = onExit).padding(horizontal = 22.dp, vertical = 12.dp)) {
             Text("Выйти", style = T.label.copy(color = K.bg))
         }
     }

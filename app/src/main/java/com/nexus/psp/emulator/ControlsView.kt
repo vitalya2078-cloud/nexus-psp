@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.DashPathEffect
+import android.graphics.PointF
 import android.graphics.Paint
 import android.graphics.RectF
 import android.view.HapticFeedbackConstants
@@ -27,6 +29,15 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         fun stick(right: Boolean, x: Float, y: Float)
         fun action(act: String)
     }
+
+    /** Имя раскладки (ключ для сохранённых положений кнопок) и режим редактора. */
+    var layName = "touch"
+    var editMode = false
+    /** Смещения кнопок в точках макета 844×390: "раскладка:кнопка" → (dx, dy). */
+    val offsets = HashMap<String, PointF>()
+    var onMoved: ((String, Float, Float) -> Unit)? = null
+    private var dragIdx = -1; private var dragX = 0f; private var dragY = 0f; private var dragOx = 0f; private var dragOy = 0f
+    private val dash = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; pathEffect = DashPathEffect(floatArrayOf(10f, 8f), 0f); color = 0xFF7FA7D9.toInt() }
 
     var mirror = false
     var scaleK = 1f
@@ -52,7 +63,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     fun setToggle(act: String, on: Boolean) { if (on) toggles.add(act) else toggles.remove(act); invalidate() }
 
     private fun icon(name: String): Bitmap? = icons.getOrPut(name) {
-        try { context.assets.open("web/img/ctl/$name.png").use { BitmapFactory.decodeStream(it) } } catch (e: Exception) { null }
+        try { context.assets.open("img/ctl/$name.png").use { BitmapFactory.decodeStream(it) } } catch (e: Exception) { null }
     }
 
     // ---------- геометрия ----------
@@ -74,6 +85,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
             }
         }
         if (mirror) cx = width - cx
+        offsets["$layName:${b.id}"]?.let { cx += it.x * k; cy += it.y * k }
         return cx to cy
     }
 
@@ -82,6 +94,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         buttons.forEachIndexed { i, b ->
             val t = touches.values.firstOrNull { it.idx == i }
             if (b.stick != null) drawStick(c, b, t) else drawButton(c, b, t)
+            if (editMode) { val (x, y) = center(b); dash.strokeWidth = 2 * dp; c.drawCircle(x, y, diameter(b) / 2 + 4 * dp, dash) }
         }
     }
 
@@ -166,7 +179,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         when {
             b.act != null -> listener.action(b.act)
             b.dpad -> { t.dir = dpadDir(b, x, y); t.dir?.let { ControlLayout.DIR[it]?.let { c -> listener.key(c, true) } } }
-            else -> ControlLayout.KEY[b.id]?.let { listener.key(it, true) }
+            else -> (ControlLayout.KEY[b.id] ?: ControlLayout.STEER[b.id])?.let { listener.key(it, true) }
         }
         buzz()
     }
@@ -176,7 +189,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         when {
             b.stick != null -> listener.stick(b.right, 0f, 0f)
             b.dpad -> t.dir?.let { ControlLayout.DIR[it]?.let { c -> listener.key(c, false) } }
-            b.act == null -> ControlLayout.KEY[b.id]?.let { listener.key(it, false) }
+            b.act == null -> (ControlLayout.KEY[b.id] ?: ControlLayout.STEER[b.id])?.let { listener.key(it, false) }
         }
     }
 
@@ -192,8 +205,32 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         listener.stick(b.right, dx / lim, dy / lim)
     }
 
+    /** Редактор: кнопку можно перетащить пальцем; положение сохраняется в точках макета. */
+    private fun editTouch(e: MotionEvent): Boolean {
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                dragIdx = buttons.indices.minByOrNull { i -> val (cx, cy) = center(buttons[i]); hypot(e.x - cx, e.y - cy) - diameter(buttons[i]) / 2 } ?: -1
+                if (dragIdx >= 0) {
+                    val (cx, cy) = center(buttons[dragIdx])
+                    if (hypot(e.x - cx, e.y - cy) > diameter(buttons[dragIdx]) / 2 * 1.2f) { dragIdx = -1; return true }
+                    val key = "$layName:${buttons[dragIdx].id}"; val o = offsets[key] ?: PointF()
+                    dragX = e.x; dragY = e.y; dragOx = o.x; dragOy = o.y; buzz()
+                }
+            }
+            MotionEvent.ACTION_MOVE -> if (dragIdx >= 0) {
+                val key = "$layName:${buttons[dragIdx].id}"
+                offsets[key] = PointF(dragOx + (e.x - dragX) / k, dragOy + (e.y - dragY) / k); invalidate()
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragIdx >= 0) {
+                val key = "$layName:${buttons[dragIdx].id}"; offsets[key]?.let { onMoved?.invoke(key, it.x, it.y) }; dragIdx = -1
+            }
+        }
+        return true
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (editMode) return editTouch(e)
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val p = e.actionIndex; val id = e.getPointerId(p); val x = e.getX(p); val y = e.getY(p)

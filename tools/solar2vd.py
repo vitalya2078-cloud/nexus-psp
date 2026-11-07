@@ -1,4 +1,4 @@
-"""Значки Solar (CC BY 4.0) из ui/kapsula.js → векторные значки Android (res/drawable).
+"""Значки Solar (CC BY 4.0) и Phosphor (MIT) из ui/kapsula.js → векторные значки Android (res/drawable).
 
 sl_* — linear (обводка, красится tint), sb_* — bold (заливка, tint),
 sd_* — bold duotone: основная часть цветом слоновой кости, полупрозрачная — стальным синим (цвета зашиты).
@@ -16,7 +16,7 @@ INK, ACC = '#F2F1EC', '#7FA7D9'
 def objects():
     js = open(SRC, encoding='utf-8').read()
     res = {}
-    for name in ('SL', 'SD', 'SB'):
+    for name in ('SL', 'SD', 'SB', 'PH'):
         m = re.search(r'^var ' + name + r' = (\{.*?\});$', js, re.M)
         res[name] = json.loads(m.group(1))
     return res
@@ -84,6 +84,14 @@ def main():
         for name, body in o[key].items():
             open(os.path.join(OUT, prefix + snake(name) + '.xml'), 'w', encoding='utf-8').write(vd(body, mode))
             n += 1
+    # Phosphor (MIT): контурные значки на сетке 256, заливкой
+    for name, body in o['PH'].items():
+        paths = ''.join(f'    <path android:pathData="{d}" android:fillColor="#FFFFFFFF" />\n' for d in re.findall(r'd="([^"]+)"', body))
+        open(os.path.join(OUT, 'ph_' + snake(name) + '.xml'), 'w', encoding='utf-8').write(
+            '<?xml version="1.0" encoding="utf-8"?>\n<!-- Phosphor Icons, MIT. Сгенерировано tools/solar2vd.py -->\n'
+            '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" '
+            'android:viewportWidth="256" android:viewportHeight="256">\n' + paths + '</vector>\n')
+        n += 1
     print('icons:', n)
 
 

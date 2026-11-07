@@ -27,6 +27,8 @@ object ControlLayout {
         "l1" to KeyEvent.KEYCODE_BUTTON_L1, "r1" to KeyEvent.KEYCODE_BUTTON_R1, "l2" to KeyEvent.KEYCODE_BUTTON_L2, "r2" to KeyEvent.KEYCODE_BUTTON_R2,
         "select" to KeyEvent.KEYCODE_BUTTON_SELECT, "start" to KeyEvent.KEYCODE_BUTTON_START,
     )
+    /** Руль кнопками в раскладке «за рулём» — это стрелки влево/вправо. */
+    val STEER = mapOf("dl_" to KeyEvent.KEYCODE_DPAD_LEFT, "dr_" to KeyEvent.KEYCODE_DPAD_RIGHT)
     val DIR = mapOf('u' to KeyEvent.KEYCODE_DPAD_UP, 'd' to KeyEvent.KEYCODE_DPAD_DOWN, 'l' to KeyEvent.KEYCODE_DPAD_LEFT, 'r' to KeyEvent.KEYCODE_DPAD_RIGHT)
 
     private val FACE = listOf("ft" to AMBER, "fr" to BLUE, "fb" to GREEN, "fl" to ROSE)
@@ -39,6 +41,26 @@ object ControlLayout {
     private fun faceDiamond(): List<Btn> {
         val p = listOf(96 to 172, 34 to 112, 96 to 52, 158 to 112)
         return FACE.mapIndexed { i, (id, c) -> Btn(id, id, 56f, "r${p[i].first} b${p[i].second}", c) }
+    }
+
+    /** Пресеты автора каталога: раскладки игры по порядку (первая — стартовая), п. 57. */
+    val PRESETS = mapOf("rubezh" to listOf("foot", "drive"), "drift" to listOf("drive"))
+
+    private fun faceArc(ics: List<String>): List<Btn> = faceArc().mapIndexed { i, b -> b.copy(icon = ics[i]) }
+
+    /** Контекстные раскладки «пешком» и «за рулём» (как мобильные порты экшенов). */
+    fun preset(lay: String, swap: Boolean): List<Btn> = when (lay) {
+        "foot" -> listOf(Btn("l1", "l1", 52f, "l16 t12"), Btn("r1", "r1", 52f, "r16 t12"), Btn("ls", null, 128f, "l80 b46", stick = "float")) +
+            faceArc(listOf("grab", "attack", "jump", "sprint")) +
+            listOf(Btn("aim", "aim", 46f, "r216 b170"), Btn("car", "car", 46f, "r20 t72", act = "ctx:drive"), Btn("weapon", "weapon", 46f, "r20 t126"),
+                Btn("map", "map", 46f, "l20 t72"), Btn("pause", "pause", 40f, "c0 b14", act = "pause")) +
+            (if (swap) listOf(Btn("swap", "swap", 40f, "r76 t76", act = "swap")) else emptyList())
+        else -> listOf(
+            Btn("left", "left", 78f, "l28 b30", act = null).copy(id = "dl_"), Btn("right", "right", 78f, "l122 b30").copy(id = "dr_"), Btn("tilt", "tilt", 44f, "l44 b124", act = "tilt"),
+            Btn("fb", "gas", 84f, "r22 b24", GREEN), Btn("fl", "brake", 76f, "r118 b24", ROSE), Btn("r1", "hbrake", 58f, "r136 b112", AMBER), Btn("fr", "nitro", 52f, "r40 b122", BLUE),
+            Btn("car", "car", 44f, "r20 t72", act = "ctx:foot"), Btn("ft", "horn", 44f, "r20 t124"), Btn("cam", "cam", 44f, "r72 t72"), Btn("l1", "mirror", 44f, "r72 t124"),
+            Btn("pause", "pause", 40f, "c-26 b14", act = "pause"),
+        ) + (if (swap) listOf(Btn("swap", "swap", 40f, "c26 b14", act = "swap")) else emptyList())
     }
 
     /** mode: touch | classic; plat: psp | ps1 | ps2. */
