@@ -278,18 +278,10 @@ svg.i{width:22px;height:22px;flex-shrink:0;fill:none;stroke:currentColor;stroke-
 /* pad */
 .pad{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(240px,1fr);gap:20px}
 .pad-v{position:relative;aspect-ratio:16/9;border-radius:18px;overflow:hidden;background-size:cover;background-position:center;container-type:inline-size}
-.ctl{position:absolute;inset:0;opacity:var(--op,.6)}
-.ctl.mirror{transform:scaleX(-1)}
-.ctl.mirror .k{transform:scaleX(-1) scale(var(--sc,1))}
-.k{position:absolute;display:grid;place-items:center;border:2px solid rgba(255,255,255,.85);background:rgba(0,0,0,.3);color:#fff;font-weight:800;transform:scale(var(--sc,1));transition:transform .06s,background .06s;font-size:2.3cqw;touch-action:none}
-.k:active{background:rgba(255,255,255,.35)}
-.k.r{border-radius:50%} .k.s{border-radius:10px}
-.edit .k{border-style:dashed;border-color:var(--acc);cursor:grab}
 
 /* play */
 .play{position:fixed;inset:0;z-index:60;background:#000;color:#F2F1EC;container-type:inline-size}
 .play-g{position:absolute;inset:0;margin:auto;height:100%;aspect-ratio:16/9;max-width:100%;background-size:cover;background-position:center}
-.play .ctl{opacity:.5}
 .play-tb{position:absolute;top:max(10px,var(--sat));left:50%;transform:translateX(-50%);z-index:3;display:flex;gap:6px}
 .play-tb button{height:34px;padding:0 13px;border-radius:17px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700}
 .play-tb button.on{background:var(--acc);color:#0B0C0F}
@@ -508,3 +500,54 @@ svg.i.sol.duo [opacity]{fill:var(--acc);stroke:var(--acc);opacity:.9}
 .dlb.paused .dlb-track i::after{animation:none;opacity:0}
 .dlb.paused .dlb-pc{color:var(--warn);font-weight:700}
 @keyframes dlbRun{from{background-position:-60% 0}to{background-position:160% 0}}
+
+/* v0.9.0: шапка v2 — точки-капсулы, колокольчик, кольцо загрузки */
+.bdg{position:absolute;top:7px;right:5px;width:10px;height:6px;border-radius:3px;background:var(--acc);box-shadow:0 0 0 2px var(--bg);opacity:0;transform:scale(.3);transition:opacity .25s,transform .25s;pointer-events:none}
+.bdg.on{opacity:1;transform:none}
+.bdg.ok{background:var(--ok)}
+.dlr{position:relative;width:34px;height:34px;display:grid;place-items:center}
+.dlr-o{position:absolute;inset:0;width:34px;height:34px}
+.dlr-o .trk{fill:none;stroke:var(--ink);opacity:.17;stroke-width:2.6}
+.dlr-o .hf{fill:none;stroke:var(--acc);stroke-width:2.6;stroke-linecap:round;stroke-dasharray:3 100;transition:stroke-dasharray .6s linear,stroke .3s}
+.dlr-i{width:19px;height:19px;color:var(--ink);overflow:visible}
+.dlr .chk{opacity:0;transition:opacity .3s}
+.dlr .arr{transition:opacity .3s}
+.dlr.dl .arr{animation:dlDrop 1.6s ease-in-out infinite}
+.dlr.pause .hf{stroke:var(--warn)}
+.dlr.pause .arr{opacity:.55}
+.dlr.done .hf{stroke:var(--ok)}
+.dlr.done .dlr-i{color:var(--ok)}
+.dlr.done .arr{opacity:0}
+.dlr.done .chk{opacity:1}
+.dlr.pulse{animation:dlPulse .6s ease-in-out 3}
+@keyframes dlDrop{0%{transform:translateY(-2.5px);opacity:0}25%{opacity:1}75%{transform:translateY(1px);opacity:1}100%{transform:translateY(1.5px);opacity:0}}
+@keyframes dlPulse{50%{transform:scale(1.13)}}
+.ib.swing>svg.i{animation:bellSwing .8s ease-in-out;transform-origin:50% 12%}
+@keyframes bellSwing{15%{transform:rotate(16deg)}35%{transform:rotate(-12deg)}55%{transform:rotate(7deg)}75%{transform:rotate(-3deg)}}
+.calm .dlr .arr,.calm .dlr.pulse,.calm .ib.swing>svg.i{animation:none}
+.toast.act.on{pointer-events:auto}
+.toast button{margin-left:6px;height:28px;padding:0 13px;border-radius:14px;background:var(--bg);color:var(--ink);font-weight:800;font-size:12.5px}
+
+/* v0.9.0: KAPSULA Touch — круглые кнопки: тёмное стекло, кольцо, картинка */
+.ctl{position:absolute;inset:0;opacity:var(--op,.6);--b1:#D9B36C;--b2:#7FA7D9;--b3:#8FC9A3;--b4:#D98A8A;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
+.play .ctl{--csl:var(--sal);--csr:var(--sar)}
+.ctl.mirror{transform:scaleX(-1)}
+.k{position:absolute;width:var(--s);height:var(--s);box-sizing:border-box;border-radius:50%;display:grid;place-items:center;border:max(2px,calc(var(--s) * .055)) solid var(--c,rgba(242,241,236,.92));background:rgba(8,9,12,.5);background:color-mix(in srgb,var(--c,#08090C) 12%,rgba(8,9,12,.5));transform:scale(var(--sc,1));transition:transform .06s,background .06s,box-shadow .06s;touch-action:none}
+.k img{width:78%;height:78%;pointer-events:none;-webkit-user-drag:none}
+.k.press{background:color-mix(in srgb,var(--c,#F2F1EC) 42%,rgba(8,9,12,.35));box-shadow:0 0 0 calc(var(--s) * .08) color-mix(in srgb,var(--c,#F2F1EC) 25%,transparent);transform:scale(calc(var(--sc,1) * .94))}
+.k.on{--c:var(--b2);background:color-mix(in srgb,var(--b2) 30%,rgba(8,9,12,.4))}
+.ctl.mirror .k{transform:scaleX(-1) scale(var(--sc,1))}
+.ctl.mirror .k.press{transform:scaleX(-1) scale(calc(var(--sc,1) * .94))}
+.k.dp::after{content:"";position:absolute;width:28%;height:28%;border-radius:50%;background:rgba(242,241,236,.45);opacity:0;transition:opacity .05s}
+.k.dp[data-dir=u]::after{opacity:1;top:6%}.k.dp[data-dir=d]::after{opacity:1;bottom:6%}.k.dp[data-dir=l]::after{opacity:1;left:6%}.k.dp[data-dir=r]::after{opacity:1;right:6%}
+.k.stk{background:rgba(8,9,12,.22);border:2px solid rgba(242,241,236,.45)}
+.k.stk b{position:absolute;left:28%;top:28%;width:44%;height:44%;box-sizing:border-box;border-radius:50%;background:rgba(242,241,236,.25);border:2px solid rgba(242,241,236,.85);transition:transform .14s var(--ease)}
+.k.stk.float{opacity:.55;transition:opacity .15s}
+.k.stk.live{opacity:1}
+.k.stk.live b{transition:none}
+.edit .k{border-style:dashed;cursor:grab}
+.ctl-tag{position:absolute;left:50%;top:calc(7.3cqw);transform:translateX(-50%);padding:3px 10px;border-radius:10px;background:rgba(8,9,12,.55);color:rgba(242,241,236,.8);font-size:11px;font-weight:700;pointer-events:none}
+.ctl.mirror .ctl-tag{transform:translateX(-50%) scaleX(-1)}
+.ctl-hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:18px;background:rgba(8,9,12,.6);color:rgba(242,241,236,.85);font-size:12.5px;font-weight:700;white-space:nowrap}
+.has-pad .play .ctl:not(.edit){display:none}
+.chips.pv{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}

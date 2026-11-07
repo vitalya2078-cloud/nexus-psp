@@ -118,7 +118,7 @@ var alerts = [
   { t: 'Новое в магазине: «Звёздный Курьер»', d: '2 дня назад', u: 1, g: 'courier' },
   { t: 'Обновление KAPSULA 0.7.0', d: '5 дней назад', u: 0 }
 ];
-var D = { con: 'all', theme: 'dark', big: false, contrast: false, calm: false, mirror: false, saver: false, wifi: true, auto: true, res: '2x', fps: false, vol: 80, bright: 100, vib: true, sound: false, op: 55, sc: 100, hide: true, cloud: true, layout: 'Классика', lang: 'RU', fit: false, sort: 'Недавние', lf: 'Все', lc: '', onboarded: false, launched: false, recent: [] };
+var D = { con: 'all', theme: 'dark', big: false, contrast: false, calm: false, mirror: false, saver: false, wifi: true, auto: true, res: '2x', fps: false, vol: 80, bright: 100, vib: true, sound: false, op: 55, sc: 100, hide: true, cloud: true, ctlMode: 'touch', kp: {}, lang: 'RU', fit: false, sort: 'Недавние', lf: 'Все', lc: '', onboarded: false, launched: false, recent: [] };
 var S = JSON.parse(JSON.stringify(D));
 try { var sv = JSON.parse(localStorage.getItem('kapsula') || '{}'); for (var k in sv) S[k] = sv[k]; } catch (e) {}
 function save() { try { localStorage.setItem('kapsula', JSON.stringify(S)); } catch (e) {} }
@@ -313,7 +313,7 @@ function oGSet(id) {
   var g = byId[id]; if (!g) return '';
   return '<div class="full" role="dialog" aria-label="Настройки игры"><div class="ov-h"><button class="b b-soft b-rd" data-a="back" data-v="game-' + id + '" aria-label="Назад">' + I('left', 20) + '</button><h2>' + g.t + ' — настройки</h2><button class="b b-soft b-rd" data-a="close" aria-label="Закрыть">' + I('x') + '</button></div><div class="ov-b" style="max-width:820px">' +
     '<div class="note">' + I('star', 20) + '<span><b>Применён пресет автора каталога.</b> Проверенные настройки для этой игры. Можно изменить — общие настройки не затронутся.</span></div>' +
-    opt('Разрешение', 'Только для этой игры', seg('res', ['1x', '2x', '3x', '4x'])) + opt('Раскладка кнопок', '', seg('layout', ['Классика', 'Компакт', 'Своя'])) + opt('Счётчик FPS', '', tg('fps')) + opt('Читы', 'Появятся позже', '<span class="hint">скоро</span>') + '</div></div>';
+    opt('Разрешение', 'Только для этой игры', seg('res', ['1x', '2x', '3x', '4x'])) + opt('Управление', '', seg('ctlMode', ['touch', 'classic', 'pad'], ['Touch', 'Классика', 'Геймпад'])) + opt('Счётчик FPS', '', tg('fps')) + opt('Читы', 'Появятся позже', '<span class="hint">скоро</span>') + '</div></div>';
 }
 /* full library (п. 2, 19) */
 var newCol = '', showNewCol = false;
@@ -354,7 +354,7 @@ function sBody() {
 function oSearch() { return '<div class="full" role="dialog" aria-label="Поиск"><div class="ov-h"><label class="sbox">' + I('search') + '<input id="q" type="search" placeholder="Игра, жанр или консоль" value="' + esc(query) + '" autocomplete="off" enterkeyhint="search"></label><button class="b b-soft b-rd" data-a="close" aria-label="Закрыть">' + I('x') + '</button></div><div class="ov-b" id="sres">' + sBody() + '</div></div>'; }
 /* downloads */
 function oDownloads() {
-  var actv = Object.keys(lib).filter(function (i) { return ['dl', 'pause', 'q'].indexOf(lib[i].s) >= 0; }), done = Object.keys(lib).filter(function (i) { return lib[i].s === 'ok'; });
+  var actv = Object.keys(lib).filter(function (i) { return ['dl', 'pause', 'q'].indexOf(lib[i].s) >= 0; }), done = Object.keys(lib).filter(function (i) { return lib[i].s === 'ok'; }).sort(function (x, y) { return (readyIds.indexOf(y) >= 0) - (readyIds.indexOf(x) >= 0); });
   return shade('<aside class="drawer" aria-label="Загрузки"><div class="ov-h"><h2>Загрузки</h2><button class="b b-soft b-rd b-sm" data-a="close" aria-label="Закрыть">' + I('x', 18) + '</button></div><div class="ov-b">' +
     '<div class="sub">Сейчас</div>' + (actv.length ? actv.map(function (i) { var g = byId[i], L = lib[i]; return '<div class="it"><span class="th" style="background-image:' + art(g, 300, 300) + '"></span><span class="tx"><b>' + g.t + '</b><span>' + stat(i).lbl + ' · ' + size(g.size) + '</span><span class="pb"><i data-bar="' + i + '" style="width:' + (L.pr || 0) + '%"></i></span></span><button class="b b-soft b-rd b-sm" data-a="' + (L.s === 'dl' ? 'pause' : 'resume') + '" data-id="' + i + '" aria-label="' + (L.s === 'dl' ? 'Пауза' : 'Продолжить') + '">' + I(L.s === 'dl' ? 'pause' : 'play', 16) + '</button><button class="b b-soft b-rd b-sm" data-a="cancel" data-id="' + i + '" aria-label="Отменить">' + I('x', 16) + '</button></div>'; }).join('') : '<div class="hint">Активных загрузок нет</div>') +
     '<div class="sub">Установлены</div>' + done.map(function (i) { var g = byId[i]; return '<div class="it"><span class="th" style="background-image:' + art(g, 300, 300) + '"></span><span class="tx"><b>' + g.t + '</b><span>' + PL[g.p].n + ' · ' + size(g.size) + '</span></span><button class="b b-main b-sm" data-a="play" data-id="' + i + '">Играть</button></div>'; }).join('') +
@@ -367,8 +367,8 @@ function oAlerts() {
 /* quick panel (п. 16) */
 function padState() { try { var p = navigator.getGamepads && Array.prototype.filter.call(navigator.getGamepads(), Boolean)[0]; return p ? p.id.split('(')[0].trim().slice(0, 22) || 'Подключён' : 'Не подключён'; } catch (e) { return 'Не подключён'; } }
 function oQuick() {
-  var tiles = [['pad', 'Геймпад', padState(), 'go', 'pad', false], ['wifi', 'Только Wi-Fi', S.wifi ? 'Вкл' : 'Выкл', 'tg', 'wifi', S.wifi], ['battery', 'Экономия', S.saver ? 'Вкл' : 'Выкл', 'tg', 'saver', S.saver], ['moon', 'Тема', { dark: 'Тёмная', oled: 'OLED', light: 'Светлая' }[S.theme], 'theme', '', false],
-    ['hand', 'Вибрация', S.vib ? 'Вкл' : 'Выкл', 'tg', 'vib', S.vib], ['music', 'Звуки', S.sound ? 'Вкл' : 'Выкл', 'tg', 'sound', S.sound], ['bell', 'Уведомления', alerts.filter(function (a) { return a.u; }).length + ' новых', 'go', 'alerts', false], ['gear', 'Настройки', 'Все параметры', 'go', 'settings', false]];
+  var tiles = [['pad', 'Геймпад', padState(), 'go', 'ctlset', false], ['wifi', 'Только Wi-Fi', S.wifi ? 'Вкл' : 'Выкл', 'tg', 'wifi', S.wifi], ['battery', 'Экономия', S.saver ? 'Вкл' : 'Выкл', 'tg', 'saver', S.saver], ['moon', 'Тема', { dark: 'Тёмная', oled: 'OLED', light: 'Светлая' }[S.theme], 'theme', '', false],
+    ['hand', 'Вибрация', S.vib ? 'Вкл' : 'Выкл', 'tg', 'vib', S.vib], ['music', 'Звуки', S.sound ? 'Вкл' : 'Выкл', 'tg', 'sound', S.sound], ['device', 'Экранный геймпад', CMODE[S.ctlMode], 'go', 'pad', false], ['gear', 'Настройки', 'Все параметры', 'go', 'settings', false]];
   return shade('<div class="shade" role="dialog" aria-label="Быстрая панель"><div class="ov-h"><h2>Быстрая панель</h2><button class="b b-soft b-rd b-sm" data-a="close" aria-label="Закрыть">' + I('x', 18) + '</button></div><div class="ov-b"><div class="qp">' +
     tiles.map(function (t) { return '<button class="qt' + (t[5] ? ' on' : '') + '" data-a="q' + t[3] + '" data-k="' + t[4] + '">' + ID(t[0], 24) + '<div>' + t[1] + '<br><span>' + t[2] + '</span></div></button>'; }).join('') + '</div>' +
     '<div class="qsl"><label>' + I('vol', 20) + '<input type="range" min="0" max="100" value="' + S.vol + '" data-k="vol" aria-label="Громкость"></label><label>' + I('sun', 20) + '<input type="range" min="40" max="100" value="' + S.bright + '" data-k="bright" aria-label="Яркость"></label></div></div></div>');
@@ -379,10 +379,10 @@ function oSettings() {
   if (setTab === 'general') b = opt('Тема', 'OLED — чистый чёрный для AMOLED-экранов', seg('theme', ['dark', 'oled', 'light'], ['Тёмная', 'OLED', 'Светлая'])) + opt('Язык', '', seg('lang', ['RU', 'EN'])) + opt('Вибрация', 'Отклик при выборе и важных действиях', tg('vib')) + opt('Звуки интерфейса', 'Тихий щелчок в карусели', tg('sound')) + opt('Облачные сохранения', 'Продолжай на другом телефоне (в планах)', tg('cloud'));
   if (setTab === 'dl') b = opt('Только по Wi-Fi', 'Не тратить мобильный трафик', tg('wifi')) + opt('Устанавливать сразу', 'После добавления в библиотеку', tg('auto')) + opt('Папка с играми', '/storage/emulated/0/KAPSULA', '<button class="b b-soft b-sm" data-a="toast" data-v="Откроется выбор папки Android">Изменить</button>') + opt('Сохранения', 'Резервная копия в файл', '<button class="b b-soft b-sm" data-a="toast" data-v="Сохранения экспортированы (демо)">Экспорт</button> <button class="b b-soft b-sm" data-a="toast" data-v="Выбор файла для импорта (демо)">Импорт</button>');
   if (setTab === 'gfx') b = opt('Разрешение по умолчанию', 'Подобрано под этот телефон', seg('res', ['1x', '2x', '3x', '4x'])) + opt('Счётчик FPS', '', tg('fps')) + opt('Экономия батареи', 'Ниже разрешение и FPS, без анимаций', tg('saver'));
-  if (setTab === 'ctl') b = opt('Экранный геймпад', 'Раскладка, размер, прозрачность', '<a class="b b-main b-sm" href="#pad">Настроить</a>') + opt('Скрывать кнопки', 'Когда подключён геймпад', tg('hide')) + opt('Подключённый геймпад', padState(), '<span class="hint">профиль подбирается автоматически</span>');
+  if (setTab === 'ctl') b = opt('Экранный геймпад', CMODE[S.ctlMode] + ' · раскладка, размер, прозрачность', '<a class="b b-main b-sm" href="#pad">Настроить</a>') + opt('Скрывать кнопки', 'Когда подключён геймпад', tg('hide')) + opt('Подключённый геймпад', padState(), '<span class="hint">профиль подбирается автоматически</span>');
   if (setTab === 'bios') b = '<div class="state">' + IMG('ic-bios', 'ill sm') + '<span><b>BIOS — прошивка консоли.</b> Для PS1 и PS2 нужен файл BIOS с твоей приставки. KAPSULA проверит его по контрольной сумме.</span></div>' + Object.keys(PL).map(function (k) { var p = PL[k]; return '<div class="biosrow">' + IMG(CONIMG[k], 'bios-ill') + opt('BIOS ' + p.full, !p.bios ? 'Не требуется' : BIOS[k] ? 'Найден и проверен' : 'Не найден — нужен свой файл BIOS', p.bios ? (BIOS[k] ? '<span class="pill ok">' + I('check', 14) + 'OK</span>' : '<button class="b b-main b-sm" data-a="toast" data-v="Выбор файла BIOS (демо)">Добавить файл</button>') : '<span class="pill">—</span>') + '</div>'; }).join('');
   if (setTab === 'a11y') b = opt('Крупный текст', '', tg('big')) + opt('Высокий контраст', '', tg('contrast')) + opt('Уменьшить движение', 'Без анимаций', tg('calm')) + opt('Раскладка для левшей', 'Зеркальные экранные кнопки', tg('mirror'));
-  if (setTab === 'about') b = opt('KAPSULA', 'Версия 0.7.0 · прототип интерфейса', '<button class="b b-soft b-sm" data-a="replay">Показать заставку</button>') + opt('Эмуляторы', 'PPSSPP (PSP), DuckStation (PS1), PCSX2 (PS2) — будут подключены', '') + opt('Лицензии', 'Иконки: Solar by 480 Design (CC BY 4.0), Phosphor (MIT). Эмуляторы — GPL', '<button class="b b-soft b-sm" data-a="toast" data-v="Список лицензий появится с подключением ядер">Открыть</button>') + opt('Конфиденциальность', 'Какие данные хранятся и где', '<button class="b b-soft b-sm" data-a="toast" data-v="Политика будет опубликована до релиза">Открыть</button>') + opt('Знакомство', 'Пройти первый запуск заново', '<button class="b b-soft b-sm" data-a="onb">Запустить</button>');
+  if (setTab === 'about') b = opt('KAPSULA', 'Версия 0.9.0 · прототип интерфейса', '<button class="b b-soft b-sm" data-a="replay">Показать заставку</button>') + opt('Эмуляторы', 'PPSSPP (PSP), Beetle PSX или PCSX-ReARMed (PS1), PCSX2 (PS2) — будут подключены', '') + opt('Лицензии', 'Иконки: Solar by 480 Design (CC BY 4.0), Phosphor (MIT). Эмуляторы — GPL', '<button class="b b-soft b-sm" data-a="toast" data-v="Список лицензий появится с подключением ядер">Открыть</button>') + opt('Конфиденциальность', 'Какие данные хранятся и где', '<button class="b b-soft b-sm" data-a="toast" data-v="Политика будет опубликована до релиза">Открыть</button>') + opt('Знакомство', 'Пройти первый запуск заново', '<button class="b b-soft b-sm" data-a="onb">Запустить</button>');
   return '<div class="full" role="dialog" aria-label="Настройки"><div class="ov-h"><h2>Настройки</h2><button class="b b-soft b-rd" data-a="close" aria-label="Закрыть">' + I('x') + '</button></div><div class="ov-b"><div class="set"><nav class="set-nav">' + nav.map(function (n) { return '<button class="' + (setTab === n[0] ? 'on' : '') + '" data-a="stab" data-v="' + n[0] + '">' + (setTab === n[0] ? ID(n[2], 21) : I(n[2], 20)) + n[1] + '</button>'; }).join('') + '</nav><div>' + b + '</div></div></div></div>';
 }
 /* profile (п. 10) */
@@ -397,28 +397,119 @@ function oProfile() {
     '<div class="sub">История по дням</div><div class="days">' + days.map(function (d) { return '<div class="day"><b>' + d[0] + '</b><i style="width:' + Math.max(4, d[1] / mx * 180) + 'px"></i><span class="hint num">' + (d[1] ? hrs(d[1]) : '—') + '</span></div>'; }).join('') + '</div>' +
     '<div class="sub">Избранное</div>' + Object.keys(favs).map(function (i) { var g = byId[i]; return '<a class="it" href="#game-' + i + '"><span class="th" style="background-image:' + art(g, 300, 300) + '"></span><span class="tx"><b>' + g.t + '</b><span>' + PL[g.p].n + ' · ' + stat(i).lbl + '</span></span>' + I('right', 18) + '</a>'; }).join('') + '</div></aside>');
 }
-/* controls */
-var keyPos = {};
-function ctl(edit) {
-  var K = [['L', 's', 'left:3%;top:6%;width:13%;height:11%', 'L'], ['R', 's', 'right:3%;top:6%;width:13%;height:11%', 'R'], ['up', 's', 'left:9%;top:44%;width:6%;aspect-ratio:1', '▲'], ['dn', 's', 'left:9%;top:calc(44% + 12cqw);width:6%;aspect-ratio:1', '▼'], ['lt', 's', 'left:3%;top:calc(44% + 6cqw);width:6%;aspect-ratio:1', '◀'], ['rt', 's', 'left:15%;top:calc(44% + 6cqw);width:6%;aspect-ratio:1', '▶'],
-    ['tri', 'r', 'right:10%;top:40%;width:6.5%;aspect-ratio:1', '△'], ['cir', 'r', 'right:3.5%;top:calc(40% + 6.5cqw);width:6.5%;aspect-ratio:1', '○'], ['crs', 'r', 'right:10%;top:calc(40% + 13cqw);width:6.5%;aspect-ratio:1', '✕'], ['sqr', 'r', 'right:16.5%;top:calc(40% + 6.5cqw);width:6.5%;aspect-ratio:1', '□'],
-    ['sel', 's', 'left:40%;bottom:5%;width:8%;height:7%;border-radius:20px;font-size:1.2cqw', 'SELECT'], ['sta', 's', 'left:52%;bottom:5%;width:8%;height:7%;border-radius:20px;font-size:1.2cqw', 'START']];
-  return '<div class="ctl' + (S.mirror ? ' mirror' : '') + (edit ? ' edit' : '') + '" style="--op:' + S.op / 100 + ';--sc:' + S.sc / 100 + '">' + K.map(function (k) { var p = keyPos[k[0]]; return '<span class="k ' + k[1] + '" data-key="' + k[0] + '" style="' + k[2] + (p ? ';translate:' + p[0] + 'px ' + p[1] + 'px' : '') + '">' + k[3] + '</span>'; }).join('') + '</div>';
+/* ---------- KAPSULA Touch: экранное управление (п. 56–58) ---------- */
+var CMODE = { touch: 'KAPSULA Touch', classic: 'Классика', pad: 'Геймпад' };
+/* пресеты автора каталога: какие раскладки есть у игры (первая — стартовая) */
+var PRESETS = { rubezh: ['foot', 'drive'], drift: ['drive'] };
+var ctxLay = {}, ffOn = false, tiltOn = false, padPrev = '';
+var FACE = [['ft', 'b1'], ['fr', 'b2'], ['fb', 'b3'], ['fl', 'b4']];
+/* кнопка: id, картинка, диаметр, место — в px для экрана 844×390 (l/r/t/b — от края, c — от центра) */
+function K(id, ic, s, p, o) { o = o || {}; o.id = id; o.ic = ic; o.s = s; o.p = p; return o; }
+function faceArc(ics) { var P = [[126, 176, 56], [44, 118, 56], [104, 26, 74], [196, 84, 56]]; return FACE.map(function (f, i) { return K(f[0], ics ? ics[i] : f[0], P[i][2], 'r' + P[i][0] + ' b' + P[i][1], { c: f[1], main: i === 2 }); }); }
+function faceDiamond() { var P = [[96, 172], [34, 112], [96, 52], [158, 112]]; return FACE.map(function (f, i) { return K(f[0], f[0], 56, 'r' + P[i][0] + ' b' + P[i][1], { c: f[1] }); }); }
+function layout(lay, plat) {
+  var ps = plat !== 'psp', PA = { act: 'pause' };
+  if (lay === 'classic') return (ps ? [K('l2', 'l2', 52, 'l16 t14'), K('l1', 'l1', 60, 'l80 t24'), K('r2', 'r2', 52, 'r16 t14'), K('r1', 'r1', 60, 'r80 t24')] : [K('l1', 'l1', 62, 'l20 t16'), K('r1', 'r1', 62, 'r20 t16')])
+    .concat([K('dpad', 'dpad', 104, 'l40 t104', { dpad: 1 }), K('ls', '', 110, 'l170 b30', { stick: 'fix' })], ps ? [K('rs', '', 96, 'r250 b30', { stick: 'fix' })] : [], faceDiamond(),
+      [K('ff', 'ff', 36, 'c-66 t12', { act: 'ff' }), K('save', 'save', 36, 'c-22 t12', { act: 'save' }), K('load', 'load', 36, 'c22 t12', { act: 'load' }), K('pause', 'pause', 36, 'c66 t12', PA), K('select', 'select', 44, 'c-30 b14'), K('start', 'start', 44, 'c30 b14')]);
+  if (lay === 'foot') return [K('l1', 'l1', 52, 'l16 t12'), K('r1', 'r1', 52, 'r16 t12'), K('ls', '', 128, 'l80 b46', { stick: 'float' })]
+    .concat(faceArc(['grab', 'attack', 'jump', 'sprint']), [K('aim', 'aim', 46, 'r216 b170'), K('car', 'car', 46, 'r20 t72', { act: 'ctx', to: 'drive' }), K('weapon', 'weapon', 46, 'r20 t126'), K('swap', 'swap', 40, 'r76 t76', { act: 'swap' }), K('map', 'map', 46, 'l20 t72'), K('pause', 'pause', 40, 'c0 b14', PA)]);
+  if (lay === 'drive') return [K('left', 'left', 78, 'l28 b30'), K('right', 'right', 78, 'l122 b30'), K('tilt', 'tilt', 44, 'l44 b124', { act: 'tilt' }),
+    K('gas', 'gas', 84, 'r22 b24', { c: 'b3', main: 1 }), K('brake', 'brake', 76, 'r118 b24', { c: 'b4' }), K('hbrake', 'hbrake', 58, 'r136 b112', { c: 'b1' }), K('nitro', 'nitro', 52, 'r40 b122', { c: 'b2' }),
+    K('car', 'car', 44, 'r20 t72', { act: 'ctx', to: 'foot' }), K('horn', 'horn', 44, 'r20 t124'), K('cam', 'cam', 44, 'r72 t72'), K('mirror', 'mirror', 44, 'r72 t124'), K('swap', 'swap', 40, 'c26 b14', { act: 'swap' }), K('pause', 'pause', 40, 'c-26 b14', PA)];
+  /* KAPSULA Touch без пресета: плавающий стик, кнопки действий дугой */
+  return (ps ? [K('l1', 'l1', 56, 'l16 t12'), K('l2', 'l2', 46, 'l82 t10'), K('r1', 'r1', 56, 'r16 t12'), K('r2', 'r2', 46, 'r82 t10')] : [K('l1', 'l1', 58, 'l16 t12'), K('r1', 'r1', 58, 'r16 t12')])
+    .concat([K('dpad', 'dpad', 80, 'l22 t84', { dpad: 1 }), K('ls', '', 128, 'l80 b46', { stick: 'float' })], faceArc(), [K('select', 'select', 38, 'c-24 t12'), K('start', 'start', 38, 'c24 t12'), K('pause', 'pause', 40, 'c0 b14', PA)]);
+}
+function cpos(p, s) {
+  return p.split(' ').map(function (t) {
+    var a = t[0], v = +t.slice(1) / 8.44;
+    if (a === 'l') return 'left:calc(' + v.toFixed(2) + 'cqw + var(--csl,0px))';
+    if (a === 'r') return 'right:calc(' + v.toFixed(2) + 'cqw + var(--csr,0px))';
+    if (a === 't') return 'top:' + v.toFixed(2) + 'cqw';
+    if (a === 'b') return 'bottom:' + v.toFixed(2) + 'cqw';
+    return 'left:calc(50% + ' + (v - s / 16.88).toFixed(2) + 'cqw)';
+  }).join(';');
+}
+function keyHtml(k, lay) {
+  var kid = lay + ':' + k.id, p = S.kp[kid];
+  var cls = 'k' + (k.stick ? ' stk ' + k.stick : '') + (k.main ? ' main' : '') + (k.dpad ? ' dp' : '') + (k.act === 'ff' && ffOn || k.act === 'tilt' && tiltOn ? ' on' : '');
+  var st = '--s:' + (k.s / 8.44).toFixed(2) + 'cqw;' + (k.c ? '--c:var(--' + k.c + ');' : '') + cpos(k.p, k.s) + (p ? ';translate:' + p[0] + 'px ' + p[1] + 'px' : '');
+  return '<span class="' + cls + '" data-key="' + kid + '"' + (k.act ? ' data-act="' + k.act + '"' : '') + (k.to ? ' data-to="' + k.to + '"' : '') + ' style="' + st + '">' + (k.stick ? '<b></b>' : '<img src="img/ctl/' + k.ic + '.png" alt="" draggable="false">') + '</span>';
+}
+/* o: { plat, gid, lay, mode } */
+function ctl(edit, o) {
+  o = o || {}; var mode = o.mode || S.ctlMode, plat = o.plat || 'psp';
+  if (mode === 'pad') return '<div class="ctl pad-only"><span class="ctl-hint">' + I('pad', 16) + 'Экранные кнопки скрыты — играй на геймпаде</span></div>';
+  var pre = mode === 'touch' && PRESETS[o.gid], lay = o.lay || (mode === 'classic' ? 'classic' : pre ? (ctxLay[o.gid] || pre[0]) : 'touch');
+  var keys = layout(lay, plat).filter(function (k) { return !(k.act === 'swap' && (!pre || pre.length < 2)); });
+  var tag = lay === 'foot' ? 'Пешком' : lay === 'drive' ? 'За рулём' : '';
+  return '<div class="ctl ' + mode + (S.mirror ? ' mirror' : '') + (edit ? ' edit' : '') + '" data-gid="' + (o.gid || '') + '" data-lay="' + lay + '" aria-hidden="true" style="--op:' + S.op / 100 + ';--sc:' + S.sc / 100 + '">' +
+    keys.map(function (k) { return keyHtml(k, lay); }).join('') + (tag ? '<span class="ctl-tag">' + tag + '</span>' : '') + '</div>';
 }
 function oPad() {
+  var m = S.ctlMode, ch = m === 'classic' ? [['ps', 'PS1 / PS2'], ['psp', 'PSP']] : m === 'touch' ? [['touch', 'Обычная'], ['foot', 'Пресет: пешком'], ['drive', 'Пресет: за рулём']] : [];
+  var pv = ch.some(function (c) { return c[0] === padPrev; }) ? padPrev : ch.length ? ch[0][0] : '';
+  var o = m === 'classic' ? { plat: pv === 'psp' ? 'psp' : 'ps2' } : pv === 'foot' || pv === 'drive' ? { plat: 'ps2', gid: 'rubezh', lay: pv } : { plat: 'ps2' };
+  var hint = { touch: 'Стик появляется там, где коснулся палец. Кнопки действий — дугой под большой палец. Если у игры есть пресет, на кнопках — смысл действий, а раскладка сама меняется, например «пешком» → «за рулём».', classic: 'Раскладка как у геймпада консоли: крестовина, стики, кнопки ромбом. Сверху — ускорение, сохранить, загрузить, пауза.', pad: 'Экранные кнопки скрыты. Подключи геймпад по Bluetooth или USB.' }[m];
   return '<div class="full" role="dialog" aria-label="Экранный геймпад"><div class="ov-h"><h2>Экранный геймпад</h2><button class="b b-soft b-sm" data-a="padreset">Сбросить</button><button class="b b-soft b-rd" data-a="close" aria-label="Закрыть">' + I('x') + '</button></div><div class="ov-b"><div class="pad">' +
-    '<div class="pad-v" id="padv" style="background-image:' + art(byId.drift, 1600, 900, 11) + '">' + ctl(true) + '</div><div>' + opt('Раскладка', '', seg('layout', ['Классика', 'Компакт', 'Своя'])) + opt('Прозрачность', '', rng('op', 15, 100)) + opt('Размер кнопок', '', rng('sc', 70, 130)) + opt('Для левшей', 'Зеркальная раскладка', tg('mirror')) + opt('Скрывать с геймпадом', '', tg('hide')) + '<p class="hint">Перетаскивай кнопки на превью. В игре — кнопка «Кнопки» сверху.</p></div></div></div></div>';
+    '<div><div class="pad-v" id="padv" style="background-image:' + art(byId.rubezh, 1600, 900, 11) + '">' + ctl(true, o) + '</div>' + (ch.length ? '<div class="chips pv">' + ch.map(function (c) { return '<button class="chip' + (c[0] === pv ? ' on' : '') + '" data-a="padprev" data-v="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' : '') + '</div>' +
+    '<div>' + opt('Режим', '', seg('ctlMode', ['touch', 'classic', 'pad'], ['KAPSULA Touch', 'Классика', 'Геймпад'])) + '<p class="hint">' + hint + '</p>' + opt('Прозрачность', '', rng('op', 15, 100)) + opt('Размер кнопок', '', rng('sc', 70, 130)) + opt('Для левшей', 'Зеркальная раскладка', tg('mirror')) + opt('Скрывать с геймпадом', '', tg('hide')) + '<p class="hint">Перетаскивай кнопки на превью. В игре — «Кнопки» в меню паузы.</p></div></div></div></div>';
 }
+/* касания: мультитач, отклик сразу при нажатии */
+function ctlAct(a, k, c) {
+  var gid = c.getAttribute('data-gid');
+  if (a === 'pause') { if (layerKey.indexOf('play-') === 0) { paused = true; editKeys = false; $('#play').classList.add('paused'); } else toast('В игре эта кнопка открывает меню'); }
+  else if (a === 'save') { if (gid && lib[gid]) lib[gid].saves = (lib[gid].saves || 0) + 1; toast(I('save', 18) + 'Быстрое сохранение'); }
+  else if (a === 'load') toast(I('load', 18) + 'Быстрое сохранение загружено');
+  else if (a === 'ff') { ffOn = !ffOn; k.classList.toggle('on', ffOn); toast(ffOn ? 'Ускорение ×2' : 'Обычная скорость'); }
+  else if (a === 'tilt') { tiltOn = !tiltOn; k.classList.toggle('on', tiltOn); toast(tiltOn ? 'Руль — наклоном телефона' : 'Руль — кнопками'); }
+  else if (a === 'swap' || a === 'ctx') {
+    var to = a === 'swap' ? (c.getAttribute('data-lay') === 'drive' ? 'foot' : 'drive') : k.getAttribute('data-to');
+    setTimeout(function () { switchLay(c, to); }, a === 'ctx' ? 500 : 0); /* умный триггер: игра успевает посадить/высадить героя */
+  }
+}
+function switchLay(c, to) {
+  var gid = c.getAttribute('data-gid'), pre = PRESETS[gid]; if (!pre || pre.indexOf(to) < 0 || !c.isConnected) return;
+  ctxLay[gid] = to; var n = document.createElement('div'); n.innerHTML = ctl(false, { plat: byId[gid].p, gid: gid }); c.replaceWith(n.firstChild);
+  toast(I('pad', 18) + 'Раскладка: ' + (to === 'drive' ? 'за рулём' : 'пешком')); buzz(15);
+}
+function dpDir(k, ev) { var r = k.getBoundingClientRect(), dx = ev.clientX - r.left - r.width / 2, dy = ev.clientY - r.top - r.height / 2; if (Math.abs(dx) < r.width * .12 && Math.abs(dy) < r.height * .12) return ''; if (k.closest('.mirror')) dx = -dx; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'r' : 'l') : (dy > 0 ? 'd' : 'u'); }
+function stickGo(stk, e, float) {
+  var c = stk.parentNode, cr = c.getBoundingClientRect(), mir = c.classList.contains('mirror'), knob = stk.querySelector('b'), keep = stk.getAttribute('style');
+  if (float) { var w = stk.offsetWidth, x = mir ? cr.right - e.clientX : e.clientX - cr.left; stk.style.left = (x - w / 2) + 'px'; stk.style.top = (e.clientY - cr.top - w / 2) + 'px'; stk.style.bottom = 'auto'; stk.style.translate = 'none'; }
+  stk.classList.add('live'); stk.setPointerCapture(e.pointerId);
+  var r = stk.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R = r.width * .3;
+  var mv = function (m) { if (m.pointerId !== e.pointerId) return; var dx = m.clientX - cx, dy = m.clientY - cy, d = Math.hypot(dx, dy); if (d > R) { dx = dx / d * R; dy = dy / d * R; } knob.style.transform = 'translate(' + (mir ? -dx : dx) + 'px,' + dy + 'px)'; };
+  var up = function (m) { if (m.pointerId !== e.pointerId) return; knob.style.transform = ''; stk.classList.remove('live'); if (float) stk.setAttribute('style', keep); stk.removeEventListener('pointermove', mv); stk.removeEventListener('pointerup', up); stk.removeEventListener('pointercancel', up); };
+  stk.addEventListener('pointermove', mv); stk.addEventListener('pointerup', up); stk.addEventListener('pointercancel', up); mv(e);
+}
+document.addEventListener('pointerdown', function (e) {
+  var c = e.target.closest('.ctl'); if (!c || c.classList.contains('edit') || c.classList.contains('pad-only')) return;
+  var k = e.target.closest('.k');
+  if (k && !k.classList.contains('stk')) {
+    e.preventDefault(); k.classList.add('press'); buzz(8); k.setPointerCapture(e.pointerId);
+    if (k.classList.contains('dp')) k.setAttribute('data-dir', dpDir(k, e));
+    var a = k.getAttribute('data-act'); if (a) ctlAct(a, k, c);
+    var mv = function (m) { if (m.pointerId === e.pointerId && k.classList.contains('dp')) { var d = dpDir(k, m); if (d !== k.getAttribute('data-dir')) { k.setAttribute('data-dir', d); if (d) buzz(5); } } };
+    var up = function (m) { if (m.pointerId !== e.pointerId) return; k.classList.remove('press'); k.removeAttribute('data-dir'); k.removeEventListener('pointermove', mv); k.removeEventListener('pointerup', up); k.removeEventListener('pointercancel', up); };
+    k.addEventListener('pointermove', mv); k.addEventListener('pointerup', up); k.addEventListener('pointercancel', up);
+    return;
+  }
+  var cr = c.getBoundingClientRect(), leftHalf = (e.clientX - cr.left < cr.width / 2) !== c.classList.contains('mirror');
+  var stk = k || (leftHalf ? c.querySelector('.stk.float') : null);
+  if (!stk) return; e.preventDefault(); stickGo(stk, e, !k && stk.classList.contains('float'));
+});
 /* play (п. 4, 20, 31) */
 var paused = false, booted = {}, editKeys = false;
 function oPlay(id) {
   var g = byId[id]; if (!g) return ''; var p = PL[g.p];
   var boot = g.p === 'psp' ? '<svg class="boot-psp" viewBox="0 0 150 62"><rect x="2" y="2" width="146" height="58" rx="29"/><rect x="48" y="12" width="54" height="38" rx="3"/><circle cx="24" cy="31" r="6"/><circle cx="126" cy="31" r="6"/></svg>' : g.p === 'ps1' ? '<div class="boot-ps1"></div>' : '<div class="boot-ps2"></div>';
   var W = ['5 минут назад', 'вчера', '3 дня назад', 'неделю назад'];
-  return '<div class="play' + (booted[id] ? ' ready' : '') + (paused ? ' paused' : '') + '" id="play" style="--pc:' + p.c + '"><div class="play-g" style="background-image:' + art(g, 1600, 900, 11) + '"></div>' + ctl(editKeys) +
-    '<div class="play-tb"><button data-a="pausegame">' + I('pause', 14) + 'Меню</button><button class="' + (editKeys ? 'on' : '') + '" data-a="editkeys">' + I('move', 14) + (editKeys ? 'Готово' : 'Кнопки') + '</button></div>' +
+  return '<div class="play' + (booted[id] ? ' ready' : '') + (paused ? ' paused' : '') + '" id="play" style="--pc:' + p.c + '"><div class="play-g" style="background-image:' + art(g, 1600, 900, 11) + '"></div>' + ctl(editKeys, { plat: g.p, gid: id }) +
+    '<div class="play-tb">' + (editKeys ? '<button class="on" data-a="editkeys">' + I('check', 14) + 'Готово</button>' : S.ctlMode === 'pad' ? '<button data-a="pausegame">' + I('pause', 14) + 'Меню</button>' : '') + '</div>' +
     '<div class="qm"><div class="qm-in"><span class="pill c" style="align-self:flex-start;--pc:' + p.c + '">' + p.full + '</span><h2>' + g.t + '</h2><div class="qm-row">' +
-    [['main', 'play', 'Продолжить', 'resumegame'], ['', 'save', 'Сохранить', 'qsave'], ['', 'cam', 'Скриншот', 'qshot'], ['', 'sliders', 'Настройки игры', 'qset'], ['bad', 'exit', 'Выйти', 'exitgame']].map(function (b) { return '<button class="qb ' + b[0] + '" data-a="' + b[3] + '" data-id="' + id + '">' + I(b[1], 22) + b[2] + '</button>'; }).join('') +
+    [['main', 'play', 'Продолжить', 'resumegame'], ['', 'save', 'Сохранить', 'qsave'], ['', 'cam', 'Скриншот', 'qshot'], ['', 'sliders', 'Настройки игры', 'qset'], ['', 'move', 'Кнопки', 'editkeys'], ['bad', 'exit', 'Выйти', 'exitgame']].map(function (b) { return '<button class="qb ' + b[0] + '" data-a="' + b[3] + '" data-id="' + id + '">' + I(b[1], 22) + b[2] + '</button>'; }).join('') +
     '</div><div class="qm-row">' + [0, 1, 2, 3].map(function (i) { return slot(g, i, i === 0 ? 'Быстрое' : 'Слот ' + (i + 1), W[i], 'qslot'); }).join('') + '</div></div></div>' +
     '<div class="boot">' + boot + '<b>' + g.t + '</b><span>' + p.full.toUpperCase() + '</span></div></div>';
 }
@@ -470,6 +561,8 @@ function renderLayer(h) {
   else if (h.indexOf('play-') === 0) html = oPlay(h.slice(5));
   else html = ({ library: oLibrary, search: oSearch, downloads: oDownloads, alerts: oAlerts, quick: oQuick, settings: oSettings, profile: oProfile, pad: oPad }[h] || function () { return ''; })();
   var was = layerKey; layerKey = html ? h : '';
+  if (h === 'downloads') readyIds = [];
+  if (h === 'alerts' && was !== h) setTimeout(function () { alerts.forEach(function (x) { x.u = 0; }); topState(); }, 1200);
   L.innerHTML = html;
   putScroll(L, svL);
   if (html && was !== h) { L.classList.remove('on'); void L.offsetWidth; requestAnimationFrame(function () { L.classList.add('on'); }); } else L.classList.toggle('on', !!html);
@@ -482,26 +575,43 @@ function go(h) { var run = function () { location.hash = h; }; if (document.star
 window.addEventListener('hashchange', function () { var h = hash(); if (h.indexOf('game-') === 0 && layerKey.indexOf('game-') !== 0) gTab = 'about'; if (h.indexOf('play-') !== 0) { paused = false; editKeys = false; } render(); });
 
 /* ---------- top bar, mini bar (п. 7, 15) ---------- */
-var dlBusy = null;
+var dlMode = null, readyIds = [], alertN = null;
+var TRAY = '<path d="M6 13.5v1.2a3.3 3.3 0 0 0 3.3 3.3h5.4a3.3 3.3 0 0 0 3.3-3.3v-1.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';
+var ARR = '<g class="arr"><path d="M12 5.5v7M9.2 9.9 12 12.7l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>';
+var CHK = '<path class="chk" d="M9.3 11.6l1.9 1.9 3.6-3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>';
+/* кольцо из двух половин: заполняется снизу вверх одновременно слева и справа */
+function dlRing() { return '<span class="dlr"><svg class="dlr-o" viewBox="0 0 36 36" aria-hidden="true"><circle class="trk" cx="18" cy="18" r="15"/><path class="hf" pathLength="100" d="M18 33A15 15 0 0 1 18 3"/><path class="hf" pathLength="100" d="M18 33A15 15 0 0 0 18 3"/></svg><svg class="dlr-i" viewBox="0 0 24 24" aria-hidden="true">' + TRAY + ARR + CHK + '</svg></span><span class="bdg ok"></span>'; }
 function topState() {
   var a = Object.keys(lib).filter(function (i) { return ['dl', 'pause', 'q'].indexOf(lib[i].s) >= 0; });
+  readyIds = readyIds.filter(function (i) { return lib[i] && lib[i].s === 'ok'; });
   var pr = a.length ? a.reduce(function (s, i) { return s + (lib[i].pr || 0); }, 0) / a.length : 0;
-  var paused = a.length && a.every(function (i) { return lib[i].s !== 'dl'; });
-  var b = document.getElementById('dlBtn'), busy = a.length > 0;
-  if (busy !== dlBusy) {
-    dlBusy = busy; b.classList.toggle('busy', busy);
-    b.innerHTML = busy ? '<span class="dlb">' + I('dl', 18) + '<span class="dlb-track"><i></i></span><span class="dlb-pc num"></span></span>' : I('dl', 20);
+  var stopped = a.length && a.every(function (i) { return lib[i].s !== 'dl'; });
+  var mode = a.length ? (stopped ? 'pause' : 'dl') : readyIds.length ? 'done' : 'idle';
+  var b = document.getElementById('dlBtn'), want = mode === 'idle' ? 'icon' : 'ring';
+  if (b.getAttribute('data-k') !== want) { b.setAttribute('data-k', want); b.innerHTML = want === 'icon' ? I('dl', 20) : dlRing(); }
+  if (want === 'ring') {
+    var r = b.querySelector('.dlr'), f = mode === 'done' ? 100 : Math.max(3, pr);
+    r.classList.remove('dl', 'pause', 'done'); r.classList.add(mode);
+    b.querySelectorAll('.hf').forEach(function (p) { p.style.strokeDasharray = f.toFixed(1) + ' 100'; });
+    if (mode === 'done' && dlMode !== 'done') { r.classList.remove('pulse'); void r.offsetWidth; r.classList.add('pulse'); buzz([14, 70, 14]); }
+    b.querySelector('.bdg').classList.toggle('on', mode !== 'done' && readyIds.length > 0);
   }
-  if (busy) {
-    var bar = b.querySelector('.dlb');
-    bar.classList.toggle('paused', !!paused);
-    bar.querySelector('.dlb-track i').style.transform = 'scaleX(' + Math.max(0.03, pr / 100).toFixed(3) + ')';
-    bar.querySelector('.dlb-pc').textContent = paused ? 'пауза' : Math.floor(pr) + '%';
-  }
-  b.setAttribute('aria-label', busy ? 'Загрузки: ' + a.length + ', ' + Math.floor(pr) + '%' : 'Загрузки');
-  var qb = document.getElementById('quickBtn'), unread = alerts.some(function (x) { return x.u; });
-  if (qb.getAttribute('data-u') !== String(unread)) { qb.setAttribute('data-u', String(unread)); qb.innerHTML = I('grid', 20) + (unread ? '<span class="dot"></span>' : ''); }
+  dlMode = mode;
+  b.setAttribute('aria-label', mode === 'idle' ? 'Загрузки' : mode === 'done' ? 'Загрузки: готово ' + plural(readyIds.length, 'игра', 'игры', 'игр') : 'Загрузки: ' + a.length + ', ' + Math.floor(pr) + '%');
+  var bb = document.getElementById('bellBtn'), unread = alerts.some(function (x) { return x.u; });
+  if (!bb.firstChild) bb.innerHTML = I('bell', 20) + '<span class="bdg"></span>';
+  bb.querySelector('.bdg').classList.toggle('on', unread);
+  bb.setAttribute('aria-label', unread ? 'Уведомления: есть новые' : 'Уведомления');
+  if (alertN !== null && alerts.length > alertN) { bb.classList.remove('swing'); void bb.offsetWidth; bb.classList.add('swing'); }
+  alertN = alerts.length;
+  var qb = document.getElementById('quickBtn'); if (!qb.firstChild) qb.innerHTML = I('grid', 20);
 }
+/* нажатие на «готово»: одна игра — её карточка, несколько — панель загрузок */
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('#dlBtn') || !readyIds.length) return;
+  e.preventDefault(); var busy = Object.keys(lib).some(function (i) { return ['dl', 'pause', 'q'].indexOf(lib[i].s) >= 0; }), one = readyIds.length === 1 && !busy ? readyIds[0] : null;
+  readyIds = []; go(one ? 'game-' + one : 'downloads'); topState();
+}, true);
 function mini() { var m = document.getElementById('mini'); if (m) m.classList.remove('on'); }
 
 /* ---------- downloads engine ---------- */
@@ -517,7 +627,7 @@ setInterval(function () {
   Object.keys(lib).forEach(function (i) {
     var L = lib[i]; if (L.s !== 'dl') return;
     L.pr = Math.min(100, L.pr + (9 + Math.random() * 5) / byId[i].size * 100 * 1.5);
-    if (L.pr >= 100) { lib[i] = { s: 'ok', play: 0, last: 'Ещё не запускалась', saves: 0, t: Date.now() }; done = true; alerts.unshift({ t: '«' + byId[i].t + '» установлена', d: 'Только что', u: 1, g: i }); toast(I('check', 18) + '«' + byId[i].t + '» установлена'); buzz(20); }
+    if (L.pr >= 100) { lib[i] = { s: 'ok', play: 0, last: 'Ещё не запускалась', saves: 0, t: Date.now() }; done = true; readyIds.push(i); alerts.unshift({ t: '«' + byId[i].t + '» установлена', d: 'Только что', u: 1, g: i }); toast(I('check', 18) + '«' + byId[i].t + '» готова<button data-a="play" data-id="' + i + '">Играть</button>', 5000); }
     else { $$('[data-pr="' + i + '"]').forEach(function (n) { n.textContent = Math.floor(L.pr) + '%'; }); $$('[data-bar="' + i + '"]').forEach(function (n) { n.style.width = L.pr + '%'; }); }
   });
   if (done) { pump(); var keep = layerKey; keepPage = true; renderPage(); keepPage = false; if (keep) renderLayer(keep); }
@@ -526,7 +636,7 @@ setInterval(function () {
 
 /* ---------- toast ---------- */
 var tT;
-function toast(h) { var t = $('#toast'); t.innerHTML = h; t.classList.add('on'); clearTimeout(tT); tT = setTimeout(function () { t.classList.remove('on'); }, 2400); }
+function toast(h, ms) { var t = $('#toast'); t.innerHTML = h; t.classList.toggle('act', h.indexOf('<button') >= 0); t.classList.add('on'); clearTimeout(tT); tT = setTimeout(function () { t.classList.remove('on', 'act'); }, ms || 2400); }
 
 /* ---------- apply prefs ---------- */
 function applyPrefs() {
@@ -546,7 +656,7 @@ document.addEventListener('click', function (e) {
   switch (a) {
     case 'con': S.con = v; save(); focusId = null; refresh(); break; // прокрутка сохраняется в refresh()
     case 'cc': e.preventDefault(); if (id === focusId) { if (lib[id].s === 'ok') go('play-' + id); else go('game-' + id); } else { var car = $('#car'); car.scrollTo({ left: t.offsetLeft + t.offsetWidth / 2 - car.clientWidth / 2, behavior: S.calm ? 'auto' : 'smooth' }); } break;
-    case 'play': paused = false; buzz(12); click(660); go('play-' + id); break;
+    case 'play': readyIds = readyIds.filter(function (x) { return x !== id; }); paused = false; buzz(12); click(660); go('play-' + id); break;
     case 'add': lib[id] = { s: 'own', t: Date.now() }; toast(I('plus', 18) + '«' + g.t + '» в библиотеке'); if (S.auto) install(id); refresh(); break;
     case 'addinstall': lib[id] = { s: 'own', t: Date.now() }; install(id); refresh(); break;
     case 'install': install(id); refresh(); break;
@@ -576,12 +686,13 @@ document.addEventListener('click', function (e) {
     case 'set': S[k] = v; save(); if (k === 'con') focusId = null; refresh(); break;
     case 'qtg': S[k] = !S[k]; save(); refresh(); break;
     case 'qtheme': S.theme = { dark: 'oled', oled: 'light', light: 'dark' }[S.theme]; save(); refresh(); break;
-    case 'qgo': go(k); break;
-    case 'padreset': S.op = 55; S.sc = 100; S.layout = 'Классика'; keyPos = {}; save(); renderLayer('pad'); toast('Раскладка сброшена'); break;
+    case 'qgo': if (k === 'ctlset') { setTab = 'ctl'; go('settings'); } else go(k); break;
+    case 'padreset': S.op = 55; S.sc = 100; S.ctlMode = 'touch'; S.kp = {}; save(); renderLayer('pad'); toast('Раскладка сброшена'); break;
+    case 'padprev': padPrev = v; renderLayer('pad'); break;
     case 'toast': toast(v); break;
     case 'pausegame': paused = true; editKeys = false; $('#play').classList.add('paused'); break;
     case 'resumegame': paused = false; $('#play').classList.remove('paused'); break;
-    case 'editkeys': editKeys = !editKeys; renderLayer(hash()); if (editKeys) toast(I('move', 18) + 'Перетаскивай кнопки пальцем'); break;
+    case 'editkeys': editKeys = !editKeys; paused = false; renderLayer(hash()); if (editKeys) toast(I('move', 18) + 'Перетаскивай кнопки пальцем'); break;
     case 'qsave': lib[id].saves = (lib[id].saves || 0) + 1; toast(I('save', 18) + 'Сохранено · слот ' + lib[id].saves); buzz(10); break;
     case 'loadslot': if (layerKey.indexOf('play-') === 0) { paused = false; $('#play').classList.remove('paused'); toast(I('load', 18) + 'Сохранение загружено'); } else { paused = false; go('play-' + id); toast(I('load', 18) + 'Запуск с сохранения'); } break;
     case 'qshot': toast(I('cam', 18) + 'Скриншот сохранён в галерею'); break;
@@ -611,9 +722,9 @@ document.addEventListener('input', function (e) {
 function bindDrag() {
   $$('.edit .k').forEach(function (k) {
     k.onpointerdown = function (ev) {
-      ev.preventDefault(); var id = k.getAttribute('data-key'), p = keyPos[id] || [0, 0], sx = ev.clientX, sy = ev.clientY; k.setPointerCapture(ev.pointerId);
-      k.onpointermove = function (m) { var nx = p[0] + (m.clientX - sx) * (S.mirror ? -1 : 1), ny = p[1] + m.clientY - sy; keyPos[id] = [nx, ny]; k.style.translate = nx + 'px ' + ny + 'px'; };
-      k.onpointerup = function () { k.onpointermove = null; S.layout = 'Своя'; buzz(6); };
+      ev.preventDefault(); var id = k.getAttribute('data-key'), p = S.kp[id] || [0, 0], sx = ev.clientX, sy = ev.clientY; k.setPointerCapture(ev.pointerId);
+      k.onpointermove = function (m) { var nx = p[0] + (m.clientX - sx) * (S.mirror ? -1 : 1), ny = p[1] + m.clientY - sy; S.kp[id] = [nx, ny]; k.style.translate = nx + 'px ' + ny + 'px'; };
+      k.onpointerup = function () { k.onpointermove = null; save(); buzz(6); };
     };
   });
 }
