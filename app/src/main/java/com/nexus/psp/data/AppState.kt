@@ -89,6 +89,10 @@ class Settings(private val sp: SharedPreferences) {
     /** Свои значки и турбо кнопок KAPSULA Touch: "раскладка:кнопка" → значок / true. */
     var keyIcon by s("keyIcon", "{}")
     var keyTurbo by s("keyTurbo", "{}")
+    /** Свои кнопки (комбо, «две разом»): "раскладка:платформа" → [{id, keys, combo}]. */
+    var extraBtns by s("extraBtns", "{}")
+    /** Мгновенное продолжение: «Играть» возвращает туда, где вышел. */
+    var autoResume by b("autoResume", true)
 }
 
 object AppState {
@@ -259,6 +263,7 @@ object AppState {
             // значки и турбо: удалённые ключи тоже переносятся (сброс к «как было»)
             o.optJSONObject("keyIcon")?.let { v -> S.keyIcon = v.toString() }
             o.optJSONObject("keyTurbo")?.let { v -> S.keyTurbo = v.toString() }
+            o.optJSONObject("extraBtns")?.let { v -> S.extraBtns = v.toString() }
         } catch (e: Exception) { }
         f.delete()
     }

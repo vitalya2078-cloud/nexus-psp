@@ -93,6 +93,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var picking by mutableStateOf<String?>(null)
         var pickingDefault by mutableStateOf("")
         var pickingTurbo by mutableStateOf(false)
+        /** Своя кнопка в выборе значка: что она нажимает ("" — обычная кнопка). */
+        var pickingExtra by mutableStateOf("")
+        /** Панель «Новая кнопка». */
+        var adding by mutableStateOf(false)
     }
 
     data class Slot(val i: Int, val exists: Boolean, val time: Long, val thumb: File?)
@@ -157,7 +161,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         ui.scopeGame = boot.optBoolean("own", false)
         ui.volume = audioVolume()
         boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> vars.put(k, o.get(k)) } }
-        controls.onTap = { key, b -> ui.picking = key; ui.pickingDefault = b.icon ?: ""; ui.pickingTurbo = key in controls.turbo; controls.visibility = View.GONE }
+        controls.onTap = { key, b ->
+            ui.picking = key; ui.pickingDefault = b.icon ?: ""; ui.pickingTurbo = key in controls.turbo
+            ui.pickingExtra = b.keys?.joinToString(if (b.combo) " → " else " + ") { partName(it) } ?: ""
+            updateControlsVisibility()
+        }
+        boot.optJSONObject("s")?.optJSONObject("extraBtns")?.let { o -> o.keys().forEach { k -> extras.put(k, o.get(k)) } }
         controls.onMoved = { key, x, y -> persist { o -> o.put("keyPos", (o.optJSONObject("keyPos") ?: JSONObject()).put(key, org.json.JSONArray(listOf(x.toDouble(), y.toDouble())))) } }
         val classic = s.optString("ctlMode") == "classic"
         preset = if (!classic) ControlLayout.PRESETS[gameId] else null
@@ -222,7 +231,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                         ui.phase = "ready"; updateControlsVisibility()
                         // «Продолжить с этого места» или возврат после незаметного перезапуска
                         val slot = boot.optInt("loadSlot", -1)
-                        if (slot >= 0) { boot.remove("loadSlot"); lifecycleScope.launch { delay(300); loadSlot(slot, backup = false, quiet = slot == 8) } }
+                        if (slot >= 0) { boot.remove("loadSlot"); lifecycleScope.launch { delay(300); loadSlot(slot, backup = slot == 4, quiet = slot == 8 || slot == 4); if (slot == 4) toast("Продолжаем с места выхода · начать сначала — «Отменить загрузку» в паузе") } }
                     }
                 }
             }
@@ -259,7 +268,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         controls.layName = "$lay:$platform"
         controls.style = if (lay == "classic") "classic" else "touch"
         controls.platform = platform
-        controls.setLayout(if (lay == "foot" || lay == "drive") ControlLayout.preset(lay, (preset?.size ?: 0) > 1) else ControlLayout.layout(lay, platform))
+        val base = if (lay == "foot" || lay == "drive") ControlLayout.preset(lay, (preset?.size ?: 0) > 1) else ControlLayout.layout(lay, platform)
+        controls.setLayout(base + extrasFor(controls.layName))
     }
 
     private fun switchLayout(to: String) {
@@ -314,6 +324,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     private fun updateControlsVisibility() {
+        if (ui.picking != null || ui.adding) { controls.visibility = View.GONE; return }
         if (ui.editing) { controls.visibility = View.VISIBLE; return }
         val show = ui.phase == "ready" && !ui.paused && ui.ctlMode != "pad" && !(hideWithPad && padConnected())
         controls.visibility = if (show) View.VISIBLE else View.GONE
@@ -530,6 +541,51 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private fun iconsJson() = JSONObject().also { j -> controls.customIcons.forEach { (k, v) -> j.put(k, v) } }
     private fun turboJson() = JSONObject().also { j -> controls.turbo.forEach { j.put(it, true) } }
 
+    // ---------- свои кнопки: «две разом» и комбо ----------
+    /** "раскладка:платформа" → [{id, keys, combo}]. */
+    private val extras = JSONObject()
+
+    private fun extrasFor(lay: String): List<Btn> {
+        val a = extras.optJSONArray(lay) ?: return emptyList()
+        return (0 until a.length()).mapNotNull { i ->
+            val o = a.optJSONObject(i) ?: return@mapNotNull null
+            val keys = o.optJSONArray("keys")?.let { k -> (0 until k.length()).map { k.getString(it) } } ?: return@mapNotNull null
+            ControlLayout.extra(o.getString("id"), keys, o.optBoolean("combo"), null)
+        }
+    }
+
+    fun partName(k: String) = when (k) {
+        "ft" -> "Верх"; "fr" -> "Право"; "fb" -> "Низ"; "fl" -> "Лево"
+        "up" -> "↑"; "down" -> "↓"; "left" -> "←"; "right" -> "→"
+        "select" -> "Select"; "start" -> "Start"; else -> k.uppercase()
+    }
+
+    fun startAdding() { ui.adding = true; updateControlsVisibility() }
+    fun closeAdding() { ui.adding = false; updateControlsVisibility() }
+
+    fun addExtra(keys: List<String>, combo: Boolean) {
+        val lay = controls.layName
+        val a = extras.optJSONArray(lay) ?: org.json.JSONArray().also { extras.put(lay, it) }
+        val id = "x" + (System.currentTimeMillis() % 1_000_000)
+        a.put(JSONObject().put("id", id).put("keys", org.json.JSONArray(keys)).put("combo", combo))
+        persist { o -> o.put("extraBtns", JSONObject(extras.toString())) }
+        applyLayout(layName)
+        closeAdding()
+        toast("Кнопка добавлена — перетащи её на удобное место")
+    }
+
+    fun removeExtra(key: String) {
+        val lay = controls.layName; val id = key.removePrefix("$lay:")
+        extras.optJSONArray(lay)?.let { a -> val keep = org.json.JSONArray(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optString("id") != id }?.let { keep.put(it) }; extras.put(lay, keep) }
+        controls.customIcons.remove(key); controls.turbo.remove(key); controls.offsets.remove(key)
+        persist { o ->
+            o.put("extraBtns", JSONObject(extras.toString())); o.put("keyIcon", iconsJson()); o.put("keyTurbo", turboJson())
+            o.optJSONObject("keyPos")?.remove(key)
+        }
+        applyLayout(layName)
+        closePicker(); toast("Кнопка удалена")
+    }
+
     fun closePicker() { ui.picking = null; updateControlsVisibility() }
 
     /** Турбо для кнопки: пока палец на ней, она быстро нажимается сама. */
@@ -562,7 +618,31 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         toast(if (ui.fast) "Ускорение включено: ×2" else "Ускорение выключено")
     }
 
-    fun exitGame() = finish()
+    /** Выход: место в игре сохраняется само (слот 4), «Играть» вернёт сюда же. */
+    fun exitGame() = lifecycleScope.launch {
+        if (resume) { toast("Сохраняю место…"); saveAuto(capture = true) }
+        finish()
+    }
+
+    private val resume get() = boot.optJSONObject("s")?.optBoolean("resume", true) ?: true
+
+    private suspend fun saveAuto(capture: Boolean) {
+        if (ui.phase != "ready" || retro == null) return
+        val frame = pauseFrame ?: if (capture) captureFrame() else null
+        val b = try { running { retro?.serializeState() } } catch (e: Exception) { Log.w(TAG, "auto", e); null }
+        if (b == null || b.isEmpty()) return
+        withContext(Dispatchers.IO) {
+            stateFile(4).writeBytes(b)
+            if (frame != null) saveJpeg(frame, thumbFile(4), 320) else thumbFile(4).delete()
+        }
+    }
+
+    /** Домой / к другим приложениям: игра ещё работает — успеваем сохранить место (кадр — только если стоит пауза). */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (!resume || ui.phase != "ready") return
+        try { kotlinx.coroutines.runBlocking { kotlinx.coroutines.withTimeoutOrNull(2500) { saveAuto(capture = false) } } } catch (e: Exception) { Log.w(TAG, "leave", e) }
+    }
 
     // ---------- ControlsView.Listener ----------
     override fun key(code: Int, down: Boolean) {

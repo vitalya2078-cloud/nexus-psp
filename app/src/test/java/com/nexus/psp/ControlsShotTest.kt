@@ -54,7 +54,8 @@ class ControlsShotTest {
             v.customIcons["touch:psp:ft"] = "grab"; v.customIcons["touch:psp:fr"] = "attack"; v.customIcons["touch:psp:fb"] = "jump"; v.customIcons["touch:psp:fl"] = "sprint"
             v.customIcons["touch:psp:l1"] = "block"; v.customIcons["touch:psp:r1"] = "lock"
             v.turbo.add("touch:psp:fr")
-            v.setLayout(ControlLayout.layout("touch", "psp"))
+            v.setLayout(ControlLayout.layout("touch", "psp") + ControlLayout.extra("x1", listOf("l1", "r1"), false, null) +
+                ControlLayout.extra("x2", listOf("fb", "fb", "fr"), true, null).copy(pos = "r330 b60"))
         }
         shot("c_touch_drive") { v -> v.layName = "drive:psp"; v.setLayout(ControlLayout.preset("drive", true)) }
     }

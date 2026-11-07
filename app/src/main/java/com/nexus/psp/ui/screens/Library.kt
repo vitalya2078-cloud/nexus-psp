@@ -93,7 +93,7 @@ fun LibraryScreen() {
         when (S.lf) {
             "Избранное" -> AppState.favs[g.id] == true
             "Не запускались" -> (AppState.lib[g.id]?.play ?: 0) == 0
-            "Есть сохранение" -> (0..3).any { AppState.stateFile(g, it).exists() }
+            "Есть сохранение" -> (0..4).any { AppState.stateFile(g, it).exists() }
             else -> true
         } && (S.lc.isEmpty() || (AppState.cols[S.lc]?.contains(g.id) == true)) && (q.isBlank() || g.t.contains(q.trim(), true))
     }.let { l ->

@@ -368,6 +368,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     private fun press(i: Int, t: Touch, x: Float, y: Float) {
         val b = buttons[i]
         when {
+            b.keys != null -> pressExtra(b, t)
             b.act != null -> listener.action(b.act)
             b.dpad -> { t.dir = dpadDir(b, x, y); t.dir?.let { ControlLayout.DIR[it]?.let { c -> listener.key(c, true) } } }
             else -> (ControlLayout.KEY[b.id] ?: ControlLayout.STEER[b.id])?.let { code ->
@@ -387,8 +388,19 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         val b = buttons.getOrNull(t.idx) ?: return
         when {
             b.stick != null -> listener.stick(b.right, 0f, 0f)
+            b.keys != null -> if (!b.combo) b.keys.mapNotNull { ControlLayout.code(it) }.forEach { listener.key(it, false) }
             b.dpad -> t.dir?.let { ControlLayout.DIR[it]?.let { c -> listener.key(c, false) } }
             b.act == null -> (ControlLayout.KEY[b.id] ?: ControlLayout.STEER[b.id])?.let { listener.key(it, false) }
+        }
+    }
+
+    /** Своя кнопка: «разом» — все кнопки вниз, пока палец на месте; комбо — по очереди, ~9 нажатий в секунду. */
+    private fun pressExtra(b: Btn, t: Touch) {
+        val codes = b.keys.orEmpty().mapNotNull { ControlLayout.code(it) }
+        if (!b.combo) { codes.forEach { listener.key(it, true) }; return }
+        codes.forEachIndexed { i, c ->
+            postDelayed({ listener.key(c, true) }, i * 110L)
+            postDelayed({ listener.key(c, false) }, i * 110L + 70L)
         }
     }
 

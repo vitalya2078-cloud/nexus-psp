@@ -353,21 +353,21 @@ fun Bar(fraction: Float, color: Color = K.acc, height: Dp = 4.dp, modifier: Modi
 
 /** Плитка действия меню паузы (как .qb). on — переключатель включён (подсвечен), sub — его состояние. */
 @Composable
-fun ActionTile(icon: Int, label: String, main: Boolean = false, danger: Boolean = false, enabled: Boolean = true, on: Boolean = false, sub: String? = null, onClick: () -> Unit) {
+fun ActionTile(icon: Int, label: String, main: Boolean = false, danger: Boolean = false, enabled: Boolean = true, on: Boolean = false, sub: String? = null, modifier: Modifier = Modifier.width(124.dp), onClick: () -> Unit) {
     val acc = Color(0xFF7FA7D9)
     val bg = when { main -> Color(0xFFF2F1EC); on -> acc.copy(alpha = .22f); else -> Color(0xFF131419) }
     val fg = when { main -> Color(0xFF0B0C0F); danger -> Color(0xFFD98A8A); else -> Color(0xFFF2F1EC) }
     // все плитки одного размера: значок сверху, название и строка состояния — внизу на одном уровне
     Column(
-        Modifier.width(124.dp).height(108.dp).clip(RoundedCornerShape(16.dp)).background(bg)
+        modifier.height(108.dp).clip(RoundedCornerShape(16.dp)).background(bg)
             .border(BorderStroke(1.5.dp, if (main) Color.Transparent else if (on) acc else Color(0x14FFFFFF)), RoundedCornerShape(16.dp))
-            .press(enabled, onClick).padding(12.dp),
+            .press(enabled, onClick).padding(horizontal = 10.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         SolarIcon(icon, 22.dp, if (!enabled) fg.copy(alpha = .35f) else if (on) acc else fg)
         Column {
-            Text(label, maxLines = 1, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = if (enabled) fg else fg.copy(alpha = .35f)))
-            Text(sub ?: "", maxLines = 1, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp, color = if (on) acc else fg.copy(alpha = if (enabled) .55f else .3f)))
+            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = if (enabled) fg else fg.copy(alpha = .35f)))
+            Text(sub ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp, color = if (on) acc else fg.copy(alpha = if (enabled) .55f else .3f)))
         }
     }
 }

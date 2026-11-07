@@ -105,6 +105,7 @@ private fun General() {
     Opt("Язык", null) { Seg(listOf("RU", "EN"), if (S.lang == "EN") 1 else 0) { S.lang = if (it == 1) "EN" else "RU"; if (it == 1) AppState.say("Английский перевод появится позже") } }
     Opt("Вибрация", "Отклик при выборе и важных действиях") { Toggle(S.vib) { S.vib = it } }
     Opt("Звуки интерфейса", "Тихий щелчок в карусели") { Toggle(S.sound) { S.sound = it } }
+    Opt("Продолжать с места выхода", "При выходе из игры место сохраняется само, «Играть» возвращает туда же") { Toggle(S.autoResume) { S.autoResume = it } }
     Opt("Облачные сохранения", "Продолжай на другом телефоне (в планах)") { Toggle(S.cloud) { S.cloud = it } }
 }
 

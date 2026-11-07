@@ -52,6 +52,8 @@ class GameMenuTest {
         shot(a, "p04_editing")
         ui.picking = "touch:psp:fr"; ui.pickingDefault = "fr"
         shot(a, "p05_icon_picker")
+        ui.picking = null; ui.adding = true
+        shot(a, "p06_add_button")
         c.pause().stop().destroy()
     }
 }

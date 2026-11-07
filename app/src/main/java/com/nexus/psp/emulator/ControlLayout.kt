@@ -18,6 +18,8 @@ data class Btn(
     val right: Boolean = false, // правый стик
     val w: Float? = null,       // ширина для вытянутых кнопок (L/R, Select/Start); null — круглая
     val label: String? = null,  // надпись на вытянутой кнопке
+    val keys: List<String>? = null, // своя кнопка: какие кнопки консоли нажимает (ft, l1, up…)
+    val combo: Boolean = false,     // true — по очереди (комбо), false — все разом
 )
 
 object ControlLayout {
@@ -32,6 +34,20 @@ object ControlLayout {
     /** Руль кнопками в раскладке «за рулём» — это стрелки влево/вправо. */
     val STEER = mapOf("dl_" to KeyEvent.KEYCODE_DPAD_LEFT, "dr_" to KeyEvent.KEYCODE_DPAD_RIGHT)
     val DIR = mapOf('u' to KeyEvent.KEYCODE_DPAD_UP, 'd' to KeyEvent.KEYCODE_DPAD_DOWN, 'l' to KeyEvent.KEYCODE_DPAD_LEFT, 'r' to KeyEvent.KEYCODE_DPAD_RIGHT)
+
+    /** Код кнопки консоли по имени: ft/fr/fb/fl, l1…r2, select, start, up/down/left/right. */
+    fun code(name: String): Int? = KEY[name] ?: when (name) {
+        "up" -> KeyEvent.KEYCODE_DPAD_UP; "down" -> KeyEvent.KEYCODE_DPAD_DOWN
+        "left" -> KeyEvent.KEYCODE_DPAD_LEFT; "right" -> KeyEvent.KEYCODE_DPAD_RIGHT
+        else -> null
+    }
+
+    /** Кнопки консоли, из которых собираются свои кнопки (комбо, «две разом»). */
+    val PARTS = listOf("ft", "fr", "fb", "fl", "up", "down", "left", "right", "l1", "r1", "l2", "r2", "select", "start")
+
+    /** Своя кнопка из сохранённого описания {id, keys, combo, icon}. Появляется у правого края, дальше — перетаскивается. */
+    fun extra(id: String, keys: List<String>, combo: Boolean, icon: String?): Btn =
+        Btn(id, icon ?: if (combo) "combo" else "both", 50f, "r230 b150", color = AMBER, keys = keys, combo = combo)
 
     private val FACE = listOf("ft" to AMBER, "fr" to BLUE, "fb" to GREEN, "fl" to ROSE)
 

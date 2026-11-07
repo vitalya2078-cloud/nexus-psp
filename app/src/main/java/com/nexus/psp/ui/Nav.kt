@@ -64,7 +64,9 @@ object Act {
         val g = AppState.byId[id] ?: return
         buzz()
         AppState.markPlayed(id)
-        GameActivity.start(ctx, bootJson(ctx, id, slot).toString())
+        // мгновенное продолжение: без выбранного слота — с места, где вышел
+        val s = if (slot < 0 && S.autoResume && AppState.stateFile(g, 4).exists()) 4 else slot
+        GameActivity.start(ctx, bootJson(ctx, id, s).toString())
     }
 
     /** Настройки для запуска: общие + свои для этой игры (если включены). */
@@ -78,8 +80,9 @@ object Act {
         // значки и турбо: у игры со своими настройками — её набор целиком, иначе общий
         val ki = own.optJSONObject("keyIcon") ?: try { JSONObject(S.keyIcon) } catch (e: Exception) { JSONObject() }
         val kt = own.optJSONObject("keyTurbo") ?: try { JSONObject(S.keyTurbo) } catch (e: Exception) { JSONObject() }
+        val kx = own.optJSONObject("extraBtns") ?: try { JSONObject(S.extraBtns) } catch (e: Exception) { JSONObject() }
         val s = JSONObject().put("ctlMode", own.optString("ctlMode", S.ctlMode)).put("op", own.optInt("op", S.op)).put("sc", own.optInt("sc", S.sc))
-            .put("mirror", own.optBoolean("mirror", S.mirror)).put("vib", S.vib).put("hide", S.hide).put("fps", own.optBoolean("fps", S.fps)).put("keyPos", kp).put("keyIcon", ki).put("keyTurbo", kt)
+            .put("mirror", own.optBoolean("mirror", S.mirror)).put("vib", S.vib).put("hide", S.hide).put("resume", S.autoResume).put("fps", own.optBoolean("fps", S.fps)).put("keyPos", kp).put("keyIcon", ki).put("keyTurbo", kt).put("extraBtns", kx)
         val boot = JSONObject().put("id", id).put("name", g.t).put("plat", g.p).put("size", g.size).put("path", g.path).put("s", s).put("vars", vars)
             .put("own", own.optBoolean("own", false)).put("preset", if (own.optBoolean("own")) own.optString("preset", "custom") else S.corePreset)
         AppState.meta[id]?.backdrop?.let { boot.put("bg", it.path) }

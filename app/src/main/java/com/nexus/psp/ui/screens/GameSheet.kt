@@ -253,9 +253,10 @@ private fun Shots(g: Game) {
 @Composable
 private fun Saves(g: Game) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    val slots = (0..3).map { it to AppState.stateFile(g, it) }
+    // 4 — место выхода (мгновенное продолжение), 0 — быстрое, 1–3 — свои
+    val slots = listOf(4, 0, 1, 2, 3).map { it to AppState.stateFile(g, it) }
     if (slots.none { it.second.exists() }) {
-        StateCard(null, "Сохранений пока нет", "В игре открой меню паузы («Назад» или кнопка паузы) — там четыре слота сохранений: быстрый и три своих.")
+        StateCard(null, "Сохранений пока нет", "В игре открой меню паузы («Назад» или кнопка паузы) — там четыре слота сохранений: быстрый и три своих. А при выходе из игры место сохраняется само.")
         return
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -265,9 +266,9 @@ private fun Saves(g: Game) {
             Column(Modifier.weight(1f)) {
                 Box(Modifier.fillMaxWidth().aspectRatio(480f / 272f).clip(RoundedCornerShape(12.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                     if (has && thumb.exists()) com.nexus.psp.ui.FileImage(thumb, Modifier.fillMaxSize())
-                    else if (!has) SolarIcon(R.drawable.ph_plus, 20.dp, K.ink3)
+                    else if (!has) SolarIcon(if (i == 4) R.drawable.sl_exit else R.drawable.ph_plus, 20.dp, K.ink3)
                 }
-                Text(if (i == 0) "Быстрое" else "Слот $i", style = T.label, modifier = Modifier.padding(top = 6.dp))
+                Text(when (i) { 4 -> "Место выхода"; 0 -> "Быстрое"; else -> "Слот $i" }, style = T.label, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
                 Text(if (has) SimpleDateFormat("d MMM, HH:mm", Locale("ru")).format(Date(f.lastModified())) else "пусто", style = T.small)
                 if (has) KButton("Продолжить", R.drawable.sb_play, small = true, modifier = Modifier.padding(top = 6.dp)) { com.nexus.psp.ui.Act.play(ctx, g.id, i) }
             }

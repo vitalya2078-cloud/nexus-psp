@@ -83,7 +83,8 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
         AnimatedVisibility(ui.phase == "ready" && ui.paused && ui.settings && !ui.editing, enter = fadeIn(tween(160)), exit = fadeOut(tween(160))) {
             SettingsPanel(a, ui)
         }
-        if (ui.editing && ui.picking == null) Box(Modifier.align(Alignment.TopCenter).padding(top = 12.dp)) { EditBar(a) }
+        if (ui.adding) AddButtonPanel(a)
+        if (ui.editing && ui.picking == null && !ui.adding) Box(Modifier.align(Alignment.TopCenter).padding(top = 12.dp)) { EditBar(a) }
         ui.picking?.let { key -> IconPicker(a, ui, key) }
         // счётчик кадров
         if (ui.showFps && ui.phase == "ready" && !ui.paused) Text(
@@ -154,13 +155,16 @@ private fun PauseMenu(a: GameActivity, ui: GameActivity.UiState, con: String, co
                 }
             }
             Text(a.title, style = T.h1, maxLines = 1)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionTile(R.drawable.sb_play, "Продолжить", main = true, sub = "Вернуться в игру") { a.setPaused(false) }
-                ActionTile(R.drawable.sl_save, "Сохранить", sub = "Быстрый слот") { a.saveQuick() }
-                ActionTile(R.drawable.sl_cam, "Скриншот", sub = "В галерею") { a.screenshot() }
-                ActionTile(R.drawable.sl_sliders, "Настройки", sub = "Поверх игры") { ui.settings = true }
-                ActionTile(R.drawable.sl_bolt, "Ускорение", on = ui.fast, sub = if (ui.fast) "×2 · включено" else "Выключено") { a.toggleFast() }
-                ActionTile(R.drawable.sl_exit, "Выйти", danger = true, sub = "В библиотеку") { a.exitGame() }
+            // все плитки помещаются в ширину экрана: делят её поровну (не шире 124 dp)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val m = Modifier.weight(1f).widthIn(max = 124.dp)
+                ActionTile(R.drawable.sb_play, "Продолжить", main = true, sub = "В игру", modifier = m) { a.setPaused(false) }
+                ActionTile(R.drawable.sl_save, "Сохранить", sub = "Быстрый слот", modifier = m) { a.saveQuick() }
+                ActionTile(R.drawable.sl_cam, "Скриншот", sub = "В галерею", modifier = m) { a.screenshot() }
+                ActionTile(R.drawable.sl_sliders, "Настройки", sub = "Поверх игры", modifier = m) { ui.settings = true }
+                ActionTile(R.drawable.sl_pad, "Кнопки", enabled = ui.ctlMode != "pad", sub = if (ui.ctlMode == "pad") "Геймпад" else "Места, значки", modifier = m) { a.startEditing() }
+                ActionTile(R.drawable.sl_bolt, "Ускорение", on = ui.fast, sub = if (ui.fast) "×2 · вкл." else "Выключено", modifier = m) { a.toggleFast() }
+                ActionTile(R.drawable.sl_exit, "Выйти", danger = true, sub = "В библиотеку", modifier = m) { a.exitGame() }
             }
             Text("СОХРАНЕНИЯ", style = T.caps.copy(color = Color(0xFF8E9099)), modifier = Modifier.padding(top = 4.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -340,7 +344,8 @@ private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
                 KButton("Как было", small = true) { a.setIcon(key, null); cur = ui.pickingDefault }
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).press { a.closePicker() }, contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_x, 18.dp) }
             }
-            Opt("Турбо", "Пока держишь — кнопка быстро нажимается сама") { Toggle(ui.pickingTurbo) { a.setTurbo(key, it) } }
+            if (ui.pickingExtra.isNotEmpty()) Opt("Своя кнопка", ui.pickingExtra) { KButton("Удалить", icon = R.drawable.sl_trash, small = true, danger = true) { a.removeExtra(key) } }
+            else Opt("Турбо", "Пока держишь — кнопка быстро нажимается сама") { Toggle(ui.pickingTurbo) { a.setTurbo(key, it) } }
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 CtlIcons.GROUPS.forEachIndexed { i, (g, _) -> com.nexus.psp.ui.kit.Chip(g, group == i) { group = i } }
             }
@@ -370,6 +375,70 @@ private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
     }
 }
 
+/** Значок части своей кнопки: фигура, стрелка или надпись. */
+@Composable
+private fun PartIcon(a: GameActivity, k: String, size: androidx.compose.ui.unit.Dp) {
+    val gc = GLYPH_COLOR[k]
+    if (gc != null) GlyphIcon(k, gc, size)
+    else Text(a.partName(k), style = T.label.copy(fontSize = (size.value * .5f).sp, color = K.ink), maxLines = 1)
+}
+
+/** Новая кнопка: «две разом» (все вместе, пока держишь) или комбо (по очереди одним касанием). */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun AddButtonPanel(a: GameActivity) {
+    var combo by remember { mutableStateOf(false) }
+    val keys = remember { androidx.compose.runtime.mutableStateListOf<String>() }
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)).clickable(remember { MutableInteractionSource() }, indication = null) { a.closeAdding() }) {
+        Column(
+            Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.7f).widthIn(min = 500.dp).background(K.bg)
+                .clickable(remember { MutableInteractionSource() }, indication = null) {}
+                .windowInsetsPadding(WindowInsets.displayCutout).padding(start = 20.dp, end = 20.dp, top = 14.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Новая кнопка", style = T.h2, modifier = Modifier.weight(1f))
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).press { a.closeAdding() }, contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_x, 18.dp) }
+            }
+            Seg(listOf("Две разом", "Комбо"), if (combo) 1 else 0) { combo = it == 1; keys.clear() }
+            Text(
+                if (combo) "Одно касание — кнопки нажимаются по очереди. Нажимай кнопки ниже в нужном порядке (до 8)."
+                else "Пока держишь — нажаты все выбранные кнопки сразу. Выбери 2–4 кнопки.",
+                style = T.small,
+            )
+            // что получилось
+            Row(
+                Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(14.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (keys.isEmpty()) Text("Пока пусто", style = T.small)
+                keys.forEachIndexed { i, k ->
+                    if (i > 0) Text(if (combo) "→" else "+", style = T.label.copy(color = K.ink3))
+                    PartIcon(a, k, 26.dp)
+                }
+                Spacer(Modifier.weight(1f))
+                if (combo && keys.isNotEmpty()) KButton("Стереть", small = true) { keys.removeAt(keys.lastIndex) }
+            }
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ControlLayout.PARTS.forEach { k ->
+                    val on = !combo && k in keys
+                    Box(
+                        Modifier.size(64.dp, 52.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.acc.copy(alpha = .16f) else K.s1)
+                            .border(1.5.dp, if (on) K.acc else K.line, RoundedCornerShape(12.dp))
+                            .press {
+                                if (combo) { if (keys.size < 8) keys.add(k) }
+                                else if (k in keys) keys.remove(k) else if (keys.size < 4) keys.add(k)
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) { PartIcon(a, k, 26.dp) }
+                }
+            }
+            KButton("Добавить кнопку", icon = R.drawable.ph_plus, kind = BtnKind.Main, enabled = keys.size >= 2, modifier = Modifier.padding(bottom = 16.dp)) { a.addExtra(keys.toList(), combo) }
+        }
+    }
+}
+
 /** Плашка редактора кнопок: кнопки видны поверх игры, касание мимо них приходит сюда. */
 @Composable
 private fun EditBar(a: GameActivity) {
@@ -379,7 +448,8 @@ private fun EditBar(a: GameActivity) {
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         SolarIcon(R.drawable.ph_move, 16.dp, Color(0xFFF2F1EC))
-        Text("Перетаскивай кнопки", style = T.label.copy(fontSize = 13.sp, color = Color(0xFFF2F1EC)))
+        Text("Перетащи или нажми на кнопку", style = T.label.copy(fontSize = 13.sp, color = Color(0xFFF2F1EC)))
+        KButton("Кнопка", icon = R.drawable.ph_plus, small = true) { a.startAdding() }
         KButton("Сбросить", small = true) { a.resetButtons() }
         KButton("Готово", icon = R.drawable.ph_check, kind = BtnKind.Main, small = true) { a.stopEditing() }
     }
