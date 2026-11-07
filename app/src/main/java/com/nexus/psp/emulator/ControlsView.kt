@@ -212,7 +212,8 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
                 dragIdx = buttons.indices.minByOrNull { i -> val (cx, cy) = center(buttons[i]); hypot(e.x - cx, e.y - cy) - diameter(buttons[i]) / 2 } ?: -1
                 if (dragIdx >= 0) {
                     val (cx, cy) = center(buttons[dragIdx])
-                    if (hypot(e.x - cx, e.y - cy) > diameter(buttons[dragIdx]) / 2 * 1.2f) { dragIdx = -1; return true }
+                    // мимо кнопок — касание уходит в интерфейс под слоем (плашка «Готово»)
+                    if (hypot(e.x - cx, e.y - cy) > diameter(buttons[dragIdx]) / 2 * 1.2f) { dragIdx = -1; return false }
                     val key = "$layName:${buttons[dragIdx].id}"; val o = offsets[key] ?: PointF()
                     dragX = e.x; dragY = e.y; dragOx = o.x; dragOy = o.y; buzz()
                 }

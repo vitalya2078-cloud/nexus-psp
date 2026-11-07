@@ -55,6 +55,9 @@ import com.nexus.psp.ui.kit.Toggle
 import com.nexus.psp.ui.kit.press
 import com.nexus.psp.ui.kit.tap
 import org.json.JSONObject
+import com.nexus.psp.data.CoreOpt
+import com.nexus.psp.data.CoreOptions
+import com.nexus.psp.data.CoreStore
 
 /** Настройки (п. 21, 22, 27, 43, 47, 51, 53) + настройки ядра PSP по утверждённому макету. */
 @Composable
@@ -163,76 +166,42 @@ private fun About() {
 
 // ---------- ядро PSP ----------
 
-private data class CoreOpt(val key: String, val title: String, val desc: String, val values: List<String>, val labels: List<String>, val def: String, val restart: Boolean = false)
-
-private val PRESETS = mapOf(
-    "quality" to mapOf("ppsspp_internal_resolution" to "1440x816", "ppsspp_texture_scaling_level" to "2x", "ppsspp_texture_scaling_type" to "xbrz", "ppsspp_texture_filtering" to "Auto max quality", "ppsspp_texture_anisotropic_filtering" to "16x", "ppsspp_auto_frameskip" to "disabled"),
-    "balance" to mapOf("ppsspp_internal_resolution" to "960x544", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "8x", "ppsspp_auto_frameskip" to "disabled"),
-    "battery" to mapOf("ppsspp_internal_resolution" to "480x272", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "disabled", "ppsspp_auto_frameskip" to "enabled"),
-)
-
-private val QUALITY = listOf(
-    CoreOpt("ppsspp_internal_resolution", "Разрешение", "Во сколько раз чётче, чем на PSP (480×272)", listOf("480x272", "960x544", "1440x816", "1920x1088"), listOf("×1", "×2", "×3", "×4"), "960x544"),
-    CoreOpt("ppsspp_texture_scaling_level", "Улучшение текстур", "Сглаживает пиксели на текстурах. Заметно греет телефон", listOf("disabled", "2x", "3x", "4x"), listOf("Выкл", "×2", "×3", "×4"), "disabled"),
-    CoreOpt("ppsspp_texture_filtering", "Фильтрация", "Как сглаживаются текстуры при масштабировании", listOf("Auto", "Nearest", "Linear", "Auto max quality"), listOf("Авто", "Чётко", "Гладко", "Макс"), "Auto"),
-    CoreOpt("ppsspp_cropto16x9", "Обрезать до 16:9", "Убрать по строке сверху и снизу ради точного 16:9", listOf("enabled", "disabled"), listOf("Да", "Нет"), "enabled"),
-)
-private val SPEED = listOf(
-    CoreOpt("ppsspp_frameskip", "Пропуск кадров", "Помогает слабым телефонам, но картинка менее плавная", listOf("disabled", "1", "2", "3"), listOf("Выкл", "1", "2", "3"), "disabled"),
-    CoreOpt("ppsspp_auto_frameskip", "Авто-пропуск кадров", "Пропускать кадры только когда игра не успевает", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
-    CoreOpt("ppsspp_frame_duplication", "Плавные 60 кадров", "Дублировать кадры игр с 30 кадрами до 60 Гц", listOf("enabled", "disabled"), listOf("Вкл", "Выкл"), "enabled"),
-    CoreOpt("ppsspp_inflight_frames", "Буфер команд", "Больше — выше скорость, но чуть больше задержка", listOf("No buffer", "Up to 1", "Up to 2"), listOf("Нет", "1", "2"), "Up to 1"),
-)
-private val SYSTEM = listOf(
-    CoreOpt("ppsspp_language", "Язык игры", "Если игра поддерживает несколько языков", listOf("Automatic", "Russian", "English", "Japanese"), listOf("Авто", "Русский", "English", "日本語"), "Automatic"),
-    CoreOpt("ppsspp_button_preference", "Кнопка «OK» в меню игры", "В японских играх подтверждение — правой кнопкой", listOf("Cross", "Circle"), listOf("Нижняя", "Правая"), "Cross"),
-    CoreOpt("ppsspp_psp_model", "Модель PSP", "Новая модель — больше памяти, быстрее загрузки", listOf("psp_1000", "psp_2000_3000"), listOf("PSP-1000", "PSP-2000/3000"), "psp_2000_3000"),
-    CoreOpt("ppsspp_memstick_inserted", "Карта памяти", "Без неё игра не сможет сохраняться", listOf("enabled", "disabled"), listOf("Вставлена", "Нет"), "enabled"),
-    CoreOpt("ppsspp_cheats", "Читы", "Коды для игр (файл cheat.db)", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
-)
-private val EXPERT = listOf(
-    CoreOpt("ppsspp_backend", "Графика", "Vulkan обычно быстрее, OpenGL — совместимее", listOf("auto", "vulkan", "opengl"), listOf("Авто", "Vulkan", "OpenGL"), "auto", restart = true),
-    CoreOpt("ppsspp_cpu_core", "Процессор эмулятора", "Интерпретатор — только для поиска ошибок, очень медленно", listOf("JIT", "IR JIT", "Interpreter"), listOf("JIT", "IR JIT", "Интерпретатор"), "JIT"),
-    CoreOpt("ppsspp_locked_cpu_speed", "Частота процессора PSP", "Разгон убирает тормоза в некоторых играх", listOf("disabled", "333MHz", "444MHz"), listOf("Как в игре", "333 МГц", "444 МГц"), "disabled"),
-    CoreOpt("ppsspp_skip_buffer_effects", "Пропускать эффекты буфера", "Быстрее, но могут пропасть тени и размытие", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
-    CoreOpt("ppsspp_software_rendering", "Программная отрисовка", "Максимальная точность, очень медленно", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
-)
-
-private fun vars(): JSONObject = try { JSONObject(S.coreVars) } catch (e: Exception) { JSONObject() }
-
-private fun setVar(k: String, v: String) {
-    val o = vars(); o.put(k, v); S.coreVars = o.toString(); S.corePreset = "custom"
-}
-
-private fun applyPreset(p: String) {
-    val o = vars(); PRESETS[p]?.forEach { (k, v) -> o.put(k, v) }
-    S.coreVars = o.toString(); S.corePreset = p
+/** Общие настройки ядра для всех игр PSP. */
+val GlobalCore = object : CoreStore {
+    override fun vars(): JSONObject = try { JSONObject(S.coreVars) } catch (e: Exception) { JSONObject() }
+    override fun set(k: String, v: String) { S.coreVars = vars().put(k, v).toString(); S.corePreset = "custom" }
+    override var preset: String
+        get() = S.corePreset
+        set(value) { S.corePreset = value }
 }
 
 /** Пресет по мощности телефона: ОЗУ 8 ГБ+ — «Качество», 4 ГБ+ — «Баланс», иначе — «Батарея». */
-private fun recommended(ctx: Context): String {
+fun recommended(ctx: Context): String {
     val mi = ActivityManager.MemoryInfo(); (ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(mi)
     val gb = mi.totalMem / (1024.0 * 1024 * 1024)
     return when { gb >= 7.5 -> "quality"; gb >= 3.5 -> "balance"; else -> "battery" }
 }
 
 @Composable
-private fun CoreRows(list: List<CoreOpt>) {
-    val o = vars()
+fun CoreRows(list: List<CoreOpt>, store: CoreStore = GlobalCore, onChange: (CoreOpt, String) -> Unit = { _, _ -> }) {
+    var tick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val o = androidx.compose.runtime.remember(tick, store) { store.vars() }
     list.forEach { c ->
         val cur = o.optString(c.key, c.def)
         Opt(c.title, c.desc, badge = if (c.restart) ({ Pill("после перезапуска игры", color = K.warn, bg = K.warn.copy(alpha = .14f)) }) else null) {
-            Seg(c.labels, c.values.indexOf(cur).coerceAtLeast(0), small = true) { setVar(c.key, c.values[it]) }
+            Seg(c.labels, c.values.indexOf(cur).coerceAtLeast(0), small = true) { store.set(c.key, c.values[it]); tick++; onChange(c, c.values[it]) }
         }
     }
 }
 
 /** Блок «Качество» с пресетами — общий для экрана ядра и настроек игры. */
 @Composable
-fun CoreQuality() {
+fun CoreQuality(store: CoreStore = GlobalCore, onChange: (CoreOpt?, String) -> Unit = { _, _ -> }) {
     val ctx = LocalContext.current
     val rec = remember { recommended(ctx) }
-    androidx.compose.runtime.LaunchedEffect(Unit) { if (S.corePreset.isEmpty()) applyPreset(rec) }
+    var tick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val preset = androidx.compose.runtime.remember(tick, store) { store.preset }
+    androidx.compose.runtime.LaunchedEffect(Unit) { if (store === GlobalCore && S.corePreset.isEmpty()) { store.applyPreset(rec); tick++ } }
     val names = mapOf("quality" to "Качество", "balance" to "Баланс", "battery" to "Батарея")
     Row(
         Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(14.dp)).background(K.acc.copy(alpha = .1f)).border(1.dp, K.acc.copy(alpha = .3f), RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
@@ -248,11 +217,11 @@ fun CoreQuality() {
             Triple("battery", "480×272 · как на PSP", "дольше играть" to 1),
             Triple("custom", "включится само, если", "поменяешь вручную" to 0),
         ).forEach { (id, l1, rest) ->
-            val on = S.corePreset == id
+            val on = preset == id
             Column(
                 Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(14.dp)).background(if (on) K.acc.copy(alpha = .1f) else K.s1)
                     .border(1.5.dp, if (on) K.acc else K.line, RoundedCornerShape(14.dp))
-                    .then(if (id != "custom") Modifier.press { applyPreset(id) } else Modifier).padding(12.dp),
+                    .then(if (id != "custom") Modifier.press { store.applyPreset(id); tick++; onChange(null, id) } else Modifier).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(names[id] ?: "Своё", style = T.label.copy(fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = if (id == "custom" && !on) K.ink3 else K.ink))
@@ -265,7 +234,7 @@ fun CoreQuality() {
         }
     }
     Sub("Изображение")
-    CoreRows(QUALITY)
+    CoreRows(CoreOptions.QUALITY, store) { c, v -> tick++; onChange(c, v) }
 }
 
 @Composable
@@ -277,13 +246,13 @@ private fun CoreSettings() {
     }
     when (sec) {
         0 -> CoreQuality()
-        1 -> CoreRows(SPEED)
-        2 -> CoreRows(SYSTEM)
+        1 -> CoreRows(CoreOptions.SPEED)
+        2 -> CoreRows(CoreOptions.SYSTEM)
         else -> {
             StateCard(null, null, "Эти параметры могут сломать игру. Не помогло — верни как было.", tint = K.warn) {
-                KButton("Сбросить раздел", small = true) { val o = vars(); EXPERT.forEach { o.remove(it.key) }; S.coreVars = o.toString(); AppState.say("Раздел «Для опытных» сброшен") }
+                KButton("Сбросить раздел", small = true) { val o = GlobalCore.vars(); CoreOptions.EXPERT.forEach { o.remove(it.key) }; S.coreVars = o.toString(); AppState.say("Раздел «Для опытных» сброшен") }
             }
-            CoreRows(EXPERT)
+            CoreRows(CoreOptions.EXPERT)
         }
     }
     Text("Изменения применяются при следующем запуске игры.", style = T.small, modifier = Modifier.padding(top = 10.dp))

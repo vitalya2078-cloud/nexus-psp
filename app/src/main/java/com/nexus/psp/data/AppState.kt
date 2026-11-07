@@ -239,6 +239,24 @@ object AppState {
         save()
     }
 
+    /** Изменения «для всех игр» из меню паузы (процесс игры пишет файл, здесь применяем к общим настройкам). */
+    fun consumePendingGlobal() {
+        val f = GameConfig.pendingGlobal(app)
+        if (!f.exists()) return
+        try {
+            val o = JSONObject(f.readText())
+            o.optJSONObject("vars")?.let { v -> val cur = try { JSONObject(S.coreVars) } catch (e: Exception) { JSONObject() }; v.keys().forEach { k -> cur.put(k, v.get(k)) }; S.coreVars = cur.toString() }
+            if (o.has("preset")) S.corePreset = o.getString("preset")
+            if (o.has("ctlMode")) S.ctlMode = o.getString("ctlMode")
+            if (o.has("op")) S.op = o.getInt("op")
+            if (o.has("sc")) S.sc = o.getInt("sc")
+            if (o.has("mirror")) S.mirror = o.getBoolean("mirror")
+            if (o.has("fps")) S.fps = o.getBoolean("fps")
+            o.optJSONObject("keyPos")?.let { v -> val cur = try { JSONObject(S.keyPos) } catch (e: Exception) { JSONObject() }; v.keys().forEach { k -> cur.put(k, v.get(k)) }; S.keyPos = cur.toString() }
+        } catch (e: Exception) { }
+        f.delete()
+    }
+
     /** Итог последней игровой сессии из процесса игры: время, сохранения, история по дням. */
     private fun consumeSession() {
         val f = File(app.filesDir, "last_session.json")

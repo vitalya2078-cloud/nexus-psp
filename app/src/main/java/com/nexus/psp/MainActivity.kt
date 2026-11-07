@@ -170,6 +170,14 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // после выхода из игры — время в игре, сохранения; файлы могли удалить вручную
         AppState.loadReal()
+        AppState.consumePendingGlobal()
+        // «незаметный перезапуск»: игра сохранилась и просит запустить себя заново с новыми настройками
+        val r = java.io.File(filesDir, "relaunch.json")
+        if (r.exists()) {
+            val boot = try { r.readText() } catch (e: Exception) { null }
+            r.delete()
+            if (boot != null) com.nexus.psp.emulator.GameActivity.start(this, boot)
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

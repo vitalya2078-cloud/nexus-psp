@@ -29,6 +29,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
 import com.nexus.psp.ui.kit.KapsulaTheme
+import com.nexus.psp.data.CoreOptions
+import com.nexus.psp.data.CoreStore
+import com.nexus.psp.data.GameConfig
 import com.swordfish.libretrodroid.GLRetroView
 import com.swordfish.libretrodroid.GLRetroViewData
 import com.swordfish.libretrodroid.LibretroDroid
@@ -65,9 +68,32 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var toast by mutableStateOf("")
         var hasState by mutableStateOf(false)
         var fast by mutableStateOf(false)
+        /** Слоты: 0 — быстрый, 1–3 — свои. */
+        var slots by mutableStateOf<List<Slot>>(emptyList())
+        /** Открыта панель настроек поверх игры. */
+        var settings by mutableStateOf(false)
+        /** Редактор кнопок поверх игры. */
+        var editing by mutableStateOf(false)
+        /** Изменены настройки, которые ядро применяет только при запуске. */
+        var restartNeeded by mutableStateOf(false)
+        /** Куда сохранять изменения из паузы: true — только эта игра, false — все игры. */
+        var scopeGame by mutableStateOf(true)
+        var showFps by mutableStateOf(false)
+        var fps by mutableStateOf(0)
+        /** Можно отменить последнюю загрузку сохранения. */
+        var canUndo by mutableStateOf(false)
+        var ctlMode by mutableStateOf("touch")
+        var op by mutableStateOf(55)
+        var sc by mutableStateOf(100)
+        var mirror by mutableStateOf(false)
+        var volume by mutableStateOf(50)
+        /** Увеличивается при каждом изменении настроек ядра — для перерисовки панели. */
+        var tick by mutableStateOf(0)
     }
 
-    private val ui = UiState()
+    data class Slot(val i: Int, val exists: Boolean, val time: Long, val thumb: File?)
+
+    internal val ui = UiState()
     private lateinit var root: FrameLayout
     private lateinit var controls: ControlsView
     private var retro: GLRetroView? = null
@@ -119,12 +145,19 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             visibility = View.GONE
             s.optJSONObject("keyPos")?.let { o -> o.keys().forEach { k -> val a = o.getJSONArray(k); offsets[k] = android.graphics.PointF(a.getDouble(0).toFloat(), a.getDouble(1).toFloat()) } }
         }
+        ui.ctlMode = s.optString("ctlMode", "touch"); ui.op = s.optInt("op", 55); ui.sc = s.optInt("sc", 100); ui.mirror = s.optBoolean("mirror", false)
+        ui.showFps = s.optBoolean("fps", false)
+        presetName = boot.optString("preset", "")
+        ui.scopeGame = boot.optBoolean("own", false)
+        ui.volume = audioVolume()
+        boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> vars.put(k, o.get(k)) } }
+        controls.onMoved = { key, x, y -> persist { o -> o.put("keyPos", (o.optJSONObject("keyPos") ?: JSONObject()).put(key, org.json.JSONArray(listOf(x.toDouble(), y.toDouble())))) } }
         val classic = s.optString("ctlMode") == "classic"
         preset = if (!classic) ControlLayout.PRESETS[gameId] else null
         applyLayout(preset?.first() ?: if (classic) "classic" else "touch")
         hideWithPad = s.optBoolean("hide", true)
         val mode = s.optString("ctlMode", "touch")
-        if (mode != "pad") root.addView(controls, full)
+        root.addView(controls, full)
 
         // вырез камеры: кнопки отступают от него
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, ins ->
@@ -148,6 +181,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             val ok = withContext(Dispatchers.IO) { CoreFiles.ensureSystem(this@GameActivity) }
             if (!ok) { fail("Не удалось подготовить системные файлы PPSSPP"); return@launch }
             ui.hasState = withContext(Dispatchers.IO) { stateFile(0).exists() }
+            refreshSlots()
             startCore()
         }
     }
@@ -175,11 +209,19 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         })
         lifecycleScope.launch {
             view.getGLRetroEvents().collect {
-                if (it is GLRetroView.GLRetroEvents.FrameRendered && ui.phase == "loading") {
-                    ui.phase = "ready"; updateControlsVisibility()
+                if (it is GLRetroView.GLRetroEvents.FrameRendered) {
+                    frames++
+                    if (ui.phase == "loading") {
+                        ui.phase = "ready"; updateControlsVisibility()
+                        // «Продолжить с этого места» или возврат после незаметного перезапуска
+                        val slot = boot.optInt("loadSlot", -1)
+                        if (slot >= 0) { boot.remove("loadSlot"); lifecycleScope.launch { delay(300); loadSlot(slot, backup = false, quiet = slot == 8) } }
+                    }
                 }
             }
         }
+        // счётчик кадров
+        lifecycleScope.launch { while (true) { delay(1000); ui.fps = frames; frames = 0 } }
         lifecycleScope.launch {
             view.getGLRetroErrors().collect { code ->
                 fail(when (code) {
@@ -235,6 +277,13 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     fun setPaused(p: Boolean) {
         if (ui.phase != "ready") return
+        if (p && !ui.paused) {
+            // кадр в момент паузы — для слотов сохранений и скриншота; затем ставим ядро на паузу
+            ui.paused = true; controls.releaseAll(); updateControlsVisibility()
+            lifecycleScope.launch { pauseFrame = captureFrame(); setCorePaused(true); refreshSlots() }
+            return
+        }
+        if (!p) { pauseFrame = null; ui.settings = false }
         ui.paused = p
         controls.releaseAll()
         setCorePaused(p)
@@ -242,9 +291,11 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     private fun backPressed() {
-        when (ui.phase) {
-            "error" -> finish()
-            "ready" -> setPaused(!ui.paused)
+        when {
+            ui.phase == "error" -> finish()
+            ui.editing -> stopEditing()
+            ui.settings -> ui.settings = false
+            ui.phase == "ready" -> setPaused(!ui.paused)
         }
     }
 
@@ -254,7 +305,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     private fun updateControlsVisibility() {
-        val show = ui.phase == "ready" && !ui.paused && !(hideWithPad && padConnected())
+        if (ui.editing) { controls.visibility = View.VISIBLE; return }
+        val show = ui.phase == "ready" && !ui.paused && ui.ctlMode != "pad" && !(hideWithPad && padConnected())
         controls.visibility = if (show) View.VISIBLE else View.GONE
         if (!show) controls.releaseAll()
     }
@@ -278,19 +330,194 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         try { return withContext(Dispatchers.IO) { block() } } finally { if (was) setCorePaused(true) }
     }
 
-    fun saveQuick() = lifecycleScope.launch {
-        val ok = try { running { retro?.serializeState()?.also { stateFile(0).writeBytes(it) }?.isNotEmpty() ?: false } } catch (e: Exception) { Log.e(TAG, "save", e); false }
-        if (ok) { ui.hasState = true; savesMade++ }
-        toast(if (ok) "Сохранено в быстрый слот" else "Не удалось сохранить")
+    fun saveQuick() = saveSlot(0)
+    fun loadQuick() = loadSlot(0)
+
+    private fun thumbFile(slot: Int) = File(stateFile(slot).path + ".jpg")
+
+    fun refreshSlots() = lifecycleScope.launch {
+        ui.slots = withContext(Dispatchers.IO) { (0..3).map { i -> val f = stateFile(i); Slot(i, f.exists(), f.lastModified(), thumbFile(i).takeIf { it.exists() }) } }
+        ui.hasState = ui.slots.firstOrNull()?.exists == true
     }
 
-    fun loadQuick() = lifecycleScope.launch {
-        val f = stateFile(0)
-        if (!f.exists()) { toast("Быстрых сохранений пока нет"); return@launch }
+    /** Сохранить в слот: снимок состояния ядра + кадр игры (кадр снят в момент паузы). */
+    fun saveSlot(slot: Int, quiet: Boolean = false) = lifecycleScope.launch {
+        val frame = pauseFrame ?: captureFrame()
+        val ok = try { running { retro?.serializeState()?.also { stateFile(slot).writeBytes(it) }?.isNotEmpty() ?: false } } catch (e: Exception) { Log.e(TAG, "save", e); false }
+        if (ok && frame != null) withContext(Dispatchers.IO) { saveJpeg(frame, thumbFile(slot), 320) }
+        if (ok && slot in 0..3) savesMade++
+        refreshSlots()
+        if (!quiet) toast(if (!ok) "Не удалось сохранить" else if (slot == 0) "Сохранено в быстрый слот" else "Сохранено в слот $slot")
+    }
+
+    /** Загрузить слот; перед этим — резервный снимок «до загрузки» (слот 9), чтобы можно было отменить. */
+    fun loadSlot(slot: Int, backup: Boolean = true, quiet: Boolean = false) = lifecycleScope.launch {
+        val f = stateFile(slot)
+        if (!f.exists()) { toast("В этом слоте пусто"); return@launch }
+        if (backup) {
+            val b = try { running { retro?.serializeState() } } catch (e: Exception) { null }
+            if (b != null && b.isNotEmpty()) { withContext(Dispatchers.IO) { stateFile(9).writeBytes(b) }; ui.canUndo = true }
+        }
         val ok = try { running { retro?.unserializeState(f.readBytes()) ?: false } } catch (e: Exception) { Log.e(TAG, "load", e); false }
-        toast(if (ok) "Сохранение загружено" else "Не удалось загрузить")
+        if (!quiet) toast(if (!ok) "Не удалось загрузить" else if (backup) "Загружено · можно отменить в паузе" else "Продолжаем с сохранения")
         if (ok && ui.paused) setPaused(false)
     }
+
+    /** Отменить последнюю загрузку: вернуть состояние «до загрузки». */
+    fun undoLoad() = lifecycleScope.launch {
+        val f = stateFile(9); if (!f.exists()) return@launch
+        val ok = try { running { retro?.unserializeState(f.readBytes()) ?: false } } catch (e: Exception) { false }
+        ui.canUndo = false
+        toast(if (ok) "Вернулись к моменту до загрузки" else "Не удалось отменить")
+        if (ok && ui.paused) setPaused(false)
+    }
+
+    fun deleteSlot(slot: Int) = lifecycleScope.launch {
+        withContext(Dispatchers.IO) { stateFile(slot).delete(); thumbFile(slot).delete() }
+        refreshSlots(); toast("Слот очищен")
+    }
+
+    // ---------- кадр игры: для слотов и скриншотов ----------
+    private var pauseFrame: android.graphics.Bitmap? = null
+    private var frames = 0
+
+    /** Снимок картинки ядра (SurfaceView) через PixelCopy. */
+    private suspend fun captureFrame(): android.graphics.Bitmap? {
+        val v = retro ?: return null
+        if (v.width <= 0 || v.height <= 0) return null
+        val bmp = android.graphics.Bitmap.createBitmap(v.width, v.height, android.graphics.Bitmap.Config.ARGB_8888)
+        val done = kotlinx.coroutines.CompletableDeferred<Boolean>()
+        try {
+            android.view.PixelCopy.request(v, bmp, { r -> done.complete(r == android.view.PixelCopy.SUCCESS) }, android.os.Handler(mainLooper))
+        } catch (e: Exception) { return null }
+        return if (kotlinx.coroutines.withTimeoutOrNull(1500) { done.await() } == true) bmp else null
+    }
+
+    private fun saveJpeg(b: android.graphics.Bitmap, f: File, w: Int) {
+        val k = w.toFloat() / b.width
+        val s = if (k < 1f) android.graphics.Bitmap.createScaledBitmap(b, w, (b.height * k).toInt(), true) else b
+        f.outputStream().use { s.compress(android.graphics.Bitmap.CompressFormat.JPEG, 86, it) }
+    }
+
+    /** Скриншот в галерею: Pictures/KAPSULA. */
+    fun screenshot() = lifecycleScope.launch {
+        // Android 8–9: в галерею можно писать только с разрешением на память
+        if (Build.VERSION.SDK_INT < 29 && checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE), 7)
+            toast("Разреши доступ к фото и нажми «Скриншот» ещё раз"); return@launch
+        }
+        val b = pauseFrame ?: captureFrame()
+        if (b == null) { toast("Не удалось снять кадр"); return@launch }
+        val ok = withContext(Dispatchers.IO) {
+            try {
+                val name = "KAPSULA_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date()) + ".png"
+                val v = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name)
+                    put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png")
+                    if (Build.VERSION.SDK_INT >= 29) put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/KAPSULA")
+                }
+                val uri = contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v) ?: return@withContext false
+                contentResolver.openOutputStream(uri)?.use { b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) } != null
+            } catch (e: Exception) { Log.w(TAG, "shot", e); false }
+        }
+        toast(if (ok) "Скриншот сохранён в галерею (KAPSULA)" else "Не удалось сохранить скриншот")
+    }
+
+    // ---------- настройки поверх игры ----------
+    /** Текущие значения настроек ядра (общие + свои для игры). */
+    val vars = JSONObject()
+
+    /** Записать изменение: в настройки этой игры или в общие (их применит главный экран). */
+    private fun persist(block: (JSONObject) -> Unit) {
+        if (ui.scopeGame) {
+            GameConfig(this, gameId).edit { o ->
+                if (!o.optBoolean("own")) { o.put("own", true); o.put("vars", JSONObject(vars.toString())) }
+                block(o)
+            }
+        } else {
+            val f = GameConfig.pendingGlobal(this)
+            val o = try { JSONObject(f.readText()) } catch (e: Exception) { JSONObject() }
+            block(o); f.writeText(o.toString())
+        }
+    }
+
+    /** Настройка ядра: применяется сразу (ядро перечитывает настройки), отмеченные restart — после перезапуска. */
+    fun setCoreVar(k: String, v: String) {
+        vars.put(k, v)
+        retro?.updateVariables(Variable(k, v))
+        if (CoreOptions.byKey(k)?.restart == true) ui.restartNeeded = true
+        persist { o -> o.put("vars", (o.optJSONObject("vars") ?: JSONObject()).put(k, v)); o.put("preset", "custom") }
+        ui.tick++
+    }
+
+    fun setPreset(p: String) {
+        CoreOptions.PRESETS[p]?.forEach { (k, v) -> vars.put(k, v); retro?.updateVariables(Variable(k, v)) }
+        persist { o -> val vv = o.optJSONObject("vars") ?: JSONObject(); CoreOptions.PRESETS[p]?.forEach { (k, v) -> vv.put(k, v) }; o.put("vars", vv); o.put("preset", p) }
+        presetName = p; ui.tick++
+    }
+    var presetName = ""
+
+    /** Хранилище для экранов настроек ядра (общие компоненты с главным экраном). */
+    val coreStore = object : CoreStore {
+        override fun vars(): JSONObject = JSONObject(vars.toString())
+        override fun set(k: String, v: String) = setCoreVar(k, v)
+        override var preset: String
+            get() = presetName
+            set(value) { presetName = value }
+        override fun applyPreset(p: String) = setPreset(p)
+    }
+
+    fun setCtlMode(m: String) {
+        ui.ctlMode = m; persist { it.put("ctlMode", m) }
+        val classic = m == "classic"
+        preset = if (!classic) ControlLayout.PRESETS[gameId] else null
+        applyLayout(preset?.first() ?: if (classic) "classic" else "touch")
+        updateControlsVisibility()
+    }
+    fun setOpacity(v: Int) { ui.op = v; controls.alpha = (v / 100f).coerceIn(.15f, 1f); persist { it.put("op", v) } }
+    fun setSize(v: Int) { ui.sc = v; controls.scaleK = v / 100f; controls.invalidate(); persist { it.put("sc", v) } }
+    fun setMirror(on: Boolean) { ui.mirror = on; controls.mirror = on; controls.invalidate(); persist { it.put("mirror", on) } }
+    fun setFps(on: Boolean) { ui.showFps = on; persist { it.put("fps", on) } }
+
+    private fun audioVolume(): Int {
+        val am = getSystemService(android.media.AudioManager::class.java) ?: return 50
+        val mx = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        return am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) * 100 / mx
+    }
+    fun setVolume(v: Int) {
+        ui.volume = v
+        val am = getSystemService(android.media.AudioManager::class.java) ?: return
+        val mx = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+        am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (v * mx + 50) / 100, 0)
+    }
+
+    /**
+     * Незаметный перезапуск для настроек «после перезапуска»: сохраняем состояние (служебный слот 8),
+     * просим главный экран запустить игру заново с новыми настройками и сразу загружаем это место.
+     */
+    fun applyRestart() = lifecycleScope.launch {
+        toast("Перезапускаю игру с новыми настройками…")
+        val b = try { running { retro?.serializeState() } } catch (e: Exception) { null }
+        if (b != null && b.isNotEmpty()) withContext(Dispatchers.IO) { stateFile(8).writeBytes(b) }
+        val nb = JSONObject(boot.toString()).put("vars", JSONObject(vars.toString()))
+        nb.optJSONObject("s")?.let { s -> s.put("ctlMode", ui.ctlMode).put("op", ui.op).put("sc", ui.sc).put("mirror", ui.mirror).put("fps", ui.showFps) }
+        if (b != null) nb.put("loadSlot", 8)
+        withContext(Dispatchers.IO) { File(filesDir, "relaunch.json").writeText(nb.toString()) }
+        finish()
+    }
+
+    // ---------- редактор кнопок поверх игры ----------
+    fun startEditing() { ui.settings = false; ui.editing = true; controls.releaseAll(); controls.editMode = true; updateControlsVisibility(); toast("Перетаскивай кнопки пальцем") }
+    /** Вернуть кнопки текущей раскладки на места по умолчанию. */
+    fun resetButtons() {
+        val pre = controls.layName + ":"
+        val gone = controls.offsets.keys.filter { it.startsWith(pre) }
+        gone.forEach { controls.offsets.remove(it) }
+        controls.invalidate()
+        persist { o -> val kp = o.optJSONObject("keyPos") ?: JSONObject(); gone.forEach { kp.remove(it) }; o.put("keyPos", kp) }
+        toast("Кнопки на местах по умолчанию")
+    }
+    fun stopEditing() { ui.editing = false; controls.editMode = false; controls.invalidate(); updateControlsVisibility(); toast("Положение кнопок сохранено") }
 
     fun toggleFast() {
         ui.fast = !ui.fast

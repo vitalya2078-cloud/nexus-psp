@@ -249,20 +249,28 @@ private fun Shots(g: Game) {
     }
 }
 
-/** Сохранения: настоящий быстрый слот из меню паузы. */
+/** Сохранения: быстрый слот и слоты 1–3 с кадром и временем; «Продолжить» — запуск игры сразу с этого места. */
 @Composable
 private fun Saves(g: Game) {
-    val f = AppState.stateFile(g)
-    if (!f.exists()) {
-        StateCard(null, "Сохранений пока нет", "В игре открой меню паузы («Назад» или кнопка паузы) и нажми «Сохранить» — здесь появится быстрое сохранение.")
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val slots = (0..3).map { it to AppState.stateFile(g, it) }
+    if (slots.none { it.second.exists() }) {
+        StateCard(null, "Сохранений пока нет", "В игре открой меню паузы («Назад» или кнопка паузы) — там четыре слота сохранений: быстрый и три своих.")
         return
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Box(Modifier.width(200.dp).aspectRatio(480f / 272f).clip(RoundedCornerShape(12.dp))) { Cover(g, 480, 272, 30, Modifier.fillMaxSize()) }
-        Column {
-            Text("Быстрое сохранение", style = T.label)
-            Text(SimpleDateFormat("d MMMM, HH:mm", Locale("ru")).format(Date(f.lastModified())), style = T.small)
-            Text("«Загрузить» — в меню паузы игры", style = T.small)
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        slots.forEach { (i, f) ->
+            val has = f.exists()
+            val thumb = java.io.File(f.path + ".jpg")
+            Column(Modifier.weight(1f)) {
+                Box(Modifier.fillMaxWidth().aspectRatio(480f / 272f).clip(RoundedCornerShape(12.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                    if (has && thumb.exists()) com.nexus.psp.ui.FileImage(thumb, Modifier.fillMaxSize())
+                    else if (!has) SolarIcon(R.drawable.ph_plus, 20.dp, K.ink3)
+                }
+                Text(if (i == 0) "Быстрое" else "Слот $i", style = T.label, modifier = Modifier.padding(top = 6.dp))
+                Text(if (has) SimpleDateFormat("d MMM, HH:mm", Locale("ru")).format(Date(f.lastModified())) else "пусто", style = T.small)
+                if (has) KButton("Продолжить", R.drawable.sb_play, small = true, modifier = Modifier.padding(top = 6.dp)) { com.nexus.psp.ui.Act.play(ctx, g.id, i) }
+            }
         }
     }
 }
@@ -282,20 +290,38 @@ fun Confirm(title: String, text: String, ok: String, onCancel: () -> Unit, onOk:
     }
 }
 
-/** Настройки конкретной игры (п. 9). */
+/** Настройки конкретной игры (п. 9): свои или как для всех; те же разделы, что в паузе игры. */
 @Composable
 fun GameSettingsScreen(id: String) {
     val g = AppState.byId[id] ?: run { Nav.back(); return }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val cfg = remember(id) { com.nexus.psp.data.GameConfig(ctx, id) }
+    var own by remember(id) { mutableStateOf(cfg.own) }
+    var tick by remember { mutableStateOf(0) }
+    val store = remember(id, tick) { cfg.store { } }
     com.nexus.psp.ui.Full {
         com.nexus.psp.ui.OvHead("${g.t} — настройки", back = true)
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            StateCard(null, null, "Пока эти настройки общие для всех игр PSP. Отдельные настройки для каждой игры появятся следующим обновлением.", tint = K.acc)
-            CoreQuality()
-            Opt("Управление", "Режим экранных кнопок") {
-                val modes = listOf("touch", "classic", "pad")
-                Seg(listOf("Touch", "Классика", "Геймпад"), modes.indexOf(S.ctlMode).coerceAtLeast(0)) { S.ctlMode = modes[it] }
+            Opt("Свои настройки для этой игры", if (own) "Изменения ниже — только для «${g.t}»" else "Сейчас игра использует общие настройки PSP") {
+                Toggle(own) { on ->
+                    own = on
+                    if (on) cfg.edit { o -> o.put("own", true); if (!o.has("vars")) o.put("vars", com.nexus.psp.ui.screens.GlobalCore.vars()); if (!o.has("preset")) o.put("preset", AppState.S.corePreset) }
+                    else cfg.clear()
+                    tick++
+                }
             }
-            Opt("Счётчик кадров", null) { Toggle(S.fps) { S.fps = it } }
+            if (own) {
+                CoreQuality(store)
+                Sub("Скорость"); CoreRows(com.nexus.psp.data.CoreOptions.SPEED, store)
+                Sub("Система"); CoreRows(com.nexus.psp.data.CoreOptions.SYSTEM, store)
+                Sub("Управление")
+                val modes = listOf("touch", "classic", "pad")
+                var mode by remember(id, tick) { mutableStateOf(cfg.read().optString("ctlMode", S.ctlMode)) }
+                Opt("Режим кнопок", null) { Seg(listOf("Touch", "Классика", "Геймпад"), modes.indexOf(mode).coerceAtLeast(0)) { mode = modes[it]; cfg.edit { o -> o.put("ctlMode", mode) } } }
+                var fps by remember(id, tick) { mutableStateOf(cfg.read().optBoolean("fps", S.fps)) }
+                Opt("Счётчик кадров", null) { Toggle(fps) { fps = it; cfg.edit { o -> o.put("fps", it) } } }
+                Text("То же можно менять прямо в игре: пауза → «Настройки».", style = T.small, modifier = Modifier.padding(vertical = 10.dp))
+            } else StateCard(null, null, "Общие настройки PSP — в «Настройки → Эмулятор PSP». Включи переключатель выше, чтобы задать этой игре свои: например, ×3 для одной игры и «Батарея» для другой.", tint = K.acc)
         }
     }
 }

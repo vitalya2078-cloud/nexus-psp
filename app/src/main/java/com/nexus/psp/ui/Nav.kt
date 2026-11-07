@@ -59,19 +59,29 @@ object Act {
     fun buzz() { if (S.vib) view?.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) }
     fun buzzLong() { if (S.vib) view?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS) }
 
-    /** Играть: образ запускается в ядре в отдельном процессе (GameActivity). */
-    fun play(ctx: Context, id: String) {
+    /** Играть: образ запускается в ядре в отдельном процессе (GameActivity). slot — сразу загрузить сохранение. */
+    fun play(ctx: Context, id: String, slot: Int = -1) {
         val g = AppState.byId[id] ?: return
         buzz()
         AppState.markPlayed(id)
-        val kp = try { JSONObject(S.keyPos) } catch (e: Exception) { JSONObject() }
+        GameActivity.start(ctx, bootJson(ctx, id, slot).toString())
+    }
+
+    /** Настройки для запуска: общие + свои для этой игры (если включены). */
+    fun bootJson(ctx: Context, id: String, slot: Int = -1): JSONObject {
+        val g = AppState.byId[id]!!
+        val own = com.nexus.psp.data.GameConfig(ctx, id).read().takeIf { it.optBoolean("own") } ?: JSONObject()
         val vars = try { JSONObject(S.coreVars) } catch (e: Exception) { JSONObject() }
-        val boot = JSONObject().put("id", id).put("name", g.t).put("plat", g.p).put("size", g.size)
-            .put("s", JSONObject().put("ctlMode", S.ctlMode).put("op", S.op).put("sc", S.sc).put("mirror", S.mirror).put("vib", S.vib).put("hide", S.hide).put("fps", S.fps).put("keyPos", kp))
-            .put("vars", vars)
-        boot.put("path", g.path)
+        own.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> vars.put(k, o.get(k)) } }
+        val kp = try { JSONObject(S.keyPos) } catch (e: Exception) { JSONObject() }
+        own.optJSONObject("keyPos")?.let { o -> o.keys().forEach { k -> kp.put(k, o.get(k)) } }
+        val s = JSONObject().put("ctlMode", own.optString("ctlMode", S.ctlMode)).put("op", own.optInt("op", S.op)).put("sc", own.optInt("sc", S.sc))
+            .put("mirror", own.optBoolean("mirror", S.mirror)).put("vib", S.vib).put("hide", S.hide).put("fps", own.optBoolean("fps", S.fps)).put("keyPos", kp)
+        val boot = JSONObject().put("id", id).put("name", g.t).put("plat", g.p).put("size", g.size).put("path", g.path).put("s", s).put("vars", vars)
+            .put("own", own.optBoolean("own", false)).put("preset", if (own.optBoolean("own")) own.optString("preset", "custom") else S.corePreset)
         AppState.meta[id]?.backdrop?.let { boot.put("bg", it.path) }
-        GameActivity.start(ctx, boot.toString())
+        if (slot >= 0) boot.put("loadSlot", slot)
+        return boot
     }
 
     fun addFile() { pickFile?.invoke() ?: AppState.say("Выбор файла недоступен") }
