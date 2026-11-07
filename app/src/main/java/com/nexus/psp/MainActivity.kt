@@ -80,8 +80,8 @@ class MainActivity : ComponentActivity() {
 
     private fun watchNetwork() {
         val cm = getSystemService(ConnectivityManager::class.java) ?: return
-        AppState.online = cm.activeNetwork != null
         try {
+            AppState.online = cm.activeNetwork != null
             cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) { runOnUiThread { if (!AppState.online) AppState.say("Интернет снова есть"); AppState.online = true } }
                 override fun onLost(network: Network) { runOnUiThread { AppState.online = false; AppState.say("Нет интернета — играть можно в установленные") } }
