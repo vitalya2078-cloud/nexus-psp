@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Системная заставка Android невидима (фон как у интерфейса, без значка) — остаётся одна фирменная -->
+    <style name="Theme.Kapsula.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0B0C0F</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
+        <item name="postSplashScreenTheme">@style/Theme.Kapsula</item>
+    </style>
+    <style name="Theme.Kapsula" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
+        <item name="android:statusBarColor">#0B0C0F</item>
+        <item name="android:navigationBarColor">#0B0C0F</item>
+    </style>
+</resources>
