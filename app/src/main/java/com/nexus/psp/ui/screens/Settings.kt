@@ -59,7 +59,7 @@ import org.json.JSONObject
 @Composable
 fun SettingsScreen() {
     val nav = listOf(
-        Triple("general", "Общие", R.drawable.sl_sliders), Triple("dl", "Загрузки и память", R.drawable.sl_dl),
+        Triple("general", "Общие", R.drawable.sl_sliders), Triple("dl", "Игры и память", R.drawable.sl_folder),
         Triple("core", "Эмулятор PSP", R.drawable.sl_monitor), Triple("ctl", "Управление", R.drawable.sl_pad),
         Triple("bios", "BIOS", R.drawable.sl_chip), Triple("a11y", "Доступность", R.drawable.ph_hand), Triple("about", "О приложении", R.drawable.sl_info),
     )
@@ -107,10 +107,10 @@ private fun General() {
 @Composable
 private fun Downloads() {
     val ctx = LocalContext.current
-    Opt("Только по Wi-Fi", "Не тратить мобильный трафик") { Toggle(S.wifi) { S.wifi = it } }
-    Opt("Устанавливать сразу", "После добавления в библиотеку") { Toggle(S.auto) { S.auto = it } }
-    Opt("Папка со своими играми", com.nexus.psp.emulator.CoreFiles.gamesDir(ctx).absolutePath.replace("/storage/emulated/0/", "")) { Text("выбор папки — позже", style = T.small) }
-    Opt("Сохранения", "Резервная копия в файл") { KButton("Экспорт", small = true) { AppState.say("Экспорт сохранений появится позже") } }
+    Opt("Папка с играми", com.nexus.psp.emulator.CoreFiles.gamesDir(ctx).absolutePath.replace("/storage/emulated/0/", "")) { Text("своя папка — позже", style = T.small) }
+    Opt("Добавить игру", "Файл ISO, CSO, CHD или PBP — скопируется в папку KAPSULA") { KButton("Выбрать файл", R.drawable.ph_plus, small = true) { com.nexus.psp.ui.Act.addFile() } }
+    Opt("Найти игры на телефоне", "Выбери папку — KAPSULA найдёт все образы в ней и вложенных папках") { KButton("Выбрать папку", R.drawable.sl_search, small = true) { com.nexus.psp.ui.Act.findGames() } }
+    Opt("Память", "Игры KAPSULA ${com.nexus.psp.data.size(AppState.usedMb())} · свободно ${com.nexus.psp.data.size(AppState.freeMb())}") { }
 }
 
 @Composable
@@ -124,14 +124,13 @@ private fun Controls() {
 
 @Composable
 private fun Bios() {
-    StateCard("ic-bios.png", "BIOS — прошивка консоли.", "Для PS1 и PS2 нужен файл BIOS с твоей приставки. KAPSULA проверит его по контрольной сумме. PSP BIOS не нужен.")
+    StateCard("ic-bios.png", "BIOS — прошивка консоли.", "Для PS1 и PS2 понадобится файл BIOS с твоей приставки — KAPSULA проверит его по контрольной сумме. PSP работает без BIOS.")
     PLATFORMS.forEach { p ->
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             AssetImage(p.conImg, Modifier.width(76.dp).height(44.dp))
             Box(Modifier.weight(1f)) {
-                Opt("BIOS ${p.full}", if (!p.bios) "Не требуется" else if (BIOS[p.id] == true) "Найден и проверен" else "Не найден — нужен свой файл BIOS") {
-                    if (!p.bios) Pill("—") else if (BIOS[p.id] == true) Pill("OK", icon = R.drawable.ph_check, color = K.ok)
-                    else KButton("Добавить файл", kind = com.nexus.psp.ui.kit.BtnKind.Main, small = true) { AppState.say("PS1 и PS2 подключаются следующим этапом") }
+                Opt("BIOS ${p.full}", if (!p.bios) "Не требуется" else "Понадобится, когда подключим ${p.short}") {
+                    if (!p.bios) Pill("не нужен", icon = R.drawable.ph_check, color = K.ok) else Pill("скоро")
                 }
             }
         }

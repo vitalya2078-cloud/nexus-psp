@@ -45,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -65,7 +67,6 @@ import com.nexus.psp.ui.Ctx
 import com.nexus.psp.ui.Nav
 import com.nexus.psp.ui.Ov
 import com.nexus.psp.ui.PlatformTag
-import com.nexus.psp.ui.StatusBadge
 import com.nexus.psp.ui.kit.AssetImage
 import com.nexus.psp.ui.kit.Bar
 import com.nexus.psp.ui.kit.BtnKind
@@ -88,18 +89,7 @@ fun GamesScreen() {
             ConChips(AppState.lib.keys.mapNotNull { AppState.byId[it] }, Modifier.weight(1f))
             KButton("Вся библиотека", R.drawable.sl_grid, small = true) { Nav.open(Ov.Library) }
         }
-        if (list.isEmpty()) {
-            Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                AssetImage("es-empty.png", Modifier.size(140.dp))
-                Text("Библиотека пуста", style = T.h1)
-                Text("Добавь игры в магазине или свой файл — они появятся здесь.", style = T.body, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    KButton("Открыть магазин", kind = BtnKind.Main) { Nav.go("store") }
-                    KButton("Свой файл", R.drawable.sl_folder) { Act.addFile() }
-                }
-            }
-            return@Column
-        }
+        if (list.isEmpty()) { EmptyShelf(); return@Column }
         Carousel(list)
     }
 }
@@ -135,17 +125,16 @@ private fun Carousel(list: List<Game>) {
                     val sc by animateFloatAsState(if (on) 1f else .8f, tween(220), label = "cc")
                     val e = AppState.lib[g.id]
                     Box(
-                        Modifier.width(w).fillMaxHeight().graphicsLayer { scaleX = sc; scaleY = sc; alpha = if (on) 1f else .7f; if (e?.s == "own") { alpha *= .75f } }
+                        Modifier.width(w).fillMaxHeight().graphicsLayer { scaleX = sc; scaleY = sc; alpha = if (on) 1f else .7f }
                             .clip(RoundedCornerShape(20.dp)).border(if (on) 2.dp else 1.dp, if (on) K.ink.copy(alpha = .9f) else K.line, RoundedCornerShape(20.dp))
                             .combinedClickable(remember { MutableInteractionSource() }, null, onLongClick = { Act.buzzLong(); Ctx.open(g.id) }) {
-                                if (on) { if (e?.s == "ok") Act.play(ctx, g.id) else Nav.open(Ov.Game(g.id)) }
+                                if (on) Act.play(ctx, g.id)
                                 else scope.launch { state.animateScrollToItem(i) }
                             },
                     ) {
                         Cover(g, 300, 400, modifier = Modifier.fillMaxSize())
                         PlatformTag(g)
-                        if (e?.s != "ok") StatusBadge(g.id, Modifier.align(Alignment.BottomStart).padding(8.dp))
-                        if (e != null && e.s in setOf("dl", "pause", "q")) Bar(e.pr / 100f, if (e.s == "dl") K.acc else K.warn, 4.dp, Modifier.align(Alignment.BottomCenter))
+                        com.nexus.psp.ui.FormatBadge(g, Modifier.align(Alignment.BottomStart).padding(8.dp))
                     }
                 }
                 item {
@@ -170,17 +159,13 @@ private fun Carousel(list: List<Game>) {
 @Composable
 private fun Info(g: Game) {
     val e = AppState.lib[g.id]
-    val s = AppState.stat(g.id)
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Ellip(g.t, T.h1)
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 ConsolePill(g.plat.full, g.plat.color)
-                when (s.k) {
-                    "ok" -> { Meta("Наиграно ${hrs(e!!.play)}"); Meta(e.last); Meta("${e.saves} сохр.") }
-                    "own" -> { Meta("В библиотеке · не установлена"); Meta(size(g.size)) }
-                    else -> { Meta(if (s.k == "dl") "Загружается · ${s.lbl}" else s.lbl); Meta(size(g.size)) }
-                }
+                if (e != null && e.play > 0) { Meta("Наиграно ${hrs(e.play)}"); Meta(e.last) } else Meta("Ещё не запускалась")
+                Meta("${g.format} · ${size(g.size)}")
             }
         }
         Spacer(Modifier.width(12.dp))
@@ -192,3 +177,74 @@ private fun Info(g: Game) {
 
 @Composable
 private fun Meta(t: String) = Text(t, style = T.small.copy(color = K.ink2))
+
+/**
+ * Пустая полка (первый запуск): та же карусель, только из пустых капсул-слотов.
+ * Центральный слот — «Добавь первую игру»; когда игры появятся, они встанут на эти места.
+ */
+@Composable
+private fun EmptyShelf() {
+    var help by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxSize().padding(start = 20.dp, end = 24.dp, top = 6.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
+            val h = maxHeight; val w = minOf(h * .75f, maxWidth / 2.3f)
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                GhostSlot(w * .62f, w * .62f / .75f, .3f)
+                GhostSlot(w, w / .75f, 1f, main = true) { Act.addFile() }
+                GhostSlot(w * .62f, w * .62f / .75f, .3f)
+            }
+        }
+        Column(Modifier.weight(1.1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Твоя полка пока пуста", style = T.h1.copy(fontSize = 28.sp))
+            Text("Добавь образ своей игры с телефона — ISO, CSO, CHD или PBP. Сейчас работает PSP; PS1 и PS2 подключаем следующими.", style = T.body)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                KButton("Добавить игру", R.drawable.ph_plus, BtnKind.Main) { Act.addFile() }
+                KButton("Найти на телефоне", R.drawable.sl_search) { Act.findGames() }
+            }
+            Text("Где взять игры?", style = T.label.copy(color = K.acc), modifier = Modifier.padding(top = 2.dp).press { help = true }.padding(vertical = 6.dp))
+        }
+    }
+    if (help) WhereToGet { help = false }
+}
+
+/** Пустой слот-капсула с пунктирной обводкой. */
+@Composable
+private fun GhostSlot(w: androidx.compose.ui.unit.Dp, h: androidx.compose.ui.unit.Dp, a: Float, main: Boolean = false, onClick: (() -> Unit)? = null) {
+    val line = K.ink.copy(alpha = if (main) .45f else .2f)
+    Box(
+        Modifier.width(w).height(h).graphicsLayer { alpha = a }.clip(RoundedCornerShape(20.dp)).background(K.s1.copy(alpha = .6f))
+            .drawBehind {
+                drawRoundRect(line, style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(14f, 10f))), cornerRadius = androidx.compose.ui.geometry.CornerRadius(20.dp.toPx()))
+            }
+            .then(if (onClick != null) Modifier.press(onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (main) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(56.dp).clip(RoundedCornerShape(28.dp)).background(K.ink), contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_plus, 26.dp, K.bg) }
+            Text("Добавь\nпервую игру", style = T.label.copy(color = K.ink2, textAlign = androidx.compose.ui.text.style.TextAlign.Center), modifier = Modifier.padding(top = 12.dp))
+        }
+    }
+}
+
+/** «Где взять игры?» — честно и коротко. */
+@Composable
+fun WhereToGet(onClose: () -> Unit) {
+    androidx.compose.ui.window.Dialog(onClose) {
+        Column(Modifier.width(520.dp).clip(RoundedCornerShape(22.dp)).background(K.s1).padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Где взять игры?", style = T.h2)
+            Tip("Свои диски.", "Сделай образ (дамп) своего UMD-диска на прошитой PSP — получится файл ISO или CSO. Это законный способ играть в купленные игры.")
+            Tip("Бесплатные homebrew-игры.", "Любительские игры, которые авторы раздают бесплатно — обычно в формате PBP.")
+            Tip("Магазин KAPSULA.", "Скоро: игры от авторов, которые разрешили их распространять.")
+            Text("KAPSULA не скачивает коммерческие игры и не помогает их искать.", style = T.small)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { KButton("Понятно", kind = BtnKind.Main, small = true) { onClose() } }
+        }
+    }
+}
+
+@Composable
+private fun Tip(t: String, d: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(Modifier.padding(top = 7.dp).size(6.dp).clip(RoundedCornerShape(3.dp)).background(K.acc))
+        Column { Text(t, style = T.label); Text(d, style = T.body.copy(fontSize = 13.sp)) }
+    }
+}

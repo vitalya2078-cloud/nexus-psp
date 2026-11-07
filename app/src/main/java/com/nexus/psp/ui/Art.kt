@@ -138,10 +138,9 @@ object Art {
     }
 }
 
-/** Обложка игры; у своих файлов — нейтральная заглушка «нет обложки». */
+/** Обложка игры: процедурная, по названию файла — у каждой игры своя палитра и мотив. */
 @Composable
 fun Cover(g: Game, w: Int, h: Int, k: Int = 0, modifier: Modifier = Modifier) {
-    if (g.real) { AssetImage("no-cover.jpg", modifier, ContentScale.Crop); return }
     val img = remember(g.id, w, h, k) { Art.bitmap(g, w, h, k) }
     Image(img, null, modifier, contentScale = ContentScale.Crop)
 }

@@ -1,24 +1,27 @@
 package com.nexus.psp
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.nexus.psp.data.AppState
+import com.nexus.psp.emulator.CoreFiles
 import com.nexus.psp.ui.KapsulaApp
 import com.nexus.psp.ui.Nav
 import com.nexus.psp.ui.Ov
 import com.nexus.psp.ui.kit.KapsulaTheme
 import org.junit.Rule
-import androidx.compose.foundation.layout.fillMaxSize
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.io.File
+import java.io.RandomAccessFile
 
-/** Снимки экранов нативного интерфейса (телефон в альбомной ориентации 844×390 dp). */
+/** Снимки экранов (телефон в альбомной ориентации 844×390 dp): чистая установка и библиотека со своими файлами. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w844dp-h390dp-land-xhdpi")
@@ -27,7 +30,14 @@ class ScreensTest {
 
     @get:Rule val rule = createAndroidComposeRule<ComponentActivity>()
 
-    private fun shot(name: String, prep: () -> Unit) {
+    /** Пустые файлы нужного размера — как настоящие образы в папке игр. */
+    private fun games(vararg names: Pair<String, Long>) {
+        val dir = CoreFiles.gamesDir(ApplicationProvider.getApplicationContext())
+        names.forEach { (n, mb) -> RandomAccessFile(File(dir, n), "rw").use { it.setLength(mb * 1048576) } }
+    }
+
+    private fun shot(name: String, withGames: Boolean, prep: () -> Unit) {
+        if (withGames) games("Ridge_Racer_2 (Europe).iso" to 640, "Patapon 3.cso" to 410, "Lumines.iso" to 300, "Daxter (USA).cso" to 520)
         AppState.init(ApplicationProvider.getApplicationContext())
         AppState.S.onboarded = true; AppState.S.launched = true
         Nav.closeAll(); Nav.tab = "games"
@@ -38,42 +48,24 @@ class ScreensTest {
         rule.onRoot().captureRoboImage("build/shots/$name.png")
     }
 
-    @Test fun s01_games() = shot("01-games") { }
-    @Test fun s02_store() = shot("02-store") { Nav.tab = "store" }
-    @Test fun s03_game() = shot("03-game") { Nav.open(Ov.Game("drift")) }
-    @Test fun s04_library() = shot("04-library") { Nav.open(Ov.Library) }
-    @Test fun s05_search() = shot("05-search") { Nav.open(Ov.Search) }
-    @Test fun s06_downloads() = shot("06-downloads") { Nav.open(Ov.Downloads) }
-    @Test fun s07_quick() = shot("07-quick") { Nav.open(Ov.Quick) }
-    @Test fun s08_profile() = shot("08-profile") { Nav.open(Ov.Profile) }
-    @Test fun s09_settings_core() = shot("09-settings-core") { Nav.settingsTab = "core"; Nav.open(Ov.Settings) }
-    @Test fun s10_pad() = shot("10-pad") { Nav.open(Ov.Pad) }
-    @Test fun s11_alerts() = shot("11-alerts") { Nav.open(Ov.Alerts) }
-    @Test fun s12_onboarding() = shot("12-onboarding") { AppState.S.onboarded = false }
-    @Test fun s13_light() = shot("13-light-store") { AppState.S.theme = "light"; AppState.applyLook(); Nav.tab = "store" }
-    @Test fun s14_touch() = controls("14-controls-touch", "touch", "ps2")
-    @Test fun s15_classic() = controls("15-controls-classic", "classic", "psp")
-    @Test fun s16_drive() = controls("16-controls-drive", "drive", "ps2")
+    private fun firstId() = AppState.myList().first().id
 
-    /** Нативный слой кнопок поверх обложки — как в игре (без редактора). */
-    private fun controls(name: String, lay: String, plat: String) {
-        AppState.init(ApplicationProvider.getApplicationContext())
-        AppState.S.theme = "dark"; AppState.applyLook()
-        val g = AppState.byId["rubezh"]!!
-        rule.setContent {
-            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
-                com.nexus.psp.ui.Cover(g, 1600, 740, 11, androidx.compose.ui.Modifier.fillMaxSize())
-                androidx.compose.ui.viewinterop.AndroidView({ c ->
-                    com.nexus.psp.emulator.ControlsView(c, object : com.nexus.psp.emulator.ControlsView.Listener {
-                        override fun key(code: Int, down: Boolean) {}; override fun stick(right: Boolean, x: Float, y: Float) {}; override fun action(act: String) {}
-                    }).apply {
-                        alpha = .8f
-                        setLayout(if (lay == "drive") com.nexus.psp.emulator.ControlLayout.preset("drive", true) else com.nexus.psp.emulator.ControlLayout.layout(lay, plat))
-                    }
-                }, androidx.compose.ui.Modifier.fillMaxSize())
-            }
-        }
-        rule.waitForIdle()
-        rule.onRoot().captureRoboImage("build/shots/$name.png")
-    }
+    // чистая установка — пустые состояния
+    @Test fun e01_games() = shot("e01-games-empty", false) { }
+    @Test fun e02_store() = shot("e02-store", false) { Nav.tab = "store" }
+    @Test fun e03_library() = shot("e03-library-empty", false) { Nav.open(Ov.Library) }
+    @Test fun e04_search() = shot("e04-search-empty", false) { Nav.open(Ov.Search) }
+    @Test fun e05_downloads() = shot("e05-downloads-empty", false) { Nav.open(Ov.Downloads) }
+    @Test fun e06_alerts() = shot("e06-alerts-empty", false) { Nav.open(Ov.Alerts) }
+    @Test fun e07_profile() = shot("e07-profile-empty", false) { Nav.open(Ov.Profile) }
+    @Test fun e08_onboarding() = shot("e08-onboarding", false) { AppState.S.onboarded = false }
+
+    // со своими файлами
+    @Test fun g01_games() = shot("g01-games", true) { }
+    @Test fun g02_game() = shot("g02-game", true) { Nav.open(Ov.Game(firstId())) }
+    @Test fun g03_library() = shot("g03-library", true) { Nav.open(Ov.Library) }
+    @Test fun g04_fav_empty() = shot("g04-library-fav-empty", true) { AppState.S.lf = "Избранное"; Nav.open(Ov.Library) }
+    @Test fun g05_quick() = shot("g05-quick", true) { Nav.open(Ov.Quick) }
+    @Test fun g06_settings_core() = shot("g06-settings-core", true) { Nav.settingsTab = "core"; Nav.open(Ov.Settings) }
+    @Test fun g07_pad() = shot("g07-pad", true) { Nav.open(Ov.Pad) }
 }

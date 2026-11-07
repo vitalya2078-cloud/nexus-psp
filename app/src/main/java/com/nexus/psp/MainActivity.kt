@@ -13,7 +13,12 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
+import android.net.Uri
+import android.provider.DocumentsContract
 import com.nexus.psp.data.AppState
+import com.nexus.psp.data.Found
+import com.nexus.psp.data.Game
+import com.nexus.psp.data.Importing
 import com.nexus.psp.emulator.GameLibrary
 import com.nexus.psp.ui.Act
 import com.nexus.psp.ui.KapsulaApp
@@ -27,22 +32,68 @@ import kotlinx.coroutines.withContext
 /** KAPSULA — нативный интерфейс на Jetpack Compose (п. 49). Игра запускается в отдельном процессе (GameActivity). */
 class MainActivity : ComponentActivity() {
 
-    /** Выбор своего образа игры (ISO/CSO/CHD/PBP) через системный файловый менеджер, копия с прогрессом. */
+    /** Выбор своего образа игры (ISO/CSO/CHD/PBP) через системный файловый менеджер. */
     private val pickGame = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@registerForActivityResult
+        if (uri != null) importQueue(listOf(uri))
+    }
+
+    /** «Найти игры на телефоне»: выбор папки, поиск образов в ней и во вложенных папках. */
+    private val pickTree = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree == null) return@registerForActivityResult
+        AppState.scanning = true
         lifecycleScope.launch {
-            val name = GameLibrary.displayName(this@MainActivity, uri).first
-            AppState.importing = name to 0f
+            val list = withContext(Dispatchers.IO) { scanTree(tree) }
+            AppState.scanning = false
+            AppState.found = list
+        }
+    }
+
+    private fun scanTree(tree: Uri): List<Found> {
+        val out = ArrayList<Found>()
+        val known = AppState.byId.values.map { it.file.lowercase() }.toSet()
+        fun walk(docId: String, depth: Int) {
+            if (depth > 4 || out.size >= 200) return
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId)
+            val cols = arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE)
             try {
-                val f = withContext(Dispatchers.IO) {
-                    GameLibrary.importFile(this@MainActivity, uri) { p -> runOnUiThread { AppState.importing = name to p.toFloat() } }
+                contentResolver.query(children, cols, null, null, null)?.use { c ->
+                    while (c.moveToNext()) {
+                        val id = c.getString(0) ?: continue; val name = c.getString(1) ?: continue
+                        if (c.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR) walk(id, depth + 1)
+                        else if (name.substringAfterLast('.', "").lowercase() in GameLibrary.EXT && name.lowercase() !in known)
+                            out.add(Found(name, DocumentsContract.buildDocumentUriUsingTree(tree, id), (c.getLong(3) / 1048576).toInt()))
+                    }
                 }
-                AppState.importing = null
-                val g = AppState.addImported(GameLibrary.info(f))
-                AppState.say("«${g.t}» в библиотеке", R.drawable.ph_check, "Играть") { Act.play(this@MainActivity, g.id) }
-            } catch (e: Exception) {
-                AppState.importing = null
-                AppState.say(e.message ?: "Не удалось добавить файл", R.drawable.sl_alert)
+            } catch (e: Exception) { }
+        }
+        walk(DocumentsContract.getTreeDocumentId(tree), 0)
+        return out.sortedBy { it.name.lowercase() }
+    }
+
+    /** Копирует файлы по очереди с прогрессом; места не хватает — останавливается с подсказкой. */
+    private fun importQueue(uris: List<Uri>) {
+        if (AppState.importing != null) { AppState.say("Подожди — уже копирую игру"); return }
+        lifecycleScope.launch {
+            var added: Game? = null; var count = 0
+            for ((i, uri) in uris.withIndex()) {
+                val (name, bytes) = GameLibrary.displayName(this@MainActivity, uri)
+                if (bytes > 0 && bytes / 1048576 > AppState.freeMb() - 200) { AppState.say("Мало места для «$name» — копирование остановлено", R.drawable.sl_alert); break }
+                AppState.importing = Importing(name, 0f, i + 1, uris.size)
+                try {
+                    val f = withContext(Dispatchers.IO) {
+                        GameLibrary.importFile(this@MainActivity, uri) { p -> runOnUiThread { AppState.importing = Importing(name, p.toFloat(), i + 1, uris.size) } }
+                    }
+                    added = AppState.addImported(GameLibrary.info(f)); count++
+                } catch (e: Exception) {
+                    AppState.say(e.message ?: "Не удалось добавить «$name»", R.drawable.sl_alert)
+                }
+            }
+            AppState.importing = null
+            val g = added
+            if (g != null) {
+                if (count == 1) AppState.say("«${g.t}» в библиотеке", R.drawable.ph_check, "Играть") { Act.play(this@MainActivity, g.id) }
+                else AppState.say("Добавлено игр: $count", R.drawable.ph_check)
+                Act.buzzLong(); Nav.go("games")
             }
         }
     }
@@ -59,10 +110,8 @@ class MainActivity : ComponentActivity() {
         hideSystemBars()
         Act.view = window.decorView
         Act.pickFile = { pickGame.launch(arrayOf("*/*")) }
-        AppState.onReady = { g ->
-            Act.buzzLong()
-            AppState.say("«${g.t}» готова", R.drawable.ph_check, "Играть") { Act.play(this, g.id) }
-        }
+        Act.pickFolder = { pickTree.launch(null) }
+        Act.importAll = { l -> importQueue(l.map { it.uri }) }
         watchNetwork()
         setContent { KapsulaTheme { KapsulaApp() } }
     }

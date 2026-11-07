@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -130,25 +131,26 @@ private val CHECK = PathParser().parsePathString("M9.3 11.6l1.9 1.9 3.6-3.8").to
  */
 @Composable
 private fun DownloadsBtn() {
-    val active = AppState.active()
-    val ready = AppState.readyIds.isNotEmpty()
-    val pr = if (active.isEmpty()) 0f else active.sumOf { (AppState.lib[it]?.pr ?: 0f).toDouble() }.toFloat() / active.size
-    val stopped = active.isNotEmpty() && active.all { AppState.lib[it]?.s != "dl" }
-    val mode = when { active.isNotEmpty() -> if (stopped) "pause" else "dl"; ready -> "done"; else -> "idle" }
+    // пока магазина нет, кольцо показывает копирование своих файлов; готово — зелёное, держится до нажатия
+    val im = AppState.importing
+    var doneFlag by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var wasImporting by remember { androidx.compose.runtime.mutableStateOf(false) }
+    LaunchedEffect(im != null) { if (im == null && wasImporting) doneFlag = true; wasImporting = im != null }
+    val pr = (im?.p ?: 0f) * 100f
+    val ready = doneFlag
+    val mode = when { im != null -> "dl"; doneFlag -> "done"; else -> "idle" }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val fill by animateFloatAsState(if (mode == "done") 1f else maxOf(.03f, pr / 100f), tween(600), label = "ring")
     val pulse = remember { Animatable(1f) }
     LaunchedEffect(mode) {
         if (mode == "done") { Act.buzzLong(); repeat(3) { pulse.animateTo(1.13f, tween(300)); pulse.animateTo(1f, tween(300)) } }
     }
-    val drop by rememberInfiniteTransition(label = "drop").animateFloat(0f, 1f, infiniteRepeatable(tween(1600), RepeatMode.Restart), label = "d")
+    // анимация стрелки — только пока идёт копирование; значение читается при рисовании, без перекомпоновки шапки
+    val dropState: androidx.compose.runtime.State<Float> = if (mode == "dl") rememberInfiniteTransition(label = "drop").animateFloat(0f, 1f, infiniteRepeatable(tween(1600), RepeatMode.Restart), label = "d")
+        else remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     Box(
         Modifier.size(42.dp).clip(CircleShape).press {
-            if (mode == "done") {
-                val one = AppState.readyIds.singleOrNull()
-                AppState.readyIds.clear()
-                if (one != null) Nav.open(Ov.Game(one)) else Nav.open(Ov.Downloads)
-            } else Nav.open(Ov.Downloads)
+            if (mode == "done") { doneFlag = false; Nav.go("games") } else Nav.open(Ov.Downloads)
         },
         contentAlignment = Alignment.Center,
     ) {
@@ -171,6 +173,7 @@ private fun DownloadsBtn() {
                         drawPath(TRAY, ink, style = st)
                         if (mode == "done") drawPath(CHECK, ink, style = Stroke(1.7f, cap = StrokeCap.Round))
                         else {
+                            val drop = dropState.value
                             val y = if (mode == "dl") -2.5f + drop * 4f else 0f
                             val a = if (mode == "dl") (if (drop < .25f) .3f + drop * 2.8f else if (drop > .75f) .3f + (1 - drop) * 2.8f else 1f) else .55f
                             translate(0f, y) { drawPath(ARROW, ink.copy(alpha = a), style = st) }
@@ -179,7 +182,7 @@ private fun DownloadsBtn() {
                 }
             }
         }
-        CapsuleDot(mode != "done" && ready, K.ok)
+        CapsuleDot(false, K.ok)
     }
 }
 

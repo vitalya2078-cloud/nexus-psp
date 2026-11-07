@@ -42,8 +42,6 @@ import androidx.compose.ui.unit.sp
 import com.nexus.psp.R
 import com.nexus.psp.data.AppState
 import com.nexus.psp.data.AppState.S
-import com.nexus.psp.data.GAMES
-import com.nexus.psp.data.GENRES
 import com.nexus.psp.data.Game
 import com.nexus.psp.data.PLATFORMS
 import com.nexus.psp.data.plural
@@ -92,12 +90,10 @@ fun LibraryScreen() {
     var q by rememberSaveable { mutableStateOf("") }
     val ord = mapOf("Недавние" to 0, "По названию" to 1, "По времени игры" to 2)
     val list = AppState.lib.keys.mapNotNull { AppState.byId[it] }.filter { AppState.inCon(it) }.filter { g ->
-        val s = AppState.lib[g.id]?.s
         when (S.lf) {
-            "Установленные" -> s == "ok"
-            "Не установленные" -> s == "own"
-            "Загружаются" -> s in setOf("dl", "pause", "q")
             "Избранное" -> AppState.favs[g.id] == true
+            "Не запускались" -> (AppState.lib[g.id]?.play ?: 0) == 0
+            "Есть сохранение" -> AppState.stateFile(g).exists()
             else -> true
         } && (S.lc.isEmpty() || (AppState.cols[S.lc]?.contains(g.id) == true)) && (q.isBlank() || g.t.contains(q.trim(), true))
     }.let { l ->
@@ -121,7 +117,7 @@ fun LibraryScreen() {
             Chip("Все", S.con == "all", count = mine.size) { S.con = "all" }
             PLATFORMS.forEach { p -> Chip(p.short, S.con == p.id, dot = p.color, count = mine.count { it.p == p.id }) { S.con = p.id } }
             Sep()
-            listOf("Установленные", "Не установленные", "Загружаются", "Избранное").forEach { f -> Chip(f, S.lf == f) { S.lf = if (S.lf == f) "Все" else f } }
+            listOf("Избранное", "Не запускались", "Есть сохранение").forEach { f -> Chip(f, S.lf == f) { S.lf = if (S.lf == f) "Все" else f } }
             Sep()
             AppState.cols.forEach { (c, ids) -> Chip(c, S.lc == c, icon = R.drawable.sl_folder, count = ids.size) { S.lc = if (S.lc == c) "" else c } }
             if (showNew) {
@@ -129,9 +125,17 @@ fun LibraryScreen() {
                 Chip("Создать", icon = R.drawable.ph_check) { if (AppState.newCol(newName)) { S.lc = newName.trim(); newName = ""; showNew = false } else AppState.say("Введи название коллекции") }
             } else Chip("Коллекция", icon = R.drawable.ph_plus) { showNew = true }
         }
-        if (list.isEmpty()) Column(Modifier.padding(16.dp)) {
-            if (S.lc.isNotEmpty()) StateCard("es-empty.png", null, "В коллекции «${S.lc}» пока пусто. Открой карточку игры и нажми на название коллекции — игра добавится сюда. Или удерживай обложку.")
-            else StateCard("es-nothing.png", "Ничего не нашлось", "Сбрось фильтры, добавь игры в магазине или свой файл.")
+        if (list.isEmpty()) Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val reset: @Composable () -> Unit = { KButton("Сбросить фильтры", small = true) { S.lf = "Все"; S.lc = ""; S.con = "all"; q = "" } }
+            when {
+                mine.isEmpty() -> StateCard("es-empty.png", "Библиотека пуста", "Добавь образ игры с телефона — ISO, CSO, CHD или PBP.") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { KButton("Найти на телефоне", R.drawable.sl_search, small = true) { Act.findGames() }; KButton("Добавить игру", R.drawable.ph_plus, com.nexus.psp.ui.kit.BtnKind.Main, small = true) { Act.addFile() } }
+                }
+                q.isNotBlank() -> StateCard("es-nothing.png", "Нет игры «${q.trim()}»", "Проверь название или сбрось фильтры.", action = reset)
+                S.lc.isNotEmpty() && (AppState.cols[S.lc]?.isEmpty() != false) -> StateCard("es-empty.png", "Коллекция «${S.lc}» пустая", "Удерживай обложку игры → «Добавить в «${S.lc}»», или открой карточку игры и нажми на название коллекции.")
+                S.lf == "Избранное" -> StateCard("es-empty.png", "В избранном пусто", "Открой карточку игры и нажми «Избранное» — она появится здесь.")
+                else -> StateCard("es-nothing.png", "Ничего не нашлось", "По выбранным фильтрам игр нет.", action = reset)
+            }
         } else LazyVerticalGrid(
             GridCells.Adaptive(150.dp), Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -142,36 +146,36 @@ fun LibraryScreen() {
 @Composable
 private fun Sep() = Box(Modifier.width(1.dp).height(20.dp).background(K.line2))
 
-/** Поиск по библиотеке и магазину: недавние запросы, популярное, жанры и консоли (п. 8). */
+/** Поиск по своей библиотеке (п. 8): недавние запросы, консоли; пусто — подсказка и «Добавить игру». */
 @Composable
 fun SearchScreen() {
     var q by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(q) { if (q.isNotBlank()) { delay(1200); AppState.addRecent(q) } }
-    fun match(g: Game, t: String) = (g.t + " " + g.genre + " " + g.plat.full + " " + g.plat.short).contains(t, true)
+    fun match(g: Game, t: String) = (g.t + " " + g.file + " " + g.plat.full + " " + g.plat.short).contains(t, true)
     Full {
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SearchField(q, "Игра, жанр или консоль", Modifier.weight(1f), autoFocus = true, onDone = { AppState.addRecent(q) }) { q = it }
+            SearchField(q, "Название игры или консоль", Modifier.weight(1f), autoFocus = true, onDone = { AppState.addRecent(q) }) { q = it }
             KButton(icon = R.drawable.ph_x) { Nav.back() }
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             val t = q.trim()
+            val all = AppState.byId.values.toList()
             if (t.isEmpty()) {
                 val rec = AppState.recentList()
                 if (rec.isNotEmpty()) {
                     Sub("Недавние запросы")
                     ChipRow { rec.forEach { r -> Chip(r, icon = R.drawable.sl_clock) { q = r } }; Chip("Очистить") { S.recent = "" } }
                 }
-                Sub("Популярное")
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) { items(GAMES.filter { it.isNew }, key = { it.id }) { GameCard(it, 130.dp, withAct = false) } }
-                Sub("Жанры и консоли")
-                ChipRow { GENRES.forEach { gn -> Chip(gn) { q = gn } }; PLATFORMS.forEach { p -> Chip(p.full, dot = p.color) { q = p.short } } }
+                Sub("Консоли")
+                ChipRow { PLATFORMS.forEach { p -> Chip(p.full, dot = p.color) { q = p.short } } }
+                if (all.isEmpty()) StateCard("es-empty.png", "Искать пока не в чем", "Поиск работает по твоей библиотеке. Добавь первую игру.") {
+                    KButton("Добавить игру", R.drawable.ph_plus, com.nexus.psp.ui.kit.BtnKind.Main, small = true) { Act.addFile() }
+                } else Text("Ищи по названию игры, имени файла или консоли.", style = T.small, modifier = Modifier.padding(top = 8.dp))
             } else {
-                val all = AppState.byId.values.toList()
-                val mine = all.filter { AppState.lib[it.id] != null && match(it, t) }
-                val shop = GAMES.filter { AppState.lib[it.id] == null && match(it, t) }
-                if (mine.isEmpty() && shop.isEmpty()) StateCard("es-nothing.png", "По запросу «$q» ничего нет", "Проверь написание или выбери жанр.")
-                if (mine.isNotEmpty()) { Sub("В библиотеке · ${mine.size}"); Grid(mine) }
-                if (shop.isNotEmpty()) { Sub("В магазине · ${shop.size}"); Grid(shop) }
+                val mine = all.filter { match(it, t) }
+                if (mine.isEmpty()) StateCard("es-nothing.png", "Такой игры у тебя нет", "По запросу «$t» ничего в библиотеке. Если файл есть на телефоне — добавь его.") {
+                    KButton("Добавить игру", R.drawable.ph_plus, small = true) { Act.addFile() }
+                } else { Sub("В библиотеке · ${mine.size}"); Grid(mine) }
             }
         }
     }
@@ -180,4 +184,4 @@ fun SearchScreen() {
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun Grid(l: List<Game>) =
-    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) { l.forEach { GameCard(it, 150.dp) } }
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) { l.forEach { GameCard(it, 150.dp, mine = true) } }

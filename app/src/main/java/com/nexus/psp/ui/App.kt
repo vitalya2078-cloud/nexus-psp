@@ -21,6 +21,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,6 +90,8 @@ fun KapsulaApp() {
         CtxMenu()
         ToastHost(Modifier.align(Alignment.BottomCenter))
         Importing(Modifier.align(Alignment.BottomCenter))
+        Scanning(Modifier.align(Alignment.BottomCenter))
+        FoundDialog()
         if (onb && !splash) Onboarding { onb = false }
         if (splash) Splash(full = !S.launched) { splash = false; S.launched = true }
         // яркость интерфейса (быстрая панель)
@@ -134,17 +140,54 @@ private fun ToastHost(modifier: Modifier) {
     }
 }
 
-/** Копирование своего файла: имя и прогресс внизу экрана. */
+/** Копирование своих файлов: имя, прогресс, «2 из 5» — внизу экрана. */
 @Composable
 private fun Importing(modifier: Modifier) {
     val im = AppState.importing ?: return
     Column(
-        modifier.padding(bottom = 64.dp).width(360.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier.padding(bottom = 64.dp).width(380.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Копирую «${im.first}» · ${(im.second * 100).toInt()}%", style = T.label, maxLines = 1)
-        com.nexus.psp.ui.kit.Bar(im.second)
+        Text("Копирую «${im.name}» · ${(im.p * 100).toInt()}%" + (if (im.total > 1) " · ${im.n} из ${im.total}" else ""), style = T.label, maxLines = 1)
+        com.nexus.psp.ui.kit.Bar(im.p)
     }
+}
+
+/** «Найти игры на телефоне»: что нашлось и подтверждение копирования. */
+@Composable
+private fun FoundDialog() {
+    val f = AppState.found ?: return
+    androidx.compose.ui.window.Dialog({ AppState.found = null }) {
+        Column(Modifier.width(520.dp).clip(RoundedCornerShape(22.dp)).background(K.s1).padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (f.isEmpty()) {
+                Text("Игр не нашлось", style = T.h3)
+                Text("В этой папке и вложенных папках нет файлов ISO, CSO, CHD или PBP. Попробуй другую папку, например «Загрузки».", style = T.body)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                    com.nexus.psp.ui.kit.KButton("Закрыть", small = true) { AppState.found = null }
+                    com.nexus.psp.ui.kit.KButton("Другая папка", small = true, kind = com.nexus.psp.ui.kit.BtnKind.Main) { AppState.found = null; Act.findGames() }
+                }
+            } else {
+                val total = f.sumOf { it.sizeMb }
+                Text("Нашлось ${com.nexus.psp.data.plural(f.size, "игра", "игры", "игр")} · ${com.nexus.psp.data.size(total)}", style = T.h3)
+                Text("Файлы скопируются в папку KAPSULA. Свободно ${com.nexus.psp.data.size(AppState.freeMb())}.", style = T.body)
+                Column(Modifier.heightIn(max = 180.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    f.forEach { Text("• ${it.name} — ${com.nexus.psp.data.size(it.sizeMb)}", style = T.small.copy(color = K.ink2), maxLines = 1) }
+                }
+                if (total > AppState.freeMb()) Text("Места не хватит на все игры — скопируются, пока есть место.", style = T.small.copy(color = K.warn))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                    com.nexus.psp.ui.kit.KButton("Отмена", small = true) { AppState.found = null }
+                    com.nexus.psp.ui.kit.KButton("Добавить все", com.nexus.psp.R.drawable.ph_plus, com.nexus.psp.ui.kit.BtnKind.Main, small = true) { val l = f; AppState.found = null; Act.importAll?.invoke(l) }
+                }
+            }
+        }
+    }
+}
+
+/** Идёт сканирование папки. */
+@Composable
+private fun Scanning(modifier: Modifier) {
+    if (!AppState.scanning) return
+    Text("Ищу игры в папке…", style = T.label, modifier = modifier.padding(bottom = 64.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).padding(horizontal = 16.dp, vertical = 12.dp))
 }
 
 /** Фирменная заставка: капсула собирается, знак уезжает в шапку (п. 34). Первый запуск — полная, дальше — короткая. */
@@ -153,7 +196,7 @@ private fun Splash(full: Boolean, onDone: () -> Unit) {
     val a = remember { Animatable(0f) }
     val out = remember { Animatable(1f) }
     LaunchedEffect(Unit) {
-        val calm = S.calm || S.saver
+        val calm = S.calm
         a.animateTo(1f, tween(if (calm) 150 else if (full) 900 else 420, easing = FastOutSlowInEasing))
         if (full && !calm) { Act.buzz(); delay(450) }
         out.animateTo(0f, tween(if (calm) 120 else 380))

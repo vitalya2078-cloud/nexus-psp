@@ -44,7 +44,7 @@ object ControlLayout {
     }
 
     /** Пресеты автора каталога: раскладки игры по порядку (первая — стартовая), п. 57. */
-    val PRESETS = mapOf("rubezh" to listOf("foot", "drive"), "drift" to listOf("drive"))
+    val PRESETS: Map<String, List<String>> = emptyMap() // заполняется из каталога, когда появится панель автора
 
     private fun faceArc(ics: List<String>): List<Btn> = faceArc().mapIndexed { i, b -> b.copy(icon = ics[i]) }
 

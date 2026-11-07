@@ -2,7 +2,6 @@ package com.nexus.psp.ui.screens
 
 import android.view.InputDevice
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nexus.psp.R
@@ -64,7 +62,7 @@ private fun Item(gid: String?, title: String, sub: String, unread: Boolean = fal
     val g = gid?.let { AppState.byId[it] }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (unread) K.acc.copy(alpha = .08f) else Color.Transparent)
-            .then(if (onClick != null) Modifier.tap(onClick) else Modifier).padding(8.dp),
+            .then(if (onClick != null) Modifier.press(onClick = onClick) else Modifier).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(Modifier.size(52.dp).clip(RoundedCornerShape(12.dp)).background(K.s2), contentAlignment = Alignment.Center) {
@@ -78,34 +76,37 @@ private fun Item(gid: String?, title: String, sub: String, unread: Boolean = fal
     }
 }
 
-/** Загрузки: активные с паузой/отменой, установленные с «Играть» (готовые — сверху), память. */
+/** Пустая панель: большой значок, заголовок, пояснение. */
+@Composable
+private fun Empty(icon: Int, title: String, text: String, extra: @Composable () -> Unit = {}) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.size(72.dp).clip(CircleShape).background(K.s1), contentAlignment = Alignment.Center) { SolarDuo(icon, 34.dp) }
+        Text(title, style = T.h3)
+        Text(text, style = T.body.copy(fontSize = 13.sp), modifier = Modifier.padding(horizontal = 12.dp))
+        extra()
+    }
+}
+
+/** Загрузки: пока магазина нет — копирование своих файлов и память телефона. */
 @Composable
 fun DownloadsDrawer() {
-    val ctx = LocalContext.current
-    val act = AppState.active()
-    val done = AppState.lib.filter { it.value.s == "ok" }.keys.sortedByDescending { it in AppState.readyIds }
+    val im = AppState.importing
     Drawer("Загрузки") {
-        com.nexus.psp.ui.kit.Sub("Сейчас")
-        if (act.isEmpty()) Text("Активных загрузок нет", style = T.small)
-        act.forEach { id ->
-            val g = AppState.byId[id] ?: return@forEach; val e = AppState.lib[id] ?: return@forEach
-            Item(id, g.t, AppState.stat(id).lbl + " · " + size(g.size)) {
-                KButton(icon = if (e.s == "dl") R.drawable.sb_pause else R.drawable.sb_play, small = true) { if (e.s == "dl") AppState.pause(id) else AppState.resume(id) }
-                KButton(icon = R.drawable.ph_x, small = true) { AppState.cancel(id) }
-            }
-            Bar(e.pr / 100f, if (e.s == "dl") K.acc else K.warn, modifier = Modifier.padding(start = 72.dp, end = 8.dp, bottom = 6.dp))
-        }
-        Sub("Установлены")
-        done.forEach { id ->
-            val g = AppState.byId[id] ?: return@forEach
-            Item(id, g.t, g.plat.short + " · " + size(g.size), onClick = { Nav.open(Ov.Game(id)) }) {
-                KButton("Играть", kind = BtnKind.Main, small = true) { Act.play(ctx, id) }
+        if (im != null) {
+            Sub("Добавляется")
+            Item(null, im.name, "Копирование в KAPSULA · ${(im.p * 100).toInt()}%" + if (im.total > 1) " · ${im.n} из ${im.total}" else "", icon = R.drawable.sl_folder)
+            Bar(im.p, modifier = Modifier.padding(start = 72.dp, end = 8.dp, bottom = 6.dp))
+        } else Empty(R.drawable.sd_dl, "Сейчас ничего не загружается", "Здесь появятся загрузки из магазина и копирование твоих файлов.") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                KButton("Найти на телефоне", R.drawable.sl_search, small = true) { Act.findGames() }
+                KButton("Добавить игру", R.drawable.ph_plus, BtnKind.Main, small = true) { Act.addFile() }
             }
         }
-        Sub("Память")
-        Bar((AppState.TOTAL - AppState.free()).toFloat() / AppState.TOTAL, height = 8.dp)
-        Text("Игры KAPSULA ${size(AppState.used())} · свободно ${size(AppState.free())} (демо)", style = T.small, modifier = Modifier.padding(top = 6.dp))
-        if (AppState.free() < 3000) StateCard("es-storage.png", "Мало памяти.", "Удали с телефона игры, в которые не играешь, — они останутся в библиотеке.")
+        Sub("Память телефона")
+        val free = AppState.freeMb(); val total = AppState.totalMb(); val used = AppState.usedMb()
+        if (total > 0) Bar(1f - free.toFloat() / total, height = 8.dp)
+        Text("Игры KAPSULA ${size(used)} · свободно ${size(free)}" + (if (total > 0) " из ${size(total)}" else ""), style = T.small, modifier = Modifier.padding(top = 6.dp))
+        if (free in 1..2999) StateCard("es-storage.png", "Мало памяти.", "Игры PSP весят 0,2–2 ГБ. Удали ненужные игры или освободи место на телефоне.")
     }
 }
 
@@ -113,10 +114,10 @@ fun DownloadsDrawer() {
 @Composable
 fun AlertsDrawer() {
     LaunchedEffect(Unit) { delay(1200); AppState.readAll() }
-    Drawer("Уведомления", actions = { KButton("Прочитать все", small = true) { AppState.readAll() } }) {
-        if (AppState.alerts.isEmpty()) Text("Пока ничего нового", style = T.small)
+    Drawer("Уведомления", actions = { if (AppState.alerts.any { it.u }) KButton("Прочитать все", small = true) { AppState.readAll() } }) {
+        if (AppState.alerts.isEmpty()) Empty(R.drawable.sd_bell, "Пока тихо", "Сюда придут новости: игра добавлена в библиотеку, магазин открылся, вышло обновление KAPSULA.")
         AppState.alerts.forEach { a ->
-            Item(a.g, a.t, a.d, unread = a.u, icon = R.drawable.sl_bolt, onClick = { if (a.g != null && AppState.byId[a.g] != null) Nav.open(Ov.Game(a.g)) else Nav.open(Ov.Settings) })
+            Item(a.g, a.t, a.d, unread = a.u, icon = R.drawable.sl_bolt, onClick = { if (a.g != null && AppState.byId[a.g] != null) Nav.open(Ov.Game(a.g)) })
         }
     }
 }
@@ -126,7 +127,7 @@ private fun padState(): String {
     return d?.name?.take(22) ?: "Не подключён"
 }
 
-/** Быстрая панель (п. 16): плитки-переключатели и ползунки громкости/яркости. */
+/** Быстрая панель (п. 16): плитки и ползунки громкости/яркости. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun QuickPanel() {
@@ -139,24 +140,24 @@ fun QuickPanel() {
             com.nexus.psp.ui.OvHead("Быстрая панель")
             val tiles = listOf(
                 Tile(R.drawable.sd_pad, "Геймпад", padState(), false) { Nav.settingsTab = "ctl"; Nav.replace(Ov.Settings) },
-                Tile(R.drawable.ph_wifi, "Только Wi-Fi", if (S.wifi) "Вкл" else "Выкл", S.wifi) { S.wifi = !S.wifi },
-                Tile(R.drawable.sd_battery, "Экономия", if (S.saver) "Вкл" else "Выкл", S.saver) { S.saver = !S.saver },
                 Tile(R.drawable.sd_moon, "Тема", mapOf("dark" to "Тёмная", "oled" to "OLED", "light" to "Светлая")[S.theme] ?: "", false) {
                     S.theme = mapOf("dark" to "oled", "oled" to "light", "light" to "dark")[S.theme] ?: "dark"; AppState.applyLook()
                 },
                 Tile(R.drawable.ph_hand, "Вибрация", if (S.vib) "Вкл" else "Выкл", S.vib) { S.vib = !S.vib },
                 Tile(R.drawable.sd_music, "Звуки", if (S.sound) "Вкл" else "Выкл", S.sound) { S.sound = !S.sound },
                 Tile(R.drawable.sd_device, "Экранный геймпад", mapOf("touch" to "KAPSULA Touch", "classic" to "Классика", "pad" to "Геймпад")[S.ctlMode] ?: "", false) { Nav.replace(Ov.Pad) },
+                Tile(R.drawable.sd_folder, "Добавить игру", "ISO, CSO, CHD, PBP", false) { Nav.back(); Act.addFile() },
+                Tile(R.drawable.sd_search, "Найти игры", "в папке телефона", false) { Nav.back(); Act.findGames() },
                 Tile(R.drawable.sd_gear, "Настройки", "Все параметры", false) { Nav.replace(Ov.Settings) },
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 4) {
                 tiles.forEach { t -> QTile(t, Modifier.weight(1f)) }
             }
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(K.s1).padding(horizontal = 14.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(K.s1).padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SolarIcon(R.drawable.sl_vol, 20.dp, K.ink2); Range(S.vol, 0, 100, fill = true) { S.vol = it }
                 }
-                Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(K.s1).padding(horizontal = 14.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(K.s1).padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SolarIcon(R.drawable.sl_sun, 20.dp, K.ink2); Range(S.bright, 40, 100, fill = true) { S.bright = it }
                 }
             }
@@ -180,13 +181,13 @@ private fun QTile(t: Tile, modifier: Modifier) {
     }
 }
 
-/** Профиль (п. 10): уровень, цифры, достижения, облако, история по дням, избранное. */
+/** Профиль (п. 10): без нулей — пока игр не было, вместо статистики приглашение; достижения с прогрессом. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileDrawer() {
-    val ok = AppState.lib.filter { it.value.s == "ok" }
-    val play = ok.values.sumOf { it.play }
-    val svs = ok.values.sumOf { it.saves }
+    val ctx = LocalContext.current
+    val play = AppState.lib.values.sumOf { it.play }
+    val svs = AppState.lib.values.sumOf { it.saves }
     val xp = play * 2 + svs * 30
     Drawer("Профиль") {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -197,39 +198,55 @@ fun ProfileDrawer() {
                 Bar((xp % 1000) / 1000f, modifier = Modifier.width(200.dp).padding(top = 6.dp))
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("${play / 60} ч" to "наиграно", "${AppState.lib.size}" to "в библиотеке", "$svs" to "сохранений", "${AppState.favs.size}" to "в избранном").forEach { (n, l) ->
+        if (play == 0) {
+            StateCard("ach-first.png", "Сыграй первую игру", "Здесь появится твоя статистика: время в играх, сохранения и история по дням.") {
+                KButton(if (AppState.byId.isEmpty()) "Добавить игру" else "Играть", if (AppState.byId.isEmpty()) R.drawable.ph_plus else R.drawable.sb_play, BtnKind.Main, small = true) {
+                    val first = AppState.myList().firstOrNull()
+                    if (first == null) Act.addFile() else Act.play(ctx, first.id)
+                }
+            }
+        } else Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(hrs(play) to "наиграно", "${AppState.lib.size}" to "в библиотеке", "$svs" to "сохранений", "${AppState.favs.size}" to "в избранном").forEach { (n, l) ->
                 Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(K.s1).padding(10.dp)) { Text(n, style = T.h3); Text(l, style = T.small) }
             }
         }
         Sub("Достижения")
+        val consoles = AppState.byId.values.filter { (AppState.lib[it.id]?.play ?: 0) > 0 }.map { it.p }.toSet().size
         val ach = listOf(
-            Triple("ach-first.png", "Первый запуск", ok.isNotEmpty()),
-            Triple("ach-marathon.png", "10 часов в игре", ok.values.any { it.play >= 600 }),
-            Triple("ach-saves.png", "10 сохранений", svs >= 10),
-            Triple("ach-consoles.png", "Три консоли", listOf("psp", "ps1", "ps2").all { p -> ok.keys.any { AppState.byId[it]?.p == p } }),
-            Triple("ach-trophy.png", "100 часов", play >= 6000),
-            Triple("ach-fav.png", "5 в избранном", AppState.favs.size >= 5),
+            Triple("ach-first.png", "Первый запуск", minOf(1f, play.toFloat())),
+            Triple("ach-marathon.png", "10 часов в игре", (AppState.lib.values.maxOfOrNull { it.play } ?: 0) / 600f),
+            Triple("ach-saves.png", "10 сохранений", svs / 10f),
+            Triple("ach-consoles.png", "Три консоли", consoles / 3f),
+            Triple("ach-trophy.png", "100 часов", play / 6000f),
+            Triple("ach-fav.png", "5 в избранном", AppState.favs.size / 5f),
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 3) {
-            ach.forEach { (img, t, got) ->
+            ach.forEach { (img, t, p) ->
+                val got = p >= 1f
                 Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(K.s1).padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    AssetImage(img, Modifier.size(56.dp), gray = !got)
+                    AssetImage(img, Modifier.size(52.dp), gray = !got)
                     Text(t, style = T.small.copy(color = if (got) K.ink else K.ink3, fontSize = 11.sp), modifier = Modifier.padding(top = 4.dp))
+                    if (!got) Bar(p.coerceIn(0f, 1f), height = 3.dp, modifier = Modifier.padding(top = 5.dp))
+                }
+            }
+        }
+        val week = AppState.week()
+        if (week.any { it.second > 0 }) {
+            Sub("Последние 7 дней")
+            val mx = week.maxOf { it.second }.coerceAtLeast(1)
+            week.forEach { (d, m) ->
+                Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(d, style = T.label, modifier = Modifier.width(70.dp))
+                    Box(Modifier.width((maxOf(4f, m.toFloat() / mx * 180f)).dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(if (m > 0) K.acc else K.s3))
+                    Text(if (m > 0) hrs(m) else "—", style = T.small)
                 }
             }
         }
         Sub("Облако")
         Opt("Продолжить на другом устройстве", "Сохранения и библиотека в аккаунте (в планах)") { Toggle(S.cloud) { S.cloud = it } }
-        Sub("История по дням")
-        listOf("Сегодня" to 95, "Вчера" to 140, "Ср" to 40, "Вт" to 0, "Пн" to 75).forEach { (d, m) ->
-            Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(d, style = T.label, modifier = Modifier.width(70.dp))
-                Box(Modifier.width((maxOf(4f, m / 140f * 180f)).dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(K.acc))
-                Text(if (m > 0) hrs(m) else "—", style = T.small)
-            }
+        if (AppState.favs.isNotEmpty()) {
+            Sub("Избранное")
+            AppState.favs.keys.mapNotNull { AppState.byId[it] }.forEach { g -> Item(g.id, g.t, g.plat.short + " · " + size(g.size), onClick = { Nav.open(Ov.Game(g.id)) }) }
         }
-        Sub("Избранное")
-        AppState.favs.keys.mapNotNull { AppState.byId[it] }.forEach { g -> Item(g.id, g.t, g.plat.short + " · " + AppState.stat(g.id).lbl, onClick = { Nav.open(Ov.Game(g.id)) }) }
     }
 }

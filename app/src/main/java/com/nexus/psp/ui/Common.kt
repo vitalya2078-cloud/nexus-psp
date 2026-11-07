@@ -70,39 +70,21 @@ import com.nexus.psp.ui.kit.SolarIcon
 import com.nexus.psp.ui.kit.T
 import com.nexus.psp.ui.kit.tap
 
-/** Кнопка главного действия по статусу (act() прототипа). */
+/** Главное действие: все игры библиотеки — свои файлы, поэтому всегда «Играть». */
 @Composable
 fun ActButton(g: Game, small: Boolean = false, modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
-    val e = AppState.lib[g.id]
-    when (AppState.stat(g.id).k) {
-        "ok" -> KButton("Играть", R.drawable.sb_play, BtnKind.Main, small, modifier = modifier) { Act.play(ctx, g.id) }
-        "own" -> KButton("Установить · ${size(g.size)}", R.drawable.sl_dl, small = small, modifier = modifier) { AppState.install(g.id) }
-        "q" -> KButton("В очереди", R.drawable.sl_clock, small = small, modifier = modifier) { AppState.cancel(g.id) }
-        "dl" -> KButton("${e?.pr?.toInt() ?: 0}%", R.drawable.sb_pause, small = small, modifier = modifier) { AppState.pause(g.id) }
-        "pause" -> KButton("Продолжить · ${e?.pr?.toInt() ?: 0}%", R.drawable.sb_play, small = small, modifier = modifier) { AppState.resume(g.id) }
-        else -> KButton("Добавить", R.drawable.ph_plus, small = small, modifier = modifier) { AppState.add(g.id) }
-    }
+    KButton("Играть", R.drawable.sb_play, BtnKind.Main, small, modifier = modifier) { Act.play(ctx, g.id) }
 }
 
-/** Плашка статуса на обложке (badge()). */
+/** Плашка формата файла на обложке (ISO, CSO…). */
 @Composable
-fun StatusBadge(id: String, modifier: Modifier = Modifier) {
-    val s = AppState.stat(id)
-    if (s.k == "none") return
-    val (bg, fg) = when (s.k) {
-        "ok" -> K.ok to Color(0xFF0B0C0F)
-        "dl" -> K.acc to Color(0xFF0B0C0F)
-        "own" -> Color.Black.copy(alpha = .6f) to Color(0xFFF2F1EC)
-        else -> K.warn to Color(0xFF0B0C0F)
-    }
-    Row(
-        modifier.height(22.dp).clip(RoundedCornerShape(11.dp)).background(bg).padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        if (s.k == "ok") SolarIcon(R.drawable.ph_check, 12.dp, fg)
-        Text(s.lbl, style = T.small.copy(color = fg, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold))
-    }
+fun FormatBadge(g: Game, modifier: Modifier = Modifier) {
+    if (g.format.isEmpty()) return
+    Text(
+        g.format, style = T.small.copy(color = Color(0xFFF2F1EC), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold),
+        modifier = modifier.clip(RoundedCornerShape(7.dp)).background(Color.Black.copy(alpha = .55f)).padding(horizontal = 6.dp, vertical = 2.dp),
+    )
 }
 
 /** Метка консоли на обложке (.pl). */
@@ -119,11 +101,7 @@ fun BoxScope.PlatformTag(g: Game) {
 @Composable
 fun GameCard(g: Game, width: Dp? = 132.dp, withAct: Boolean = true, mine: Boolean = false, modifier: Modifier = Modifier) {
     val e = AppState.lib[g.id]
-    val info = if (mine && e != null) when (e.s) {
-        "ok" -> if (e.play > 0) "Наиграно ${hrs(e.play)}" else "Не запускалась"
-        "own" -> "Не установлена · ${size(g.size)}"
-        else -> AppState.stat(g.id).lbl + " · " + size(g.size)
-    } else "${g.genre} · ${size(g.size)}"
+    val info = if (mine && e != null && e.play > 0) "Наиграно ${hrs(e.play)}" else "${size(g.size)} · ${if (e?.play == 0) "не запускалась" else g.format}"
     Column(modifier.then(if (width != null) Modifier.width(width) else Modifier), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(3f / 4f).clip(RoundedCornerShape(14.dp))
@@ -132,7 +110,7 @@ fun GameCard(g: Game, width: Dp? = 132.dp, withAct: Boolean = true, mine: Boolea
         ) {
             Cover(g, 300, 400, modifier = Modifier.fillMaxSize())
             PlatformTag(g)
-            StatusBadge(g.id, Modifier.align(Alignment.BottomStart).padding(7.dp))
+            FormatBadge(g, Modifier.align(Alignment.BottomStart).padding(7.dp))
         }
         Ellip(g.t, T.label.copy(fontSize = 14.sp), Modifier.padding(top = 2.dp))
         Ellip(info, T.small)
@@ -223,8 +201,7 @@ fun CtxMenu() {
             if (e != null) {
                 CtxItem(if (AppState.favs[id] == true) R.drawable.sb_heart else R.drawable.sl_heart, if (AppState.favs[id] == true) "Убрать из избранного" else "В избранное") { AppState.toggleFav(id) }
                 AppState.cols.forEach { (c, ids) -> CtxItem(if (id in ids) R.drawable.ph_check else R.drawable.sl_folder, if (id in ids) "В коллекции «$c»" else "Добавить в «$c»") { AppState.toggleCol(c, id) } }
-                if (e.s == "ok") CtxItem(R.drawable.sl_trash, "Удалить с телефона", danger = true) { Ctx.id = null; AppState.uninstall(id) }
-                if (!g.real) CtxItem(R.drawable.ph_x, "Убрать из библиотеки", danger = true) { Ctx.id = null; AppState.unlib(id) }
+                CtxItem(R.drawable.sl_trash, "Удалить с телефона", danger = true) { Ctx.id = null; AppState.uninstall(id) }
             }
         }
     }

@@ -38,11 +38,11 @@ import androidx.compose.ui.unit.dp
 import com.nexus.psp.R
 import com.nexus.psp.data.AppState
 import com.nexus.psp.data.AppState.S
-import com.nexus.psp.data.GAMES
 import com.nexus.psp.data.PLATFORMS
 import com.nexus.psp.data.plural
 import com.nexus.psp.data.size
 import com.nexus.psp.emulator.CoreFiles
+import com.nexus.psp.ui.Act
 import com.nexus.psp.ui.Nav
 import com.nexus.psp.ui.kit.AssetImage
 import com.nexus.psp.ui.kit.BtnKind
@@ -54,26 +54,25 @@ import com.nexus.psp.ui.kit.T
 import com.nexus.psp.ui.kit.press
 import com.nexus.psp.ui.kit.tap
 
-/** Знакомство при первом запуске (п. 6): консоли → где хранить → как играть. */
+/** Знакомство при первом запуске (п. 6): консоли → как играть → первая игра. */
 @Composable
 fun Onboarding(onDone: () -> Unit) {
     var step by remember { mutableIntStateOf(0) }
     val cons = remember { mutableStateListOf("psp", "ps1", "ps2") }
     var how by remember { mutableStateOf("touch") }
-    val ctx = LocalContext.current
     fun finish() {
         S.con = if (cons.size == 1) cons[0] else "all"
         S.hide = how == "pad"; if (how == "pad") S.ctlMode = "pad"
-        S.onboarded = true; Nav.go("store"); onDone()
+        S.onboarded = true; Nav.go("games"); onDone()
     }
     Box(Modifier.fillMaxSize().background(K.bg).tap { }.windowInsetsPadding(WindowInsets.displayCutout).padding(horizontal = 32.dp, vertical = 20.dp)) {
         Column(Modifier.fillMaxSize()) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { repeat(3) { i -> Box(Modifier.size(28.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(if (i <= step) K.acc else K.s3)) } }
             AnimatedContent(step, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(150)) }, label = "onb", modifier = Modifier.weight(1f)) { st ->
                 Column(Modifier.fillMaxSize().padding(top = 18.dp)) {
-                    Text(listOf("Во что играешь?", "Где хранить игры?", "Как будешь играть?")[st], style = T.h1)
+                    Text(listOf("Во что играешь?", "Как будешь играть?", "Добавь первую игру")[st], style = T.h1)
                     Text(
-                        listOf("Выбери консоли — KAPSULA покажет подходящие игры.", "Игры весят 0,2–2 ГБ. Свободно ${size(AppState.free())} (демо).", "Можно поменять в любой момент.")[st],
+                        listOf("Выбери консоли — KAPSULA настроит под них библиотеку.", "Можно поменять в любой момент в настройках.", "Образ своего диска или бесплатная homebrew-игра: ISO, CSO, CHD или PBP.")[st],
                         style = T.body, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -84,20 +83,26 @@ fun Onboarding(onDone: () -> Unit) {
                                     AssetImage(p.conImg, Modifier.fillMaxWidth().height(90.dp))
                                     ConsolePill(p.short, p.color)
                                     Text(p.full, style = T.h3)
-                                    Text(plural(GAMES.count { it.p == p.id }, "игра", "игры", "игр") + " в каталоге", style = T.small)
+                                    Text(if (p.ready) "Работает" else "Скоро — подключаем следующей", style = T.small.copy(color = if (p.ready) K.ok else K.ink3))
                                 }
                             }
-                            1 -> Opt(true, Modifier.weight(1f), {}) {
-                                SolarIcon(R.drawable.sl_folder, 24.dp, K.acc)
-                                Text("Память телефона", style = T.h3)
-                                Text(CoreFiles.gamesDir(ctx).absolutePath.replace("/storage/emulated/0/", ""), style = T.small)
-                                Text("Выбор своей папки и SD-карты появится позже.", style = T.small)
-                            }
-                            else -> listOf(Triple("touch", "Сенсорный экран", "Кнопки KAPSULA Touch поверх игры"), Triple("pad", "Геймпад", "Bluetooth или USB — экранные кнопки скроются")).forEach { (id, t, d) ->
+                            1 -> listOf(Triple("touch", "Сенсорный экран", "Кнопки KAPSULA Touch поверх игры"), Triple("pad", "Геймпад", "Bluetooth или USB — экранные кнопки скроются")).forEach { (id, t, d) ->
                                 Opt(how == id, Modifier.weight(1f), { how = id }) {
                                     SolarIcon(if (id == "pad") R.drawable.sl_pad else R.drawable.ph_hand, 24.dp, K.acc)
                                     Text(t, style = T.h3)
                                     Text(d, style = T.small)
+                                }
+                            }
+                            else -> {
+                                Opt(false, Modifier.weight(1f), { finish(); Act.addFile() }) {
+                                    SolarIcon(R.drawable.sl_folder, 24.dp, K.acc)
+                                    Text("Выбрать файл", style = T.h3)
+                                    Text("Одна игра — скопируется в KAPSULA", style = T.small)
+                                }
+                                Opt(false, Modifier.weight(1f), { finish(); Act.findGames() }) {
+                                    SolarIcon(R.drawable.sl_search, 24.dp, K.acc)
+                                    Text("Найти на телефоне", style = T.h3)
+                                    Text("Выбери папку, например «Загрузки» — KAPSULA найдёт все игры", style = T.small)
                                 }
                             }
                         }
@@ -105,10 +110,10 @@ fun Onboarding(onDone: () -> Unit) {
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                KButton("Пропустить") { finish() }
+                KButton(if (step == 2) "Позже" else "Пропустить") { finish() }
                 Spacer(Modifier.weight(1f))
                 if (step > 0) { KButton("Назад") { step-- }; Spacer(Modifier.width(8.dp)) }
-                KButton(if (step == 2) "Готово" else "Далее", R.drawable.sl_right, BtnKind.Main) { if (step < 2) step++ else finish() }
+                if (step < 2) KButton("Далее", R.drawable.sl_right, BtnKind.Main) { step++ }
             }
         }
     }

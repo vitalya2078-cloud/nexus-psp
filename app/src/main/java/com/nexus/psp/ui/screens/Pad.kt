@@ -67,11 +67,11 @@ fun PadScreen() {
     var prev by rememberSaveable { mutableStateOf("touch") }
     val chips = when (S.ctlMode) {
         "classic" -> listOf("classic:ps2" to "PS1 / PS2", "classic:psp" to "PSP")
-        "touch" -> listOf("touch:ps2" to "Обычная", "foot" to "Пресет: пешком", "drive" to "Пресет: за рулём")
+        "touch" -> listOf("touch:psp" to "PSP", "touch:ps2" to "PS1 / PS2", "foot" to "Пример пресета: пешком", "drive" to "Пример: за рулём")
         else -> emptyList()
     }
     val pv = chips.firstOrNull { it.first == prev }?.first ?: chips.firstOrNull()?.first ?: ""
-    val bg: Game? = AppState.byId["rubezh"]
+    val bg: Game = com.nexus.psp.data.PREVIEW_GAME
     Full {
         OvHead("Экранный геймпад", actions = {
             KButton("Сбросить", small = true) { S.op = 55; S.sc = 100; S.ctlMode = "touch"; S.keyPos = "{}"; AppState.say("Раскладка сброшена") }
@@ -79,7 +79,7 @@ fun PadScreen() {
         Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             Column(Modifier.weight(1.6f)) {
                 Box(Modifier.fillMaxWidth().aspectRatio(844f / 390f).clip(RoundedCornerShape(18.dp)).border(1.dp, K.line, RoundedCornerShape(18.dp))) {
-                    if (bg != null) Cover(bg, 1600, 740, 11, Modifier.fillMaxSize())
+                    Cover(bg, 1600, 740, 11, Modifier.fillMaxSize())
                     if (S.ctlMode == "pad") Text("Экранные кнопки скрыты — играй на геймпаде", style = T.label.copy(color = androidx.compose.ui.graphics.Color(0xFFF2F1EC)), modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(16.dp)).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = .6f)).padding(12.dp))
                     else {
                         val lay = when { pv.startsWith("classic") -> "classic"; pv == "foot" || pv == "drive" -> pv; else -> "touch" }

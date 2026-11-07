@@ -79,8 +79,6 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     val title: String get() = boot.optString("name", "Игра")
     val platform: String get() = boot.optString("plat", "psp")
     val gameId: String get() = boot.optString("id")
-    /** Игра демо-каталога: ядро не запускается, экран нужен, чтобы опробовать управление и раскладки. */
-    val demo: Boolean get() = boot.optBoolean("demo", false)
     private var preset: List<String>? = null
     private var layName = ""
     private var tilt = false
@@ -144,11 +142,6 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         }, null)
 
         startedAt = System.currentTimeMillis()
-        if (demo) {
-            // без ядра: показываем фон-обложку и сразу даём управление
-            lifecycleScope.launch { delay(900); ui.phase = "ready"; updateControlsVisibility(); toast("Демо-игра каталога: проверь управление") }
-            return
-        }
         lifecycleScope.launch {
             val ok = withContext(Dispatchers.IO) { CoreFiles.ensureSystem(this@GameActivity) }
             if (!ok) { fail("Не удалось подготовить системные файлы PPSSPP"); return@launch }
@@ -240,7 +233,6 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     fun setPaused(p: Boolean) {
         if (ui.phase != "ready") return
-        if (demo) { ui.paused = p; controls.releaseAll(); updateControlsVisibility(); return }
         ui.paused = p
         controls.releaseAll()
         setCorePaused(p)
@@ -319,8 +311,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     override fun action(act: String) {
         when {
             act == "pause" -> setPaused(true)
-            act == "save" -> if (demo) toast("В демо-игре сохранений нет") else saveQuick()
-            act == "load" -> if (demo) toast("В демо-игре сохранений нет") else loadQuick()
+            act == "save" -> saveQuick()
+            act == "load" -> loadQuick()
             act == "ff" -> toggleFast()
             act == "tilt" -> { tilt = !tilt; controls.setToggle("tilt", tilt); toast(if (tilt) "Руль — наклоном телефона (скоро)" else "Руль — кнопками") }
             act == "swap" -> switchLayout(if (layName == "drive") "foot" else "drive")

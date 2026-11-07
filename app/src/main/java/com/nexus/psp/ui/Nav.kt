@@ -35,7 +35,6 @@ object Nav {
     var settingsTab by mutableStateOf("general")
 
     fun open(o: Ov) {
-        if (o is Ov.Downloads) AppState.readyIds.clear()
         if (stack.lastOrNull() == o) return
         // одинаковые панели не копятся: открытие уже открытого слоя поднимает его наверх
         stack.remove(o); stack.add(o)
@@ -50,11 +49,14 @@ object Nav {
 object Act {
     var view: View? = null
     var pickFile: (() -> Unit)? = null
+    var pickFolder: (() -> Unit)? = null
+    /** Скопировать найденные в папке игры по очереди. */
+    var importAll: ((List<com.nexus.psp.data.Found>) -> Unit)? = null
 
     fun buzz() { if (S.vib) view?.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) }
     fun buzzLong() { if (S.vib) view?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS) }
 
-    /** Играть: свой файл — в ядре; игра демо-каталога — экран игры без ядра (проверка управления и раскладок). */
+    /** Играть: образ запускается в ядре в отдельном процессе (GameActivity). */
     fun play(ctx: Context, id: String) {
         val g = AppState.byId[id] ?: return
         buzz()
@@ -64,14 +66,12 @@ object Act {
         val boot = JSONObject().put("id", id).put("name", g.t).put("plat", g.p).put("size", g.size)
             .put("s", JSONObject().put("ctlMode", S.ctlMode).put("op", S.op).put("sc", S.sc).put("mirror", S.mirror).put("vib", S.vib).put("hide", S.hide).put("fps", S.fps).put("keyPos", kp))
             .put("vars", vars)
-        if (g.real) boot.put("path", g.path) else boot.put("demo", true)
+        boot.put("path", g.path)
         GameActivity.start(ctx, boot.toString())
     }
 
-    fun addFile() {
-        val f = pickFile
-        if (f == null) AppState.say("Выбор файла недоступен") else f()
-    }
+    fun addFile() { pickFile?.invoke() ?: AppState.say("Выбор файла недоступен") }
+    fun findGames() { pickFolder?.invoke() ?: AppState.say("Выбор папки недоступен") }
 
     fun icon(name: String): Int = when (name) {
         "check" -> R.drawable.ph_check; "x" -> R.drawable.ph_x; "plus" -> R.drawable.ph_plus

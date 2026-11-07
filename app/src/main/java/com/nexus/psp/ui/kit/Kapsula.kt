@@ -28,6 +28,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.roundToInt
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -147,13 +152,13 @@ fun AssetImage(name: String, modifier: Modifier = Modifier, contentScale: Conten
 
 // ---------- взаимодействие ----------
 
-/** Нажимаемая поверхность с лёгким «проседанием», как .b:active в вебе. */
+/**
+ * Нажимаемая поверхность: мягкая подсветка ровно по форме элемента (рябь внутри уже заданной обрезки).
+ * Раньше здесь было уменьшение — оно сжимало только содержимое внутри фона и давало «двойную» кнопку.
+ */
 @Composable
-fun Modifier.press(enabled: Boolean = true, onClick: () -> Unit): Modifier {
-    val src = remember { MutableInteractionSource() }
-    val down by src.collectIsPressedAsState()
-    return this.scale(if (down && enabled) .965f else 1f).clickable(interactionSource = src, indication = null, enabled = enabled, onClick = onClick)
-}
+fun Modifier.press(enabled: Boolean = true, onClick: () -> Unit): Modifier =
+    this.clickable(interactionSource = remember { MutableInteractionSource() }, indication = ripple(color = K.ink), enabled = enabled, onClick = onClick)
 
 /** Клик без ряби (для подложек и строк). */
 @Composable
@@ -227,16 +232,46 @@ fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
     }
 }
 
-/** Ползунок с подписью значения (как .rng). */
+/**
+ * Ползунок KAPSULA: толстая скруглённая дорожка, заполненная часть — стальной синий,
+ * круглый бегунок слоновой кости. Тянуть и нажимать можно в любом месте дорожки.
+ */
 @Composable
 fun Range(value: Int, min: Int, max: Int, unit: String = "%", fill: Boolean = false, onChange: (Int) -> Unit) {
-    Row(if (fill) Modifier.fillMaxWidth() else Modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Slider(
-            value = value.toFloat(), onValueChange = { onChange(it.toInt()) }, valueRange = min.toFloat()..max.toFloat(),
-            modifier = if (fill) Modifier.weight(1f) else Modifier.width(200.dp),
-            colors = SliderDefaults.colors(thumbColor = K.acc, activeTrackColor = K.acc, inactiveTrackColor = K.s3),
-        )
-        Text("$value$unit", style = T.num, modifier = Modifier.width(48.dp))
+    Row(if (fill) Modifier.fillMaxWidth() else Modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        KSlider(value, min, max, if (fill) Modifier.weight(1f) else Modifier.width(200.dp), onChange)
+        Text("$value$unit", style = T.num, modifier = Modifier.width(46.dp))
+    }
+}
+
+@Composable
+fun KSlider(value: Int, min: Int, max: Int, modifier: Modifier = Modifier, onChange: (Int) -> Unit) {
+    val frac = ((value - min).toFloat() / (max - min).coerceAtLeast(1)).coerceIn(0f, 1f)
+    val acc = K.acc; val track = K.s3; val knob = Color(0xFFF2F1EC); val shadow = Color.Black.copy(alpha = .35f)
+    var dragging by remember { mutableStateOf(false) }
+    val r by animateDpAsState(if (dragging) 13.dp else 11.dp, label = "knob")
+    fun at(x: Float, w: Float, pad: Float) = (min + ((x - pad) / (w - 2 * pad)).coerceIn(0f, 1f) * (max - min)).roundToInt()
+    androidx.compose.foundation.Canvas(
+        modifier.height(32.dp)
+            .pointerInput(min, max) {
+                val pad = 13.dp.toPx()
+                detectTapGestures { onChange(at(it.x, size.width.toFloat(), pad)) }
+            }
+            .pointerInput(min, max) {
+                val pad = 13.dp.toPx()
+                detectHorizontalDragGestures(
+                    onDragStart = { dragging = true; onChange(at(it.x, size.width.toFloat(), pad)) },
+                    onDragEnd = { dragging = false }, onDragCancel = { dragging = false },
+                ) { ch, _ -> ch.consume(); onChange(at(ch.position.x, size.width.toFloat(), pad)) }
+            },
+    ) {
+        val pad = 13.dp.toPx(); val h = 6.dp.toPx(); val cy = size.height / 2
+        val x0 = pad; val x1 = size.width - pad; val x = x0 + (x1 - x0) * frac
+        drawRoundRect(track, androidx.compose.ui.geometry.Offset(x0 - h / 2, cy - h / 2), androidx.compose.ui.geometry.Size(x1 - x0 + h, h), androidx.compose.ui.geometry.CornerRadius(h / 2))
+        drawRoundRect(acc, androidx.compose.ui.geometry.Offset(x0 - h / 2, cy - h / 2), androidx.compose.ui.geometry.Size(x - x0 + h, h), androidx.compose.ui.geometry.CornerRadius(h / 2))
+        drawCircle(shadow, r.toPx() + 1.5f, androidx.compose.ui.geometry.Offset(x, cy + 1.5f))
+        drawCircle(knob, r.toPx(), androidx.compose.ui.geometry.Offset(x, cy))
+        drawCircle(acc, r.toPx() * .32f, androidx.compose.ui.geometry.Offset(x, cy))
     }
 }
 
@@ -290,8 +325,8 @@ fun StateCard(img: String?, title: String?, text: String, tint: Color? = null, a
         Column(Modifier.weight(1f)) {
             if (title != null) Text(title, style = T.label.copy(fontSize = 14.sp))
             Text(text, style = T.body.copy(fontSize = 13.sp, lineHeight = 19.sp))
+            if (action != null) Box(Modifier.padding(top = 10.dp)) { action() }
         }
-        action?.invoke()
     }
 }
 
