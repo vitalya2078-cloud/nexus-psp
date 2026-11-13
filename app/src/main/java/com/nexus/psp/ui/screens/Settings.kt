@@ -116,7 +116,7 @@ private fun Downloads() {
     Opt("Папка с играми", com.nexus.psp.emulator.CoreFiles.gamesDir(ctx).absolutePath.replace("/storage/emulated/0/", "")) { Text("своя папка — позже", style = T.small) }
     Opt("Добавить игру", "Файл ISO, CSO, CHD или PBP — скопируется в папку KAPSULA") { KButton("Выбрать файл", R.drawable.ph_plus, small = true) { com.nexus.psp.ui.Act.addFile() } }
     Opt("Найти игры на телефоне", "Выбери папку — KAPSULA найдёт все образы в ней и вложенных папках") { KButton("Выбрать папку", R.drawable.sl_search, small = true) { com.nexus.psp.ui.Act.findGames() } }
-    Opt("Обложки из интернета", "По серийному номеру диска, из открытой базы libretro. Сохраняются на телефоне") { Toggle(S.covers) { S.covers = it; if (it) AppState.byId.keys.forEach { id -> AppState.fetchMeta(id) } } }
+    Opt("Обложки из интернета", "По серийному номеру диска, из открытой базы обложек. Сохраняются на телефоне") { Toggle(S.covers) { S.covers = it; if (it) AppState.byId.keys.forEach { id -> AppState.fetchMeta(id) } } }
     Opt("Обложки только по Wi-Fi", "Одна обложка — до 1 МБ") { Toggle(S.coversWifi) { S.coversWifi = it } }
     Opt("Обновить обложки", "Поискать заново для всех игр") { KButton("Обновить", small = true) { AppState.byId.keys.forEach { id -> AppState.fetchMeta(id, force = true) } } }
     Opt("Память", "Игры KAPSULA ${com.nexus.psp.data.size(AppState.usedMb())} · свободно ${com.nexus.psp.data.size(AppState.freeMb())}") { }
@@ -158,12 +158,14 @@ private fun A11y() {
 private fun About() {
     val ctx = LocalContext.current
     val ver = try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { "" }
-    val core = try { ctx.assets.open("ppsspp/CORE.txt").bufferedReader().readText().trim() } catch (e: Exception) { "ядро не найдено в этой сборке" }
     Opt("KAPSULA", "Версия $ver · нативный интерфейс") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
-    Opt("Эмулятор PSP", "KAPSULA на ядре PPSSPP · $core") { }
-    Opt("PS1 и PS2", "Beetle PSX / PCSX-ReARMed и PCSX2 — будут подключены") { }
-    Opt("Лицензии", "PPSSPP (GPL-2.0+), LibretroDroid (GPL-3.0), значки Solar (CC BY 4.0) и Phosphor (MIT), шрифт Manrope (OFL)") { }
+    Opt("Эмулятор PSP", "Ядро KAPSULA") { }
+    Opt("PS1 и PS2", "Будут подключены следующими") { }
     Opt("Конфиденциальность", "Данные хранятся только на телефоне") { }
+    // авторы и тексты лицензий открытых компонентов — по условиям этих лицензий; на виду только нейтральная строка
+    var legal by remember { mutableStateOf(false) }
+    Opt("Правовая информация", null) { KButton("Открыть", small = true) { legal = true } }
+    if (legal) LegalDialog { legal = false }
     // последняя ошибка (если приложение или игра падали) — чтобы прислать разработчику
     var crash by remember { mutableStateOf(com.nexus.psp.data.CrashLog.last(ctx)) }
     crash?.let { f ->
@@ -282,4 +284,46 @@ private fun CoreSettings() {
         }
     }
     Text("Изменения применяются при следующем запуске игры.", style = T.small, modifier = Modifier.padding(top = 10.dp))
+}
+
+
+/** Правовая информация: компоненты с открытым исходным кодом, авторы, лицензии (полные тексты — из assets/licenses). */
+@Composable
+private fun LegalDialog(onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    var open by remember { mutableStateOf<String?>(null) }
+    val parts = listOf(
+        Triple("Ядро эмуляции PSP", "Основано на PPSSPP — Copyright © 2012– Henrik Rydgård and PPSSPP contributors. GNU GPL версии 2 или более поздней. Изменено командой KAPSULA.", "GPL-2.0.txt"),
+        Triple("Фронтенд libretro", "LibretroDroid — Copyright © Filippo Scognamiglio. GNU GPL версии 3.", "GPL-3.0.txt"),
+        Triple("Значки Solar", "© 480 Design. Creative Commons Attribution 4.0 (CC BY 4.0).", "LICENSE-solar.txt"),
+        Triple("Значки Phosphor", "© Phosphor Icons. MIT License.", "LICENSE-phosphor.txt"),
+        Triple("Шрифт Manrope", "© The Manrope Project Authors. SIL Open Font License 1.1.", "OFL-Manrope.txt"),
+    )
+    androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier.fillMaxWidth(.86f).fillMaxHeight(.9f).clip(RoundedCornerShape(22.dp)).background(K.s1).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(if (open == null) "Правовая информация" else open!!, style = T.h3, modifier = Modifier.weight(1f))
+                if (open != null) { KButton("Назад", small = true) { open = null }; androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp)) }
+                KButton(icon = R.drawable.ph_x, small = true) { onClose() }
+            }
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val f = open
+                if (f != null) {
+                    val txt = remember(f) { try { ctx.assets.open("licenses/$f").bufferedReader().readText() } catch (e: Exception) { "Текст лицензии не найден" } }
+                    Text(txt, style = T.small.copy(fontSize = 11.sp, lineHeight = 15.sp, color = K.ink2))
+                } else {
+                    Text("KAPSULA использует компоненты с открытым исходным кодом. Исходный код KAPSULA, включая изменения ядра: github.com/vitalya2078-cloud/nexus-psp", style = T.small.copy(color = K.ink2))
+                    parts.forEach { (t, d, file) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f).padding(end = 12.dp)) { Text(t, style = T.label); Text(d, style = T.small) }
+                            KButton("Текст", small = true) { open = file }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

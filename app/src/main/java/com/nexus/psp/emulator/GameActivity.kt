@@ -198,7 +198,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         startedAt = System.currentTimeMillis()
         lifecycleScope.launch {
             val ok = withContext(Dispatchers.IO) { CoreFiles.ensureSystem(this@GameActivity) }
-            if (!ok) { fail("Не удалось подготовить системные файлы PPSSPP"); return@launch }
+            if (!ok) { fail("Не удалось подготовить системные файлы эмулятора"); return@launch }
             ui.hasState = withContext(Dispatchers.IO) { stateFile(0).exists() }
             refreshSlots()
             startCore()
@@ -244,7 +244,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         lifecycleScope.launch {
             view.getGLRetroErrors().collect { code ->
                 fail(when (code) {
-                    GLRetroView.ERROR_LOAD_LIBRARY -> "Не удалось загрузить ядро PPSSPP"
+                    GLRetroView.ERROR_LOAD_LIBRARY -> "Не удалось загрузить ядро эмулятора"
                     GLRetroView.ERROR_LOAD_GAME -> "Ядро не смогло открыть этот файл"
                     GLRetroView.ERROR_GL_NOT_COMPATIBLE -> "Графика телефона не поддерживается ядром"
                     else -> "Ошибка ядра ($code)"
