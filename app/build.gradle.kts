@@ -7,6 +7,8 @@ plugins {
 android {
     namespace = "com.nexus.psp"
     compileSdk = 35
+    // NDK — чтобы при упаковке вырезать отладочную информацию из нативных библиотек (LibretroDroid собирается из исходников)
+    ndkVersion = "27.2.12479018"
 
     signingConfigs {
         create("nexusStable") {
@@ -21,8 +23,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 28
-        versionName = "0.21.0"
+        versionCode = 29
+        versionName = "0.22.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a") // ядро PPSSPP собрано только под 64-бит ARM
@@ -71,7 +73,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.core:core-splashscreen:1.0.1")
     // libretro-фронтенд (GPL-3.0): вывод картинки, звук, ввод, сохранения; ядро PPSSPP подключается как .so
-    implementation("com.github.Swordfish90:libretrodroid:0.14.0")
+    implementation(project(":libretrodroid"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

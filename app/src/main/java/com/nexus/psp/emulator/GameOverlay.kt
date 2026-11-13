@@ -735,6 +735,20 @@ private fun PresetsPanel(a: GameActivity, ui: GameActivity.UiState, ask: Boolean
                 else Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).press { close() }, contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_x, 18.dp) }
             }
             if (ask) Text("Подберу экранные кнопки под игру. Потом всё можно поменять: пауза → «Кнопки».", style = T.small)
+            if (!ask) {
+                Text("АВТОПЕРЕКЛЮЧЕНИЕ", style = T.caps, modifier = Modifier.padding(top = 4.dp))
+                val rule = a.autoRule()
+                Opt(
+                    if (rule != null) "Раскладка меняется сама" else "Научить автопереключение",
+                    if (rule != null) "Найдено адресов в памяти игры: ${a.autoFound()}" else "Играй и отмечай «Пешком / Транспорт…» по 2–3 раза — KAPSULA найдёт в памяти игры, где это хранится",
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (rule != null) { Toggle(ui.autoOn) { a.setAuto(it) }; KButton(icon = R.drawable.sl_trash, small = true) { a.resetAuto() } }
+                        KButton(if (rule != null) "Заново" else "Научить", kind = if (rule == null) BtnKind.Main else BtnKind.Soft, small = true, enabled = ui.layouts.size > 1) { a.startLearning() }
+                    }
+                }
+                if (ui.layouts.size < 2) Text("Нужно минимум 2 раскладки: примени жанр «Экшен» или добавь раскладку в редакторе.", style = T.small.copy(fontSize = 11.sp))
+            }
             if (!ask && a.hasBuiltin()) Opt("Для этой игры", "Готовая раскладка KAPSULA «${ui.builtin ?: a.title}»") { KButton("Применить", kind = BtnKind.Main, small = true) { a.applyBuiltin() } }
             Text("ЖАНРЫ", style = T.caps, modifier = Modifier.padding(top = 4.dp))
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -802,5 +816,24 @@ private fun ErrorScreen(msg: String, onExit: () -> Unit) {
         Box(Modifier.clip(RoundedCornerShape(22.dp)).background(K.ink).press(onClick = onExit).padding(horizontal = 22.dp, vertical = 12.dp)) {
             Text("Выйти", style = T.label.copy(color = K.bg))
         }
+    }
+}
+
+/** Плашка обучения автопереключения: висит над кнопками во время игры. */
+@Composable
+fun LearnBar(a: GameActivity, ui: GameActivity.UiState) {
+    if (!ui.learning) return
+    Row(
+        Modifier.padding(top = 10.dp).clip(RoundedCornerShape(22.dp)).background(Color.Black.copy(alpha = .8f)).border(1.dp, Color.White.copy(alpha = .15f), RoundedCornerShape(22.dp))
+            .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(if (ui.learnBusy) "Запоминаю…" else "Сейчас я:", style = T.label.copy(fontSize = 13.sp, color = Color(0xFFF2F1EC)))
+        ui.layouts.forEach { l ->
+            val n = ui.learnMarks[l.id] ?: 0
+            com.nexus.psp.ui.kit.Chip(if (n > 0) "${l.name} · $n" else l.name, l.id == ui.layId) { a.learnMark(l.id) }
+        }
+        KButton("Готово", icon = R.drawable.ph_check, kind = BtnKind.Main, small = true, enabled = !ui.learnBusy) { a.finishLearning() }
+        KButton(icon = R.drawable.ph_x, small = true) { a.cancelLearning() }
     }
 }

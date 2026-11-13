@@ -120,6 +120,11 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var texState by mutableStateOf("")
         var netMode by mutableStateOf("off")
         var netIp by mutableStateOf("")
+        // автопереключение раскладок по памяти игры
+        var learning by mutableStateOf(false)
+        var learnMarks by mutableStateOf<Map<String, Int>>(emptyMap())
+        var learnBusy by mutableStateOf(false)
+        var autoOn by mutableStateOf(false)
     }
 
     data class Slot(val i: Int, val exists: Boolean, val time: Long, val thumb: File?)
@@ -184,6 +189,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         gx = s.optJSONObject("gx") ?: JSONObject()
         ui.cheatsOn = gx.optJSONObject("cheatsOn")?.let { o -> o.keys().asSequence().filter { o.optBoolean(it) }.toSet() } ?: emptySet()
         gx.optJSONObject("net")?.let { ui.netMode = it.optString("mode", "off"); ui.netIp = it.optString("ip") }
+        ui.autoOn = gx.optJSONObject("auto")?.optBoolean("on") == true
         ui.scopeGame = boot.optBoolean("own", false)
         ui.volume = audioVolume()
         boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> vars.put(k, o.get(k)) } }
@@ -200,6 +206,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         hideWithPad = s.optBoolean("hide", true)
         val mode = s.optString("ctlMode", "touch")
         root.addView(controls, full)
+        // плашка обучения автопереключения — над кнопками, чтобы её можно было нажимать во время игры
+        root.addView(ComposeView(this).apply { setContent { KapsulaTheme { LearnBar(this@GameActivity, ui) } } },
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL))
 
         // вырез камеры: кнопки отступают от него
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, ins ->
@@ -257,6 +266,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                         ui.phase = "ready"; updateControlsVisibility()
                         ui.builtin?.let { toast("Кнопки настроены под «$it» · изменить: пауза → «Кнопки»") }
                         maybeAskGenre()
+                        startAutoPoll()
                         // включённые читы этой игры — сразу после запуска
                         if (ui.cheatsOn.isNotEmpty()) lifecycleScope.launch {
                             val l = withContext(Dispatchers.IO) { (serial?.takeIf { CheatDb.ready(this@GameActivity) }?.let { CheatDb.forGame(this@GameActivity, it) } ?: emptyList()) + ownCheats() }
@@ -848,6 +858,64 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun setTexturesOn(on: Boolean) { gx.put("tex", on); saveGx(); ui.restartNeeded = true; ui.tick++ }
     fun texOn() = gx.optBoolean("tex")
     fun removeTextures() { serial?.let { Textures.remove(this, it) }; gx.put("tex", false); saveGx(); ui.texState = "Набор удалён"; ui.restartNeeded = true; ui.tick++ }
+
+    // ---------- автопереключение раскладок по памяти игры ----------
+    private var learner: AutoSwitch.Learner? = null
+    private var autoJob: kotlinx.coroutines.Job? = null
+
+    fun autoRule(): JSONObject? = gx.optJSONObject("auto")
+    fun autoFound(): Int = autoRule()?.optInt("found") ?: 0
+
+    private fun startAutoPoll() {
+        autoJob?.cancel()
+        autoJob = lifecycleScope.launch {
+            while (true) {
+                delay(350)
+                val r = autoRule() ?: continue
+                if (!r.optBoolean("on") || ui.paused || ui.editing || ui.learning || holdFrom != null || ui.ctlMode != "touch" || ui.phase != "ready") continue
+                val lay = withContext(Dispatchers.Default) { try { AutoSwitch.detect(r) } catch (e: Throwable) { null } } ?: continue
+                if (lay != layName && specOf(lay) != null) { applyLayout(lay); controls.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK) }
+            }
+        }
+    }
+
+    /** Обучение: игрок отмечает, в какой раскладке он сейчас; нужно 2+ отметки каждой из 2+ раскладок. */
+    fun startLearning() {
+        if (lays.size < 2) { toast("Сначала нужно 2 раскладки — например «Пешком» и «Транспорт»"); return }
+        if (!AutoSwitch.ramReady()) { toast("Память игры ещё не готова — подожди пару секунд после запуска"); return }
+        learner = AutoSwitch.Learner(); ui.learnMarks = emptyMap(); ui.learning = true
+        ui.presets = false; ui.settings = false; ui.editing = false; controls.editMode = false
+        setPaused(false); updateControlsVisibility()
+        toast("Играй и отмечай, где ты: по 2–3 раза каждую раскладку")
+    }
+
+    fun learnMark(lay: String) {
+        val l = learner ?: return
+        if (ui.learnBusy) return
+        ui.learnBusy = true
+        lifecycleScope.launch {
+            val ok = withContext(Dispatchers.Default) { try { l.mark(lay) } catch (e: Throwable) { Log.w(TAG, "learn", e); false } }
+            ui.learnBusy = false
+            if (!ok) { toast("Не удалось прочитать память игры"); return@launch }
+            ui.learnMarks = HashMap(l.marks)
+            if (lay != layName) applyLayout(lay)
+            toast("Отмечено: ${specOf(lay)?.name ?: lay} · ${l.marks[lay]}")
+        }
+    }
+
+    fun finishLearning() {
+        val l = learner ?: return
+        lifecycleScope.launch {
+            val r = withContext(Dispatchers.Default) { l.result() }
+            if (r == null) { toast("Пока не получилось: нужно по 2+ отметки каждой раскладки, сделанные в разных местах игры"); return@launch }
+            gx.put("auto", r); saveGx(); ui.autoOn = true; ui.learning = false; learner = null
+            toast("Готово: раскладки будут переключаться сами (адресов: ${r.optInt("found")})")
+        }
+    }
+
+    fun cancelLearning() { ui.learning = false; learner = null }
+    fun setAuto(on: Boolean) { autoRule()?.put("on", on); saveGx(); ui.autoOn = on }
+    fun resetAuto() { gx.remove("auto"); saveGx(); ui.autoOn = false; toast("Автопереключение сброшено") }
 
     // игра по сети
     fun openNet() { ui.netOpen = true; updateControlsVisibility() }
