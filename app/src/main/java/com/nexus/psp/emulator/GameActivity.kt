@@ -123,6 +123,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.nexus.psp.data.CrashLog.install(applicationContext, "game")
         boot = try { JSONObject(intent.getStringExtra(EXTRA_BOOT) ?: "{}") } catch (e: Exception) { JSONObject() }
         val s = boot.optJSONObject("s") ?: JSONObject()
 
@@ -134,6 +135,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         hideSystemBars()
+        // системный скриншот не опрашивает окно игры для «длинного скриншота»
+        if (Build.VERSION.SDK_INT >= 31) window.decorView.scrollCaptureHint = View.SCROLL_CAPTURE_HINT_EXCLUDE_DESCENDANTS
 
         root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         setContentView(root)
@@ -691,9 +694,14 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        // потеря фокуса — это ещё и шторка уведомлений и системный скриншот: пауза ставится только при настоящем уходе (onPause)
         if (hasFocus) hideSystemBars()
-        // свернули приложение посреди игры — открываем меню паузы
-        else if (ui.phase == "ready" && !ui.paused && !isFinishing) setPaused(true)
+    }
+
+    override fun onPause() {
+        // свернули игру — открываем меню паузы
+        if (ui.phase == "ready" && !ui.paused && !isFinishing) try { setPaused(true) } catch (e: Exception) { Log.w(TAG, "pause", e) }
+        super.onPause()
     }
 
     /** Итог сессии для главного процесса: минуты в игре и новые сохранения. */

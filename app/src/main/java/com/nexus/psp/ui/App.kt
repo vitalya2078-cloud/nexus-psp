@@ -67,7 +67,11 @@ import com.nexus.psp.ui.screens.StoreScreen
 import kotlinx.coroutines.delay
 
 /** Фоновый оттенок под выбранную игру (п. 25). */
-object Ambient { var color by mutableStateOf(Color.Transparent) }
+object Ambient {
+    var color by mutableStateOf(Color.Transparent)
+    /** Игра в фокусе карусели: её фон рисуется на весь экран, под шапкой тоже. */
+    var game by mutableStateOf<com.nexus.psp.data.Game?>(null)
+}
 
 @Composable
 fun KapsulaApp() {
@@ -80,6 +84,12 @@ fun KapsulaApp() {
             .drawBehind { if (tint.alpha > 0f) drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = if (K.dark) .22f else .1f), Color.Transparent), Offset(size.width * .7f, size.height * .2f), size.maxDimension * .7f), size.maxDimension, Offset(size.width * .7f, size.height * .2f)) }
             .graphicsLayer { if (bright < 1f) alpha = 1f },
     ) {
+        // фон игры — до краёв экрана (без отступа под вырез камеры) и под шапкой: нет «полки» и тёмной полосы слева
+        if (Nav.tab == "games" && Ambient.game != null) {
+            GameBackdrop(Ambient.game, Modifier.fillMaxSize(), strength = .55f)
+            // мягкое затемнение сверху: шапка читается на любом фоне и получает глубину
+            Box(Modifier.fillMaxWidth().height(150.dp).background(Brush.verticalGradient(listOf(K.bg.copy(alpha = .82f), K.bg.copy(alpha = .35f), Color.Transparent))))
+        }
         Column(Modifier.fillMaxSize()) {
             Header()
             AnimatedContent(Nav.tab, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "tab", modifier = Modifier.weight(1f)) { t ->

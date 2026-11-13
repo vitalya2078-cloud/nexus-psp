@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.background
@@ -158,13 +159,24 @@ private val files = object : LruCache<String, ImageBitmap>(24 * 1024 * 1024) {
 
 /** Картинка из файла (обложка, фон из образа) с кэшем по пути и времени изменения. */
 @Composable
-fun FileImage(f: java.io.File, modifier: Modifier = Modifier, alpha: Float = 1f) {
-    val key = f.path + ":" + f.lastModified()
-    val img = remember(key) {
-        files.get(key) ?: try { android.graphics.BitmapFactory.decodeFile(f.path)?.asImageBitmap()?.also { files.put(key, it) } } catch (e: Exception) { null }
-    } ?: return
-    Image(img, null, modifier, contentScale = ContentScale.Crop, alpha = alpha)
+fun FileImage(f: java.io.File, modifier: Modifier = Modifier, alpha: Float = 1f, maxDim: Int = 720) {
+    // декодирование — в фоновом потоке и сразу в нужном размере: прокрутка не ждёт чтения файла
+    val key = f.path + ":" + f.lastModified() + ":" + maxDim
+    val img by androidx.compose.runtime.produceState(files.get(key), key) {
+        if (value == null) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { decodeSampled(f, maxDim) }?.also { files.put(key, it) }
+    }
+    val b = img ?: return
+    Image(b, null, modifier, contentScale = ContentScale.Crop, alpha = alpha)
 }
+
+/** Картинка, уменьшенная при чтении (inSampleSize) до стороны не меньше maxDim. */
+private fun decodeSampled(f: java.io.File, maxDim: Int): ImageBitmap? = try {
+    val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    android.graphics.BitmapFactory.decodeFile(f.path, o)
+    var s = 1
+    while (maxOf(o.outWidth, o.outHeight) / (s * 2) >= maxDim) s *= 2
+    android.graphics.BitmapFactory.decodeFile(f.path, android.graphics.BitmapFactory.Options().apply { inSampleSize = s })?.asImageBitmap()
+} catch (e: Exception) { null }
 
 /**
  * Фон игры во весь экран: картинка из образа → титульный экран → скриншот (с лёгким размытием и затемнением,
@@ -174,11 +186,12 @@ fun FileImage(f: java.io.File, modifier: Modifier = Modifier, alpha: Float = 1f)
 fun GameBackdrop(g: Game?, modifier: Modifier = Modifier, strength: Float = .5f, fadeLeft: Boolean = true) {
     val m = g?.let { com.nexus.psp.data.AppState.meta[it.id] }
     val key = m?.backdrop?.path ?: ("c:" + (m?.color ?: 0))
-    androidx.compose.animation.Crossfade(key, modifier, animationSpec = androidx.compose.animation.core.tween(600), label = "backdrop") { k ->
+    androidx.compose.animation.Crossfade(key, modifier, animationSpec = androidx.compose.animation.core.tween(380), label = "backdrop") { k ->
         val bg = com.nexus.psp.ui.kit.K.bg
         androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
             if (!k.startsWith("c:")) {
-                FileImage(java.io.File(k), androidx.compose.ui.Modifier.fillMaxSize().blur(4.dp), alpha = strength)
+                // размытие без эффекта на каждом кадре: маленькая копия (до 200 px), растянутая на экран, сама выглядит мягкой
+                FileImage(java.io.File(k), androidx.compose.ui.Modifier.fillMaxSize(), alpha = strength, maxDim = 200)
             } else {
                 val c = m?.color?.let { androidx.compose.ui.graphics.Color(it) } ?: g?.let { androidx.compose.ui.graphics.Color(it.pal[2]) }
                 if (c != null) androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().background(

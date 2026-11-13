@@ -149,12 +149,14 @@ class MainActivity : ComponentActivity() {
         // системная заставка Android 12+ невидима; показывается фирменная заставка интерфейса
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        com.nexus.psp.data.CrashLog.install(applicationContext, "main")
         AppState.init(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply { layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES }
         }
         hideSystemBars()
+        noScrollCapture()
         Act.view = window.decorView
         Act.pickFile = { pickGame.launch(arrayOf("*/*")) }
         Act.pickFolder = { pickTree.launch(null) }
@@ -194,6 +196,14 @@ class MainActivity : ComponentActivity() {
                 override fun onLost(network: Network) { runOnUiThread { AppState.online = false; AppState.say("Нет интернета — играть можно в установленные") } }
             })
         } catch (e: Exception) { }
+    }
+
+    /**
+     * Системный скриншот (Android 12+) опрашивает окно для «длинного скриншота». Интерфейс — альбомный и без длинных
+     * прокручиваемых страниц, поэтому окно исключено из этого опроса: скриншот снимается как обычный кадр.
+     */
+    private fun noScrollCapture() {
+        if (Build.VERSION.SDK_INT >= 31) window.decorView.scrollCaptureHint = android.view.View.SCROLL_CAPTURE_HINT_EXCLUDE_DESCENDANTS
     }
 
     private fun hideSystemBars() {

@@ -164,6 +164,21 @@ private fun About() {
     Opt("PS1 и PS2", "Beetle PSX / PCSX-ReARMed и PCSX2 — будут подключены") { }
     Opt("Лицензии", "PPSSPP (GPL-2.0+), LibretroDroid (GPL-3.0), значки Solar (CC BY 4.0) и Phosphor (MIT), шрифт Manrope (OFL)") { }
     Opt("Конфиденциальность", "Данные хранятся только на телефоне") { }
+    // последняя ошибка (если приложение или игра падали) — чтобы прислать разработчику
+    var crash by remember { mutableStateOf(com.nexus.psp.data.CrashLog.last(ctx)) }
+    crash?.let { f ->
+        val head = remember(f) { try { f.readLines().take(3).joinToString(" · ") { it.trim() }.take(140) } catch (e: Exception) { "" } }
+        Opt("Последняя ошибка", head) {
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                KButton("Скопировать", small = true) {
+                    val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
+                    cm?.setPrimaryClip(android.content.ClipData.newPlainText("KAPSULA", try { f.readText() } catch (e: Exception) { "" }))
+                    AppState.say("Текст ошибки скопирован")
+                }
+                KButton("Очистить", small = true) { com.nexus.psp.data.CrashLog.clear(ctx); crash = null }
+            }
+        }
+    }
 }
 
 // ---------- ядро PSP ----------

@@ -110,12 +110,14 @@ private fun Carousel(list: List<Game>) {
     }
     val fg = list.getOrNull(focus.coerceAtMost(list.lastIndex))
     LaunchedEffect(fg?.id) { fg?.let { Ambient.color = AppState.meta[it.id]?.color?.let { c -> Color(c) } ?: Color(it.pal[2]); Act.buzz() } }
-    // фон игры в фокусе — плавно меняется при перелистывании карусели
+    // фон игры в фокусе рисуется на весь экран (KapsulaApp) и плавно меняется при перелистывании
+    LaunchedEffect(fg?.id) { Ambient.game = fg }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { Ambient.game = null } }
     Box(Modifier.fillMaxSize()) {
-    com.nexus.psp.ui.GameBackdrop(fg, Modifier.fillMaxSize(), strength = .55f)
     Column(Modifier.fillMaxSize()) {
-        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
-            val h = maxHeight * .92f
+        // воздух между рядом фильтров и обложками
+        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(top = 16.dp, bottom = 4.dp)) {
+            val h = maxHeight * .94f
             val w = h * .75f
             val side = (maxWidth - w) / 2
             LazyRow(
