@@ -128,6 +128,13 @@ private fun Controls() {
         KButton("Настроить", kind = com.nexus.psp.ui.kit.BtnKind.Main, small = true) { Nav.open(Ov.Pad) }
     }
     Opt("Скрывать кнопки", "Когда подключён геймпад") { Toggle(S.hide) { S.hide = it } }
+    CoreRows(CoreOptions.INPUT)
+    Opt("Ускорение", "Во сколько раз быстрее при включённом ускорении") {
+        Seg(listOf("×2", "×3", "×4"), ((S.fastLevel.toIntOrNull() ?: 2) - 2).coerceIn(0, 2), small = true) { S.fastLevel = (it + 2).toString() }
+    }
+    Opt("Чувствительность руля наклоном", "Руль наклоном включается в игре: пауза → Настройки → Управление") {
+        com.nexus.psp.ui.kit.Range(S.tiltSens.toIntOrNull() ?: 100, 50, 200, fill = false) { S.tiltSens = it.toString() }
+    }
     Opt("Физический геймпад", "Кнопки передаются в ядро напрямую; «Mode» — меню паузы") { Text("автоматически", style = T.small) }
 }
 
@@ -277,7 +284,13 @@ private fun CoreSettings() {
         Text("для всех игр PSP", style = T.small)
     }
     when (sec) {
-        0 -> CoreQuality()
+        0 -> {
+            val f = listOf("default" to "Обычный", "smooth" to "Сглаживание", "pixel" to "Пиксели", "lcd" to "ЖК", "crt" to "ЭЛТ")
+            Opt("Фильтр картинки", "Для всех игр; в игре можно поменять на лету: пауза → Настройки") {
+                Seg(f.map { it.second }, f.indexOfFirst { it.first == S.shader }.coerceAtLeast(0), small = true) { S.shader = f[it].first }
+            }
+            CoreQuality()
+        }
         1 -> CoreRows(CoreOptions.SPEED)
         2 -> CoreRows(CoreOptions.SYSTEM)
         else -> {

@@ -104,6 +104,8 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     fun roleOf(b: Btn): String? = when (val r = roles[keyOf(b)]) { null -> b.to?.let { (if (b.hold) "hold:" else "switch:") + it }; "none" -> null; else -> r }
     fun isHidden(b: Btn) = keyOf(b) in hidden
     fun current(): List<Btn> = buttons
+    /** Палец на экранном стике — наклон телефона не перебивает его. */
+    fun stickBusy() = touches.values.any { buttons.getOrNull(it.idx)?.stick != null && !buttons[it.idx].right }
 
     /** Векторный значок res/drawable/ctl_<имя>.xml. */
     private fun icon(name: String): Drawable? = icons.getOrPut(name) {

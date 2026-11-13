@@ -93,6 +93,10 @@ class Settings(private val sp: SharedPreferences) {
     var extraBtns by s("extraBtns", "{}")
     /** Мгновенное продолжение: «Играть» возвращает туда, где вышел. */
     var autoResume by b("autoResume", true)
+    /** Фильтр картинки (default/smooth/pixel/lcd/crt), уровень ускорения (2–4), чувствительность руля наклоном, %. */
+    var shader by s("shader", "default")
+    var fastLevel by s("fastLevel", "2")
+    var tiltSens by s("tiltSens", "100")
 }
 
 object AppState {
@@ -264,6 +268,9 @@ object AppState {
             o.optJSONObject("keyIcon")?.let { v -> S.keyIcon = v.toString() }
             o.optJSONObject("keyTurbo")?.let { v -> S.keyTurbo = v.toString() }
             o.optJSONObject("extraBtns")?.let { v -> S.extraBtns = v.toString() }
+            if (o.has("shader")) S.shader = o.optString("shader")
+            if (o.has("fastLevel")) S.fastLevel = o.optInt("fastLevel", 2).toString()
+            if (o.has("tiltSens")) S.tiltSens = o.optInt("tiltSens", 100).toString()
         } catch (e: Exception) { }
         f.delete()
     }

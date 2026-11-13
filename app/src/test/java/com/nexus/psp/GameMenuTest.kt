@@ -58,6 +58,14 @@ class GameMenuTest {
         shot(a, "p07_presets")
         ui.presets = false; ui.genreAsk = true
         shot(a, "p08_genre_ask")
+        ui.genreAsk = false; ui.editing = false; ui.cheatState = "nodb"; ui.cheatsOpen = true
+        shot(a, "p09_cheats")
+        ui.cheatsOpen = false; ui.netOpen = true
+        shot(a, "p10_net")
+        ui.netOpen = false; ui.texOpen = true
+        shot(a, "p11_textures")
+        ui.texOpen = false; ui.settings = false
+        shot(a, "p12_pause_links")
         c.pause().stop().destroy()
     }
 }

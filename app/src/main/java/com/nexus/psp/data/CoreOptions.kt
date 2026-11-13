@@ -44,7 +44,12 @@ object CoreOptions {
         CoreOpt("ppsspp_skip_buffer_effects", "Пропускать эффекты буфера", "Быстрее, но могут пропасть тени и размытие", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("ppsspp_software_rendering", "Программная отрисовка", "Максимальная точность, очень медленно", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
     )
-    val ALL = QUALITY + SPEED + SYSTEM + EXPERT
+    /** Стик: мёртвая зона и чувствительность (применяются на лету). */
+    val INPUT = listOf(
+        CoreOpt("ppsspp_analog_deadzone", "Мёртвая зона стика", "Сколько можно сдвинуть стик, прежде чем игра заметит движение", listOf("0.0", "0.05", "0.10", "0.15", "0.25"), listOf("0", "5%", "10%", "15%", "25%"), "0.0"),
+        CoreOpt("ppsspp_analog_sensitivity", "Чувствительность стика", "Насколько резко персонаж или машина отзываются на стик", listOf("1.00", "1.10", "1.25", "1.50"), listOf("×1", "×1,1", "×1,25", "×1,5"), "1.00"),
+    )
+    val ALL = QUALITY + SPEED + SYSTEM + EXPERT + INPUT
     fun byKey(k: String) = ALL.firstOrNull { it.key == k }
 }
 

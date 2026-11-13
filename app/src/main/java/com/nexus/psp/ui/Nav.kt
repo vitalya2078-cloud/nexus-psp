@@ -83,11 +83,17 @@ object Act {
         val kx = own.optJSONObject("extraBtns") ?: try { JSONObject(S.extraBtns) } catch (e: Exception) { JSONObject() }
         val s = JSONObject().put("ctlMode", own.optString("ctlMode", S.ctlMode)).put("op", own.optInt("op", S.op)).put("sc", own.optInt("sc", S.sc))
             .put("mirror", own.optBoolean("mirror", S.mirror)).put("vib", S.vib).put("hide", S.hide).put("resume", S.autoResume).put("fps", own.optBoolean("fps", S.fps)).put("keyPos", kp).put("keyIcon", ki).put("keyTurbo", kt).put("extraBtns", kx)
+            .put("shader", own.optString("shader", S.shader)).put("fastLevel", own.optInt("fastLevel", S.fastLevel.toIntOrNull() ?: 2))
+            .put("tiltSens", own.optInt("tiltSens", S.tiltSens.toIntOrNull() ?: 100))
         val boot = JSONObject().put("id", id).put("name", g.t).put("plat", g.p).put("size", g.size).put("path", g.path).put("s", s).put("vars", vars)
             .put("own", own.optBoolean("own", false)).put("preset", if (own.optBoolean("own")) own.optString("preset", "custom") else S.corePreset)
         AppState.meta[id]?.backdrop?.let { boot.put("bg", it.path) }
         // кнопки этой игры (раскладки, роли, назначения) — всегда свои у игры; название из базы дисков — для встроенных пресетов
-        com.nexus.psp.data.GameConfig(ctx, id).read().optJSONObject("ctl")?.let { s.put("ctl", it) }
+        val gcfg = com.nexus.psp.data.GameConfig(ctx, id).read()
+        gcfg.optJSONObject("ctl")?.let { s.put("ctl", it) }
+        // допы игры: читы, HD-текстуры, игра по сети; код диска — для читов и текстур
+        gcfg.optJSONObject("gx")?.let { s.put("gx", it) }
+        AppState.meta[id]?.serial?.let { boot.put("serial", it) }
         AppState.meta[id]?.title?.let { boot.put("title2", it) }
         if (slot >= 0) boot.put("loadSlot", slot)
         return boot

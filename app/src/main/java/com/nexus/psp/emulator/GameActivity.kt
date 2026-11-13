@@ -104,6 +104,22 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var builtin by mutableStateOf<String?>(null)
         var presets by mutableStateOf(false)
         var genreAsk by mutableStateOf(false)
+        // фильтр картинки, уровень ускорения, руль наклоном
+        var shader by mutableStateOf("default")
+        var fastLevel by mutableStateOf(2)
+        var tilt by mutableStateOf(false)
+        var tiltSens by mutableStateOf(100)
+        // экраны «Читы», «HD-текстуры», «Игра по сети»
+        var cheatsOpen by mutableStateOf(false)
+        var texOpen by mutableStateOf(false)
+        var netOpen by mutableStateOf(false)
+        var cheats by mutableStateOf<List<Cheat>>(emptyList())
+        var cheatsOn by mutableStateOf<Set<String>>(emptySet())
+        /** idle | noserial | nodb | load | dl:<0..100> | ready | fail */
+        var cheatState by mutableStateOf("idle")
+        var texState by mutableStateOf("")
+        var netMode by mutableStateOf("off")
+        var netIp by mutableStateOf("")
     }
 
     data class Slot(val i: Int, val exists: Boolean, val time: Long, val thumb: File?)
@@ -164,6 +180,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         ui.ctlMode = s.optString("ctlMode", "touch"); ui.op = s.optInt("op", 55); ui.sc = s.optInt("sc", 100); ui.mirror = s.optBoolean("mirror", false)
         ui.showFps = s.optBoolean("fps", false)
         presetName = boot.optString("preset", "")
+        ui.shader = s.optString("shader", "default"); ui.fastLevel = s.optInt("fastLevel", 2).coerceIn(2, 4); ui.tiltSens = s.optInt("tiltSens", 100)
+        gx = s.optJSONObject("gx") ?: JSONObject()
+        ui.cheatsOn = gx.optJSONObject("cheatsOn")?.let { o -> o.keys().asSequence().filter { o.optBoolean(it) }.toSet() } ?: emptySet()
+        gx.optJSONObject("net")?.let { ui.netMode = it.optString("mode", "off"); ui.netIp = it.optString("ip") }
         ui.scopeGame = boot.optBoolean("own", false)
         ui.volume = audioVolume()
         boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> vars.put(k, o.get(k)) } }
@@ -217,7 +237,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             systemDirectory = CoreFiles.systemDir(this@GameActivity).absolutePath
             savesDirectory = CoreFiles.savesDir(this@GameActivity).absolutePath
             variables = coreVariables()
-            shader = ShaderConfig.Default
+            shader = shaderOf(boot.optJSONObject("s")?.optString("shader", "default") ?: "default")
             preferLowLatencyAudio = true
             rumbleEventsEnabled = false
         }
@@ -237,6 +257,11 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                         ui.phase = "ready"; updateControlsVisibility()
                         ui.builtin?.let { toast("Кнопки настроены под «$it» · изменить: пауза → «Кнопки»") }
                         maybeAskGenre()
+                        // включённые читы этой игры — сразу после запуска
+                        if (ui.cheatsOn.isNotEmpty()) lifecycleScope.launch {
+                            val l = withContext(Dispatchers.IO) { (serial?.takeIf { CheatDb.ready(this@GameActivity) }?.let { CheatDb.forGame(this@GameActivity, it) } ?: emptyList()) + ownCheats() }
+                            ui.cheats = l; delay(1500); pushCheats()
+                        }
                         // «Продолжить с этого места» или возврат после незаметного перезапуска
                         val slot = boot.optInt("loadSlot", -1)
                         if (slot >= 0) { boot.remove("loadSlot"); lifecycleScope.launch { delay(300); loadSlot(slot, backup = slot == 4, quiet = slot == 8 || slot == 4); if (slot == 4) toast("Продолжаем с места выхода · начать сначала — «Отменить загрузку» в паузе") } }
@@ -267,6 +292,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             "ppsspp_frame_duplication" to "enabled",
         )
         boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> if (k.startsWith("ppsspp_")) v[k] = o.optString(k) } }
+        // читы включаются на лету (retro_cheat_set) — движок читов должен работать с запуска
+        if (!v.containsKey("ppsspp_cheats")) v["ppsspp_cheats"] = "enabled"
+        // HD-текстуры этой игры
+        if (gx.optBoolean("tex") && serial != null) v["ppsspp_texture_replacement"] = "enabled"
+        // игра по сети
+        gx.optJSONObject("net")?.let { n -> v.putAll(NetPlay.vars(n.optString("mode"), n.optString("ip"), NetPlay.mac(this))) }
         return v.map { Variable(it.key, it.value) }.toTypedArray()
     }
 
@@ -489,6 +520,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             ui.phase == "error" -> finish()
             ui.picking != null -> closePicker()
             ui.genreAsk -> answerGenre(null)
+            ui.cheatsOpen -> closeCheats()
+            ui.texOpen -> closeTextures()
+            ui.netOpen -> closeNet()
             ui.presets -> closePresets()
             ui.editing -> stopEditing()
             ui.settings -> ui.settings = false
@@ -502,7 +536,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     private fun updateControlsVisibility() {
-        if (ui.picking != null || ui.adding || ui.presets || ui.genreAsk) { controls.visibility = View.GONE; return }
+        if (ui.picking != null || ui.adding || ui.presets || ui.genreAsk || ui.cheatsOpen || ui.texOpen || ui.netOpen) { controls.visibility = View.GONE; return }
         if (ui.editing) { controls.visibility = View.VISIBLE; return }
         val show = ui.phase == "ready" && !ui.paused && ui.ctlMode != "pad" && !(hideWithPad && padConnected())
         controls.visibility = if (show) View.VISIBLE else View.GONE
@@ -696,10 +730,135 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         val b = try { running { retro?.serializeState() } } catch (e: Exception) { null }
         if (b != null && b.isNotEmpty()) withContext(Dispatchers.IO) { stateFile(8).writeBytes(b) }
         val nb = JSONObject(boot.toString()).put("vars", JSONObject(vars.toString()))
-        nb.optJSONObject("s")?.let { s -> s.put("ctlMode", ui.ctlMode).put("op", ui.op).put("sc", ui.sc).put("mirror", ui.mirror).put("fps", ui.showFps) }
+        nb.optJSONObject("s")?.let { s ->
+            s.put("ctlMode", ui.ctlMode).put("op", ui.op).put("sc", ui.sc).put("mirror", ui.mirror).put("fps", ui.showFps)
+                .put("shader", ui.shader).put("fastLevel", ui.fastLevel).put("tiltSens", ui.tiltSens).put("gx", JSONObject(gx.toString()))
+            if (ctlOwn) s.put("ctl", ctlSnapshot())
+        }
         if (b != null) nb.put("loadSlot", 8)
         withContext(Dispatchers.IO) { File(filesDir, "relaunch.json").writeText(nb.toString()) }
         finish()
+    }
+
+    // ---------- фильтр картинки, ускорение, руль наклоном ----------
+    private fun shaderOf(n: String): ShaderConfig = when (n) {
+        "smooth" -> ShaderConfig.CUT(); "pixel" -> ShaderConfig.Sharp; "lcd" -> ShaderConfig.LCD; "crt" -> ShaderConfig.CRT; else -> ShaderConfig.Default
+    }
+    fun setShader(n: String) { ui.shader = n; retro?.shader = shaderOf(n); persist { it.put("shader", n) } }
+    fun setFastLevel(n: Int) { ui.fastLevel = n; if (ui.fast) retro?.frameSpeed = n; persist { it.put("fastLevel", n) } }
+    fun setTiltSens(n: Int) { ui.tiltSens = n; persist { it.put("tiltSens", n) } }
+
+    private var tiltZero = Float.NaN
+    private val tiltListener = object : android.hardware.SensorEventListener {
+        override fun onSensorChanged(e: android.hardware.SensorEvent) {
+            // альбомная ориентация: наклон «руля» — ось Y акселерометра (знак зависит от того, какой стороной повёрнут телефон)
+            val rot = display?.rotation ?: android.view.Surface.ROTATION_90
+            val raw = e.values[1] * (if (rot == android.view.Surface.ROTATION_270) -1f else 1f)
+            if (tiltZero.isNaN()) tiltZero = raw
+            val x = ((raw - tiltZero) / 4.5f * ui.tiltSens / 100f).coerceIn(-1f, 1f)
+            if (!controls.stickBusy()) stick(false, x, 0f)
+        }
+        override fun onAccuracyChanged(s: android.hardware.Sensor?, a: Int) {}
+    }
+    /** Руль наклоном: телефон — как руль, текущее положение — «прямо». */
+    fun setTilt(on: Boolean) {
+        val sm = getSystemService(android.hardware.SensorManager::class.java)
+        val acc = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+        if (on && acc == null) { toast("В телефоне нет датчика наклона"); return }
+        tilt = on; ui.tilt = on; controls.setToggle("tilt", on)
+        if (on) { tiltZero = Float.NaN; sm?.registerListener(tiltListener, acc, android.hardware.SensorManager.SENSOR_DELAY_GAME) }
+        else { sm?.unregisterListener(tiltListener); stick(false, 0f, 0f) }
+        toast(if (on) "Руль — наклоном телефона: держи ровно, это «прямо»" else "Руль — стиком")
+    }
+
+    // ---------- допы игры: читы, HD-текстуры, игра по сети (хранятся в файле игры, «gx») ----------
+    private var gx = JSONObject()
+    val serial: String? get() = boot.optString("serial").ifEmpty { null }
+    private fun saveGx() {
+        boot.optJSONObject("s")?.put("gx", JSONObject(gx.toString()))
+        val snap = JSONObject(gx.toString())
+        lifecycleScope.launch(Dispatchers.IO) { GameConfig(this@GameActivity, gameId).edit { it.put("gx", snap) } }
+    }
+
+    fun openCheats() { ui.cheatsOpen = true; updateControlsVisibility(); loadCheats() }
+    fun closeCheats() { ui.cheatsOpen = false; updateControlsVisibility() }
+    private fun ownCheats(): List<Cheat> = gx.optJSONArray("cheatsOwn")?.let { a -> (0 until a.length()).map { a.getJSONObject(it).let { o -> Cheat(o.getString("name"), o.getString("code"), true) } } } ?: emptyList()
+
+    fun loadCheats() {
+        val sr = serial
+        lifecycleScope.launch {
+            if (sr == null) { ui.cheats = ownCheats(); ui.cheatState = "noserial"; return@launch }
+            if (!CheatDb.ready(this@GameActivity)) { ui.cheats = ownCheats(); ui.cheatState = "nodb"; return@launch }
+            ui.cheatState = "load"
+            val l = withContext(Dispatchers.IO) { CheatDb.forGame(this@GameActivity, sr) }
+            ui.cheats = l + ownCheats(); ui.cheatState = "ready"
+        }
+    }
+
+    fun downloadCheats() = lifecycleScope.launch {
+        ui.cheatState = "dl:0"
+        val ok = withContext(Dispatchers.IO) { CheatDb.download(this@GameActivity) { p -> runOnUiThread { ui.cheatState = "dl:" + (p * 100).toInt() } } }
+        if (ok) loadCheats() else ui.cheatState = "fail"
+    }
+
+    /** Передать ядру все читы с их состоянием (ядро включает их сразу). */
+    private fun pushCheats() {
+        val v = retro ?: return
+        ui.cheats.forEachIndexed { i, c -> try { v.setCheat(i, c.name in ui.cheatsOn, c.code.replace(' ', '+')) } catch (e: Exception) { Log.w(TAG, "cheat", e) } }
+    }
+
+    fun toggleCheat(c: Cheat, on: Boolean) {
+        ui.cheatsOn = if (on) ui.cheatsOn + c.name else ui.cheatsOn - c.name
+        gx.put("cheatsOn", JSONObject().also { j -> ui.cheatsOn.forEach { j.put(it, true) } }); saveGx()
+        pushCheats()
+        toast(if (on) "Чит включён: ${c.name}" else "Чит выключен")
+    }
+
+    fun addOwnCheat(name: String, code: String) {
+        val lines = code.lines().map { it.trim() }.filter { it.isNotEmpty() }.map { if (it.startsWith("_L")) it else "_L $it" }
+        if (name.isBlank() || lines.isEmpty()) { toast("Нужны название и строки кода"); return }
+        val a = gx.optJSONArray("cheatsOwn") ?: org.json.JSONArray().also { gx.put("cheatsOwn", it) }
+        a.put(JSONObject().put("name", name.trim()).put("code", lines.joinToString("+")))
+        saveGx(); loadCheats(); toast("Код добавлен")
+    }
+
+    fun removeOwnCheat(name: String) {
+        val a = gx.optJSONArray("cheatsOwn") ?: return
+        val keep = org.json.JSONArray(); for (i in 0 until a.length()) a.getJSONObject(i).takeIf { it.optString("name") != name }?.let { keep.put(it) }
+        gx.put("cheatsOwn", keep); ui.cheatsOn = ui.cheatsOn - name; saveGx(); loadCheats()
+    }
+
+    // HD-текстуры
+    private val pickTex = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) importTextures(uri) }
+    fun openTextures() { ui.texOpen = true; updateControlsVisibility() }
+    fun closeTextures() { ui.texOpen = false; updateControlsVisibility() }
+    fun pickTextures() = pickTex.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
+    fun texInstalled() = serial?.let { Textures.installed(this, it) } == true
+    fun texSize() = serial?.let { Textures.sizeMb(this, it) } ?: 0
+    private fun importTextures(uri: android.net.Uri) {
+        val sr = serial ?: return
+        lifecycleScope.launch {
+            ui.texState = "Распаковываю…"
+            val err = withContext(Dispatchers.IO) { try { Textures.import(this@GameActivity, uri, sr) { n -> runOnUiThread { ui.texState = "Распаковано файлов: $n" } } } catch (e: Exception) { "Не удалось распаковать: ${e.message}" } }
+            if (err != null) { ui.texState = err; return@launch }
+            gx.put("tex", true); saveGx()
+            ui.texState = "Готово · применится после перезапуска игры"; ui.restartNeeded = true; ui.tick++
+        }
+    }
+    fun setTexturesOn(on: Boolean) { gx.put("tex", on); saveGx(); ui.restartNeeded = true; ui.tick++ }
+    fun texOn() = gx.optBoolean("tex")
+    fun removeTextures() { serial?.let { Textures.remove(this, it) }; gx.put("tex", false); saveGx(); ui.texState = "Набор удалён"; ui.restartNeeded = true; ui.tick++ }
+
+    // игра по сети
+    fun openNet() { ui.netOpen = true; updateControlsVisibility() }
+    fun closeNet() { ui.netOpen = false; updateControlsVisibility() }
+    fun myIp() = NetPlay.myIp(this)
+    /** mode: host / join / off. Применяется перезапуском игры (сеть поднимается при старте). */
+    fun setNet(mode: String, ip: String = "") {
+        if (mode == "join" && !NetPlay.validIp(ip)) { toast("Введи адрес вида 192.168.1.5"); return }
+        ui.netMode = mode; ui.netIp = ip
+        gx.put("net", JSONObject().put("mode", mode).put("ip", ip)); saveGx()
+        applyRestart()
     }
 
     // ---------- редактор кнопок поверх игры ----------
@@ -792,9 +951,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     fun toggleFast() {
         ui.fast = !ui.fast
-        retro?.frameSpeed = if (ui.fast) 2 else 1
+        retro?.frameSpeed = if (ui.fast) ui.fastLevel else 1
         controls.setToggle("ff", ui.fast)
-        toast(if (ui.fast) "Ускорение включено: ×2" else "Ускорение выключено")
+        toast(if (ui.fast) "Ускорение включено: ×${ui.fastLevel}" else "Ускорение выключено")
     }
 
     /** Выход: место в игре сохраняется само (слот 4), «Играть» вернёт сюда же. */
@@ -838,7 +997,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             act == "save" -> saveQuick()
             act == "load" -> loadQuick()
             act == "ff" -> toggleFast()
-            act == "tilt" -> { tilt = !tilt; controls.setToggle("tilt", tilt); toast(if (tilt) "Руль — наклоном телефона (скоро)" else "Руль — кнопками") }
+            act == "tilt" -> setTilt(!tilt)
             act == "swap" -> if (lays.size > 1) switchLayout(lays[(lays.indexOfFirst { it.id == layName } + 1).mod(lays.size)].id)
             act.startsWith("switch:") -> lifecycleScope.launch { delay(800); switchLayout(act.removePrefix("switch:")) }
             act.startsWith("hold:") -> act.removePrefix("hold:").split(":").let { p -> if (p.size >= 2) holdLayout(p[0], p[1]) }
@@ -895,6 +1054,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     override fun finish() { writeSession(); super.finish() }
 
     override fun onDestroy() {
+        if (tilt) getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(tiltListener)
         super.onDestroy()
         // ядро libretro не рассчитано на повторную загрузку в том же процессе
         if (isFinishing) Process.killProcess(Process.myPid())

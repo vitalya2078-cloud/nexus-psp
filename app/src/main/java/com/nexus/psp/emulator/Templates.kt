@@ -66,7 +66,8 @@ object Templates {
             Btn("gas", "gas", 84f, "r22 b24", GREEN, key = "fb"), Btn("brk", "brake", 74f, "r118 b24", ROSE, key = "fl"),
             Btn("hb", "hbrake", 58f, "r136 b110", AMBER, keys = listOf("l1", "r1")), Btn("atk", "attack", 52f, "r40 b122", BLUE, key = "fr"),
             small("exit", "car", "r20 t72", "ft", 46f, to = "foot"), Btn("horn", "horn", 44f, "r20 t124", keys = listOf("down", "r1")),
-            small("look", "lookback", "r76 t72", "l1", 44f), small("radio", "right", "r76 t124", "right", 40f), small("cam", "camreset", "l20 t72", "select", 40f), pause())
+            small("look", "lookback", "r76 t72", "l1", 44f), small("radio", "right", "r76 t124", "right", 40f), small("cam", "camreset", "l20 t72", "select", 40f),
+            Btn("tilt", "tilt", 40f, "l20 t120", act = "tilt"), pause())
         // вертолёт/самолёт GTA: × вверх, □ вниз, △ выйти, ○ атака, L/R поворот
         "heli" -> listOf(stick(),
             Btn("up", "thr_up", 74f, "r22 b30", GREEN, key = "fb"), Btn("dn", "thr_down", 66f, "r112 b24", ROSE, key = "fl"),
@@ -75,7 +76,8 @@ object Templates {
         "race" -> listOf(stick(),
             Btn("gas", "gas", 84f, "r22 b24", GREEN, key = "fb"), Btn("brk", "brake", 74f, "r118 b24", ROSE, key = "fl"),
             Btn("nos", "nitro", 56f, "r40 b122", BLUE, key = "fr"), Btn("hb", "hbrake", 58f, "r136 b110", AMBER, key = "r1"),
-            small("view", "view", "r20 t72", "ft", 44f), small("look", "lookback", "l16 t12", "l1", 48f), small("menu", "menu", "l20 t72", "start", 40f), pause())
+            small("view", "view", "r20 t72", "ft", 44f), small("look", "lookback", "l16 t12", "l1", 48f), small("menu", "menu", "l20 t72", "start", 40f),
+            Btn("tilt", "tilt", 40f, "l20 t120", act = "tilt"), pause())
         // шутер: L — прицел (пока держишь), R — огонь
         "shoot" -> listOf(stick(), small("aim", "aim", "l16 t12", "l1", 56f, to = "aim", hold = true), small("fire", "shoot", "r16 t12", "r1", 56f)) +
             arc("weapon" to "ft", "crouch" to "fr", "roll" to "fb", "reload" to "fl") +

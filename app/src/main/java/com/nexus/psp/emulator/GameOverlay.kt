@@ -87,6 +87,9 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
         if (ui.adding) AddButtonPanel(a)
         if (ui.editing && ui.picking == null && !ui.adding && !ui.presets) Box(Modifier.align(Alignment.TopCenter).padding(top = 12.dp)) { EditBar(a, ui) }
         if (ui.presets) PresetsPanel(a, ui)
+        if (ui.cheatsOpen) CheatsPanel(a, ui)
+        if (ui.texOpen) TexturesPanel(a, ui)
+        if (ui.netOpen) NetPanel(a, ui)
         if (ui.genreAsk) PresetsPanel(a, ui, ask = true)
         ui.picking?.let { key -> IconPicker(a, ui, key) }
         // счётчик кадров
@@ -156,6 +159,11 @@ private fun PauseMenu(a: GameActivity, ui: GameActivity.UiState, con: String, co
                     SolarIcon(R.drawable.sl_left, 16.dp, K.ink)
                     Text("Отменить загрузку", style = T.label.copy(fontSize = 13.sp))
                 }
+                Spacer(Modifier.weight(1f))
+                // дополнительные возможности — отдельными экранами, чтобы не перегружать паузу
+                PauseLink(R.drawable.ctl_key, "Читы", ui.cheatsOn.isNotEmpty()) { a.openCheats() }
+                PauseLink(R.drawable.sl_monitor, "HD-текстуры", a.texOn()) { a.openTextures() }
+                PauseLink(R.drawable.sl_wifi, "По сети", ui.netMode != "off") { a.openNet() }
             }
             Text(a.title, style = T.h1, maxLines = 1)
             // все плитки помещаются в ширину экрана: делят её поровну (не шире 124 dp)
@@ -274,8 +282,11 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 16.dp)) {
                 key(ui.scopeGame) {
                     when (tab) {
-                        0 -> CoreQuality(a.coreStore)
+                        0 -> { FilterRow(a, ui); CoreQuality(a.coreStore) }
                         1 -> {
+                            Opt("Ускорение", "Во сколько раз быстрее при включённом ускорении") {
+                                Seg(listOf("×2", "×3", "×4"), (ui.fastLevel - 2).coerceIn(0, 2), small = true) { a.setFastLevel(it + 2) }
+                            }
                             CoreRows(CoreOptions.SPEED, a.coreStore)
                             Opt("Счётчик кадров", "Число кадров в секунду в углу экрана") { Toggle(ui.showFps) { a.setFps(it) } }
                         }
@@ -299,6 +310,9 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
 @Composable
 private fun Controls(a: GameActivity, ui: GameActivity.UiState) {
     val modes = listOf("touch" to "Экранные", "classic" to "Классика", "pad" to "Геймпад")
+    Opt("Руль наклоном", "Стик — наклоном телефона: удобно в гонках. Положение при включении — «прямо»") { Toggle(ui.tilt) { a.setTilt(it) } }
+    if (ui.tilt) Opt("Чувствительность наклона", null) { Range(ui.tiltSens, 50, 200) { a.setTiltSens(it) } }
+    CoreRows(CoreOptions.INPUT, a.coreStore)
     Opt("Кнопки", "Экранные — под игру, классика — как на PSP, геймпад — без экранных кнопок") {
         Seg(modes.map { it.second }, modes.indexOfFirst { it.first == ui.ctlMode }.coerceAtLeast(0), small = true) { a.setCtlMode(modes[it].first) }
     }
@@ -424,6 +438,140 @@ private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
             }
             }
         }
+    }
+}
+
+/** Компактная ссылка в паузе на отдельный экран (читы, текстуры, сеть); on — функция включена. */
+@Composable
+private fun PauseLink(icon: Int, label: String, on: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) K.acc.copy(alpha = .2f) else Color.White.copy(alpha = .07f))
+            .border(1.dp, if (on) K.acc.copy(alpha = .5f) else Color.White.copy(alpha = .1f), RoundedCornerShape(16.dp))
+            .press(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        SolarIcon(icon, 16.dp, if (on) K.acc else Color(0xFFF2F1EC))
+        Text(label, style = T.label.copy(fontSize = 13.sp, color = Color(0xFFF2F1EC)))
+    }
+}
+
+/** Фильтр картинки: меняется сразу, без перезапуска. */
+@Composable
+private fun FilterRow(a: GameActivity, ui: GameActivity.UiState) {
+    val f = listOf("default" to "Обычный", "smooth" to "Сглаживание", "pixel" to "Пиксели", "lcd" to "ЖК", "crt" to "ЭЛТ")
+    Opt("Фильтр картинки", "Сглаживание — мягкие края, пиксели — чёткий ретро-вид, ЖК и ЭЛТ — как на экране PSP и старом телевизоре") {
+        Seg(f.map { it.second }, f.indexOfFirst { it.first == ui.shader }.coerceAtLeast(0), small = true) { a.setShader(f[it].first) }
+    }
+}
+
+/** Боковой экран поверх игры (как настройки): заголовок, закрыть, прокручиваемое содержимое. */
+@Composable
+private fun SidePanel(title: String, onClose: () -> Unit, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    val enter = com.nexus.psp.ui.rememberEnter(200)
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)).clickable(remember { MutableInteractionSource() }, indication = null) { onClose() }) {
+        Column(
+            Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.7f).widthIn(min = 500.dp).graphicsLayer { translationX = (1f - enter.value) * 56.dp.toPx(); alpha = enter.value }.background(K.bg)
+                .clickable(remember { MutableInteractionSource() }, indication = null) {}
+                .windowInsetsPadding(WindowInsets.displayCutout).padding(start = 20.dp, end = 20.dp, top = 14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = T.h2, modifier = Modifier.weight(1f))
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).press { onClose() }, contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_x, 18.dp) }
+            }
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+        }
+    }
+}
+
+/** Читы: база CWCheat для этой игры + свои коды. Включаются сразу. */
+@Composable
+private fun CheatsPanel(a: GameActivity, ui: GameActivity.UiState) {
+    var name by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var q by remember { mutableStateOf("") }
+    SidePanel("Читы", { a.closeCheats() }) {
+        val st = ui.cheatState
+        when {
+            st == "noserial" -> StateNote("Не нашли код диска этой игры — база читов недоступна. Можно добавить свои коды ниже.")
+            st == "nodb" -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("База читов CWCheat ещё не скачана (около 9 МБ, один раз).", style = T.small, modifier = Modifier.weight(1f))
+                KButton("Скачать", icon = R.drawable.sl_dl, kind = BtnKind.Main, small = true) { a.downloadCheats() }
+            }
+            st.startsWith("dl:") -> StateNote("Скачиваю базу читов… ${st.removePrefix("dl:")}%")
+            st == "fail" -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Не удалось скачать базу — проверь интернет.", style = T.small, modifier = Modifier.weight(1f))
+                KButton("Ещё раз", small = true) { a.downloadCheats() }
+            }
+            st == "load" -> StateNote("Ищу читы для этой игры…")
+            st == "ready" && ui.cheats.none { !it.own } -> StateNote("Для этой игры в базе читов нет. Можно добавить свои коды ниже.")
+        }
+        if (ui.cheats.size > 8) com.nexus.psp.ui.screens.SearchField(q, "Поиск по читам", Modifier.fillMaxWidth()) { q = it }
+        ui.cheats.filter { q.isBlank() || it.name.contains(q, true) }.forEach { c ->
+            Opt(c.name, if (c.own) "Свой код" else null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (c.own) KButton(icon = R.drawable.sl_trash, small = true, danger = true) { a.removeOwnCheat(c.name) }
+                    Toggle(c.name in ui.cheatsOn) { a.toggleCheat(c, it) }
+                }
+            }
+        }
+        Text("СВОЙ КОД", style = T.caps, modifier = Modifier.padding(top = 10.dp))
+        com.nexus.psp.ui.screens.SearchField(name, "Название, например «Бесконечные деньги»", Modifier.fillMaxWidth()) { name = it }
+        com.nexus.psp.ui.screens.SearchField(code, "Строки CWCheat: 0x20123456 0x000003E7", Modifier.fillMaxWidth()) { code = it }
+        KButton("Добавить код", icon = R.drawable.ph_plus, small = true) { a.addOwnCheat(name, code); name = ""; code = "" }
+        Text("Читы могут ломать сохранения или сюжетные скрипты. Перед включением сохранись.", style = T.small.copy(fontSize = 11.sp))
+    }
+}
+
+@Composable
+private fun StateNote(t: String) = Text(t, style = T.small, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(K.s1).padding(12.dp))
+
+/** HD-текстуры: набор для игры из ZIP (формат PPSSPP — с textures.ini). */
+@Composable
+private fun TexturesPanel(a: GameActivity, ui: GameActivity.UiState) {
+    @Suppress("UNUSED_VARIABLE") val t = ui.tick
+    SidePanel("HD-текстуры", { a.closeTextures() }) {
+        Text("Наборы текстур высокого разрешения делают фанаты. Скачай ZIP-архив набора для этой игры и выбери его здесь — картинка станет заметно чётче.", style = T.small)
+        if (a.serial == null) StateNote("Не нашли код диска этой игры — текстуры не к чему привязать.")
+        else {
+            val inst = a.texInstalled()
+            Opt("Набор текстур", if (inst) "Установлен · ${a.texSize()} МБ" else "Не установлен") {
+                KButton(if (inst) "Заменить" else "Выбрать ZIP", icon = R.drawable.sl_folder, kind = BtnKind.Main, small = true) { a.pickTextures() }
+            }
+            if (inst) {
+                Opt("Использовать текстуры", "Выключи, если игра стала тормозить") { Toggle(a.texOn()) { a.setTexturesOn(it) } }
+                Opt("Удалить набор", null) { KButton("Удалить", icon = R.drawable.sl_trash, small = true, danger = true) { a.removeTextures() } }
+            }
+            if (ui.texState.isNotEmpty()) StateNote(ui.texState)
+            if (ui.restartNeeded) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Текстуры подключаются при запуске игры. Место в игре сохранится.", style = T.small, modifier = Modifier.weight(1f))
+                KButton("Перезапустить", kind = BtnKind.Main, small = true) { a.applyRestart() }
+            }
+            Text("Папка набора: PSP/TEXTURES/${a.serial!!.replace("-", "")}", style = T.small.copy(fontSize = 11.sp))
+        }
+    }
+}
+
+/** Игра по сети (ad-hoc PSP): комната на одном телефоне, второй подключается по адресу. Оба — в одной Wi-Fi-сети. */
+@Composable
+private fun NetPanel(a: GameActivity, ui: GameActivity.UiState) {
+    var ip by remember { mutableStateOf(ui.netIp) }
+    SidePanel("Игра по сети", { a.closeNet() }) {
+        Text("Для игр с режимом «по сети» (ad-hoc): Monster Hunter, Tekken, Burnout и другие. Оба телефона — в одной Wi-Fi-сети, у обоих одна и та же игра.", style = T.small)
+        Opt("Сейчас", when (ui.netMode) { "host" -> "Комната создана на этом телефоне"; "join" -> "Подключение к ${ui.netIp}"; else -> "Сеть выключена" }) {
+            if (ui.netMode != "off") KButton("Выключить", small = true) { a.setNet("off") }
+        }
+        Text("СОЗДАТЬ КОМНАТУ", style = T.caps, modifier = Modifier.padding(top = 8.dp))
+        val my = remember { a.myIp() }
+        Opt("Адрес этого телефона", my ?: "Нет подключения к Wi-Fi") {
+            KButton("Создать", icon = R.drawable.sl_wifi, kind = BtnKind.Main, small = true, enabled = my != null) { a.setNet("host") }
+        }
+        Text("Друг вводит этот адрес у себя в «Подключиться». Игра перезапустится и продолжит с того же места.", style = T.small.copy(fontSize = 11.sp))
+        Text("ПОДКЛЮЧИТЬСЯ К ДРУГУ", style = T.caps, modifier = Modifier.padding(top = 8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            com.nexus.psp.ui.screens.SearchField(ip, "Адрес друга, например 192.168.1.5", Modifier.weight(1f)) { ip = it }
+            KButton("Подключиться", kind = BtnKind.Main, small = true) { a.setNet("join", ip.trim()) }
+        }
+        Text("В самой игре затем выбери режим «по сети / ad-hoc» — как на настоящей PSP.", style = T.small.copy(fontSize = 11.sp))
     }
 }
 
