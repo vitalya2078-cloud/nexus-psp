@@ -66,6 +66,16 @@ class GameMenuTest {
         shot(a, "p11_textures")
         ui.texOpen = false; ui.settings = false
         shot(a, "p12_pause_links")
+        ui.raState = "ready"; ui.raTitle = "Soulcalibur: Broken Destiny"; ui.raTotal = 3; ui.raUnlocked = 1; ui.raPoints = 35
+        ui.achList = listOf(
+            com.nexus.psp.emulator.RA.Ach(1, "Первая победа", "Выиграй бой в режиме «Быстрый бой»", 5, true, "00000", ""),
+            com.nexus.psp.emulator.RA.Ach(2, "Мастер клинка", "Выиграй 10 боёв подряд", 10, false, "00000", "4/10"),
+            com.nexus.psp.emulator.RA.Ach(3, "Легенда", "Пройди режим «Испытания» полностью", 20, false, "00000", ""),
+        )
+        ui.achOpen = true
+        shot(a, "p13_achievements")
+        ui.achOpen = false; ui.paused = false; ui.raPopup = GameActivity.RaPop("Мастер клинка", "Выиграй 10 боёв подряд", "00000", 10)
+        shot(a, "p14_ach_popup")
         c.pause().stop().destroy()
     }
 }

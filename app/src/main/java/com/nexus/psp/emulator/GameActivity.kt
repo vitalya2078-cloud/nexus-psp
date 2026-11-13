@@ -125,8 +125,19 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var learnMarks by mutableStateOf<Map<String, Int>>(emptyMap())
         var learnBusy by mutableStateOf(false)
         var autoOn by mutableStateOf(false)
+        // достижения RetroAchievements
+        var raState by mutableStateOf("off") // off | load | ready | none | fail
+        var raMsg by mutableStateOf("")
+        var raTitle by mutableStateOf("")
+        var raTotal by mutableStateOf(0)
+        var raUnlocked by mutableStateOf(0)
+        var raPoints by mutableStateOf(0)
+        var raPopup by mutableStateOf<RaPop?>(null)
+        var achOpen by mutableStateOf(false)
+        var achList by mutableStateOf<List<RA.Ach>>(emptyList())
     }
 
+    data class RaPop(val title: String, val desc: String, val badge: String, val points: Int)
     data class Slot(val i: Int, val exists: Boolean, val time: Long, val thumb: File?)
 
     internal val ui = UiState()
@@ -267,6 +278,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                         ui.builtin?.let { toast("Кнопки настроены под «$it» · изменить: пауза → «Кнопки»") }
                         maybeAskGenre()
                         startAutoPoll()
+                        startRA()
                         // включённые читы этой игры — сразу после запуска
                         if (ui.cheatsOn.isNotEmpty()) lifecycleScope.launch {
                             val l = withContext(Dispatchers.IO) { (serial?.takeIf { CheatDb.ready(this@GameActivity) }?.let { CheatDb.forGame(this@GameActivity, it) } ?: emptyList()) + ownCheats() }
@@ -533,6 +545,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             ui.cheatsOpen -> closeCheats()
             ui.texOpen -> closeTextures()
             ui.netOpen -> closeNet()
+            ui.achOpen -> closeAch()
             ui.presets -> closePresets()
             ui.editing -> stopEditing()
             ui.settings -> ui.settings = false
@@ -546,7 +559,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     private fun updateControlsVisibility() {
-        if (ui.picking != null || ui.adding || ui.presets || ui.genreAsk || ui.cheatsOpen || ui.texOpen || ui.netOpen) { controls.visibility = View.GONE; return }
+        if (ui.picking != null || ui.adding || ui.presets || ui.genreAsk || ui.cheatsOpen || ui.texOpen || ui.netOpen || ui.achOpen) { controls.visibility = View.GONE; return }
         if (ui.editing) { controls.visibility = View.VISIBLE; return }
         val show = ui.phase == "ready" && !ui.paused && ui.ctlMode != "pad" && !(hideWithPad && padConnected())
         controls.visibility = if (show) View.VISIBLE else View.GONE
@@ -859,6 +872,42 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun texOn() = gx.optBoolean("tex")
     fun removeTextures() { serial?.let { Textures.remove(this, it) }; gx.put("tex", false); saveGx(); ui.texState = "Набор удалён"; ui.restartNeeded = true; ui.tick++ }
 
+    // ---------- достижения RetroAchievements ----------
+    private var raStarted = false
+    val raEnabled get() = boot.has("ra")
+
+    private fun startRA() {
+        val ra = boot.optJSONObject("ra") ?: return
+        if (raStarted) return
+        raStarted = true; ui.raState = "load"
+        lifecycleScope.launch {
+            val hash = withContext(Dispatchers.IO) { Disc.raHash(File(boot.optString("path"))) }
+            if (hash == null) { ui.raState = "fail"; ui.raMsg = "Не удалось опознать образ игры"; return@launch }
+            val bridge = RA.Bridge(
+                onLogin = { ok, err, _ -> runOnUiThread { if (ok) RA.nLoadGame(hash) else { ui.raState = "fail"; ui.raMsg = err ?: "Вход не удался — войди заново в настройках" } } },
+                onGame = { ok, err, t, total, unl, pts, _ -> runOnUiThread {
+                    if (!ok) { ui.raState = if ((err ?: "").contains("Unknown", true) || (err ?: "").contains("not", true)) "none" else "fail"; ui.raMsg = err ?: ""; return@runOnUiThread }
+                    ui.raTitle = t ?: ""; ui.raTotal = total; ui.raUnlocked = unl; ui.raPoints = pts
+                    ui.raState = if (total > 0) "ready" else "none"
+                    if (total > 0) toast("Достижения: $unl из $total")
+                } },
+                onEvent = { type, _, t, d, b, pts -> runOnUiThread {
+                    if (type == 1) {
+                        ui.raUnlocked++; ui.raPopup = GameActivity.RaPop(t ?: "", d ?: "", b ?: "", pts)
+                        controls.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                        lifecycleScope.launch { delay(5000); ui.raPopup = null }
+                    } else if (type == 2) toast("Все достижения игры получены!")
+                } },
+            )
+            try {
+                RA.ensureLoaded(); RA.nInit(bridge); RA.nLoginToken(ra.optString("user"), ra.optString("token"))
+            } catch (e: Throwable) { Log.w(TAG, "ra", e); ui.raState = "fail"; ui.raMsg = "Достижения недоступны в этой сборке" }
+        }
+    }
+
+    fun openAch() { ui.achList = RA.list(); ui.achOpen = true; updateControlsVisibility() }
+    fun closeAch() { ui.achOpen = false; updateControlsVisibility() }
+
     // ---------- автопереключение раскладок по памяти игры ----------
     private var learner: AutoSwitch.Learner? = null
     private var autoJob: kotlinx.coroutines.Job? = null
@@ -1122,6 +1171,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     override fun finish() { writeSession(); super.finish() }
 
     override fun onDestroy() {
+        if (raStarted) try { RA.nUnload() } catch (e: Throwable) { }
         if (tilt) getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(tiltListener)
         super.onDestroy()
         // ядро libretro не рассчитано на повторную загрузку в том же процессе

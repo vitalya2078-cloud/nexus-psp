@@ -94,6 +94,7 @@ object Act {
         // допы игры: читы, HD-текстуры, игра по сети; код диска — для читов и текстур
         gcfg.optJSONObject("gx")?.let { s.put("gx", it) }
         AppState.meta[id]?.serial?.let { boot.put("serial", it) }
+        if (S.raOn && S.raToken.isNotEmpty()) boot.put("ra", JSONObject().put("user", S.raUser).put("token", S.raToken))
         AppState.meta[id]?.title?.let { boot.put("title2", it) }
         if (slot >= 0) boot.put("loadSlot", slot)
         return boot

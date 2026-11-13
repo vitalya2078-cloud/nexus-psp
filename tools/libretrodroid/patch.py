@@ -56,4 +56,48 @@ for rel in ['cpp/rumble.h', 'cpp/utils/javautils.h']:
     p = os.path.join(root, rel); t = open(p).read()
     if '#include <functional>' not in t:
         i = t.index('#include'); open(p, 'w').write(t[:i] + '#include <functional>\n' + t[i:])
+
+# ---- RetroAchievements (rcheevos): мост, крючок кадра, чтение памяти, сборка ----
+import shutil
+here = os.path.dirname(os.path.abspath(__file__))
+shutil.copy(os.path.join(here, 'kapsula_ra.cpp'), os.path.join(root, 'cpp', 'kapsula_ra.cpp'))
+
+edit('cpp/libretrodroid.h', '    size_t memorySize(unsigned id);',
+     '    size_t memorySize(unsigned id);\n'
+     '    size_t readInto(unsigned id, size_t offset, uint8_t* dst, size_t length);')
+
+READ_INTO = (
+    'size_t libretrodroid::LibretroDroid::readInto(unsigned id, size_t offset, uint8_t* dst, size_t length) {\n'
+    '    if (!core) return 0;\n'
+    '    auto* base = static_cast<uint8_t*>(core->retro_get_memory_data(id));\n'
+    '    size_t size = core->retro_get_memory_size(id);\n'
+    '    if (base == nullptr || offset >= size) return 0;\n'
+    '    size_t n = std::min(length, size - offset);\n'
+    '    memcpy(dst, base + offset, n);\n'
+    '    return n;\n'
+    '}\n\n'
+    '// KAPSULA: крючок после каждого кадра (достижения) и чтение памяти для rcheevos\n'
+    'void (*kapsula_frame_hook)() = nullptr;\n'
+    'extern "C" uint32_t kapsula_read_memory(uint32_t address, uint8_t* buffer, uint32_t num_bytes) {\n'
+    '    return (uint32_t) libretrodroid::LibretroDroid::getInstance().readInto(RETRO_MEMORY_SYSTEM_RAM, address, buffer, num_bytes);\n'
+    '}\n\n'
+)
+edit('cpp/libretrodroid.cpp', 'size_t libretrodroid::LibretroDroid::memorySize(unsigned id) {',
+     READ_INTO + 'size_t libretrodroid::LibretroDroid::memorySize(unsigned id) {')
+
+RUN_OLD = '    for (size_t i = 0; i < frames * frameSpeed; i++)\n        core->retro_run();'
+RUN_NEW = ('    for (size_t i = 0; i < frames * frameSpeed; i++) {\n'
+           '        core->retro_run();\n'
+           '        if (kapsula_frame_hook) kapsula_frame_hook();\n'
+           '    }')
+edit('cpp/libretrodroid.cpp', RUN_OLD, RUN_NEW)
+
+edit('cpp/libretrodroid.cpp', '#include "core.h"\n\nstd::vector',
+     '#include "core.h"\n#include <cstring>\n\nextern void (*kapsula_frame_hook)();\n\nstd::vector')
+
+edit('cpp/CMakeLists.txt', 'add_library(libretrodroid SHARED\n',
+     '# KAPSULA: rcheevos (MIT) — достижения RetroAchievements\n'
+     'file(GLOB RCHEEVOS_SOURCES rcheevos/src/rc_client*.c rcheevos/src/rc_compat.c rcheevos/src/rc_util.c rcheevos/src/rc_version.c rcheevos/src/rapi/*.c rcheevos/src/rcheevos/*.c rcheevos/src/rhash/md5.c)\n'
+     'include_directories(rcheevos/include rcheevos/src)\n\n'
+     'add_library(libretrodroid SHARED\n        kapsula_ra.cpp\n        ${RCHEEVOS_SOURCES}\n')
 print('patched')

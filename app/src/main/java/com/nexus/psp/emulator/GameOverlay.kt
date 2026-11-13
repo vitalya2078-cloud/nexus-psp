@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -90,6 +91,9 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
         if (ui.cheatsOpen) CheatsPanel(a, ui)
         if (ui.texOpen) TexturesPanel(a, ui)
         if (ui.netOpen) NetPanel(a, ui)
+        if (ui.achOpen) AchPanel(a, ui)
+        // «Достижение получено» — поверх игры на 5 секунд
+        ui.raPopup?.let { p -> Box(Modifier.align(Alignment.TopCenter).padding(top = 14.dp)) { AchPopup(p) } }
         if (ui.genreAsk) PresetsPanel(a, ui, ask = true)
         ui.picking?.let { key -> IconPicker(a, ui, key) }
         // счётчик кадров
@@ -164,6 +168,7 @@ private fun PauseMenu(a: GameActivity, ui: GameActivity.UiState, con: String, co
                 PauseLink(R.drawable.ctl_key, "Читы", ui.cheatsOn.isNotEmpty()) { a.openCheats() }
                 PauseLink(R.drawable.sl_monitor, "HD-текстуры", a.texOn()) { a.openTextures() }
                 PauseLink(R.drawable.sl_wifi, "По сети", ui.netMode != "off") { a.openNet() }
+                if (a.raEnabled) PauseLink(R.drawable.sl_trophy, if (ui.raState == "ready") "${ui.raUnlocked}/${ui.raTotal}" else "Достижения", ui.raState == "ready") { a.openAch() }
             }
             Text(a.title, style = T.h1, maxLines = 1)
             // все плитки помещаются в ширину экрана: делят её поровну (не шире 124 dp)
@@ -835,5 +840,67 @@ fun LearnBar(a: GameActivity, ui: GameActivity.UiState) {
         }
         KButton("Готово", icon = R.drawable.ph_check, kind = BtnKind.Main, small = true, enabled = !ui.learnBusy) { a.finishLearning() }
         KButton(icon = R.drawable.ph_x, small = true) { a.cancelLearning() }
+    }
+}
+
+
+/** Картинка из интернета (значки достижений) с кэшем в памяти и на диске. */
+@Composable
+private fun NetImage(url: String, modifier: Modifier) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val img by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(netCache.get(url), url) {
+        if (value != null) return@produceState
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val f = java.io.File(ctx.cacheDir, "ra/" + url.substringAfterLast('/'))
+                if (!f.exists()) { f.parentFile?.mkdirs(); java.net.URL(url).openStream().use { i -> f.outputStream().use { i.copyTo(it) } } }
+                android.graphics.BitmapFactory.decodeFile(f.path)?.asImageBitmap()?.also { netCache.put(url, it) }
+            } catch (e: Exception) { null }
+        }
+    }
+    Box(modifier.clip(RoundedCornerShape(10.dp)).background(K.s2)) { img?.let { androidx.compose.foundation.Image(it, null, Modifier.fillMaxSize()) } }
+}
+private val netCache = android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(80)
+
+@Composable
+private fun AchPopup(p: GameActivity.RaPop) {
+    val enter = com.nexus.psp.ui.rememberEnter(260)
+    Row(
+        Modifier.graphicsLayer { alpha = enter.value; translationY = -(1f - enter.value) * 24.dp.toPx() }
+            .clip(RoundedCornerShape(18.dp)).background(Color(0xF0131419)).border(1.dp, Color(0xFFD9B36C).copy(alpha = .6f), RoundedCornerShape(18.dp))
+            .padding(10.dp).widthIn(max = 460.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        NetImage(RA.badgeUrl(p.badge, false), Modifier.size(52.dp))
+        Column(Modifier.weight(1f, fill = false)) {
+            Text("ДОСТИЖЕНИЕ ПОЛУЧЕНО · ${p.points} очк.", style = T.caps.copy(color = Color(0xFFD9B36C), fontSize = 10.sp))
+            Text(p.title, style = T.label.copy(color = Color(0xFFF2F1EC)), maxLines = 1)
+            if (p.desc.isNotEmpty()) Text(p.desc, style = T.small.copy(fontSize = 11.sp, color = Color(0xFFF2F1EC).copy(alpha = .7f)), maxLines = 2)
+        }
+    }
+}
+
+/** Список достижений игры: полученные — цветные, остальные — серые с прогрессом. */
+@Composable
+private fun AchPanel(a: GameActivity, ui: GameActivity.UiState) {
+    SidePanel("Достижения", { a.closeAch() }) {
+        when (ui.raState) {
+            "load" -> StateNote("Загружаю достижения…")
+            "none" -> StateNote("Для этой игры на RetroAchievements пока нет достижений (или это другая версия образа).")
+            "fail" -> StateNote("Достижения недоступны: ${ui.raMsg}")
+        }
+        if (ui.raState == "ready") Text("${ui.raTitle} · получено ${ui.raUnlocked} из ${ui.raTotal} · ${ui.raPoints} очков всего", style = T.small)
+        ui.achList.forEach { x ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                NetImage(RA.badgeUrl(x.badge, !x.unlocked), Modifier.size(44.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(x.title, style = T.label.copy(color = if (x.unlocked) K.ink else K.ink2), maxLines = 1)
+                    Text(x.desc, style = T.small.copy(fontSize = 11.sp), maxLines = 2)
+                    if (!x.unlocked && x.progress.isNotEmpty()) Text("Прогресс: ${x.progress}", style = T.small.copy(fontSize = 11.sp, color = K.acc))
+                }
+                Text("${x.points}", style = T.num.copy(color = if (x.unlocked) Color(0xFFD9B36C) else K.ink3))
+            }
+        }
+        Text("Режим «мягкий»: ускорение, сохранения и читы не блокируют достижения. Данные — retroachievements.org.", style = T.small.copy(fontSize = 11.sp))
     }
 }

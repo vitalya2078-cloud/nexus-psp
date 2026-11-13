@@ -97,6 +97,11 @@ class Settings(private val sp: SharedPreferences) {
     var shader by s("shader", "default")
     var fastLevel by s("fastLevel", "2")
     var tiltSens by s("tiltSens", "100")
+    /** RetroAchievements: имя и токен (пароль не хранится), включены ли достижения в играх. */
+    var raUser by s("raUser", "")
+    var raToken by s("raToken", "")
+    var raScore by s("raScore", "0")
+    var raOn by b("raOn", true)
 }
 
 object AppState {

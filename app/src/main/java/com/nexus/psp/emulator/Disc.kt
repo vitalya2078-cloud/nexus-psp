@@ -25,6 +25,35 @@ object Disc {
         }
     } catch (e: Exception) { null }
 
+    /**
+     * Хеш игры для RetroAchievements — тот же алгоритм, что rc_hash_psp в rcheevos:
+     * ISO/CSO — MD5 от содержимого PSP_GAME/PARAM.SFO, затем PSP_GAME/SYSDIR/EBOOT.BIN (каждый не больше 64 МБ);
+     * PBP — MD5 всего файла.
+     */
+    fun raHash(file: File): String? = try {
+        val md = java.security.MessageDigest.getInstance("MD5")
+        when (file.extension.lowercase()) {
+            "pbp" -> file.inputStream().use { inp -> val buf = ByteArray(1 shl 16); var n: Int; while (inp.read(buf).also { n = it } > 0) md.update(buf, 0, n) }
+            "iso", "cso" -> (if (file.extension.equals("iso", true)) IsoSource(RandomAccessFile(file, "r")) else CsoSource(RandomAccessFile(file, "r"))).use { s ->
+                val pvd = s.read(16, 1)
+                require(String(pvd, 1, 5, Charsets.US_ASCII) == "CD001")
+                val root = Entry(le32(pvd, 156 + 2).toLong(), le32(pvd, 156 + 10), true)
+                for (path in listOf("PSP_GAME/PARAM.SFO", "PSP_GAME/SYSDIR/EBOOT.BIN")) {
+                    var e: Entry = root
+                    for (part in path.split('/')) e = find(s, e, part) ?: error("нет $path")
+                    var left = minOf(e.size, 64 * 1024 * 1024); var lba = e.lba
+                    while (left > 0) {
+                        val cnt = minOf(256, (left + 2047) / 2048)
+                        val b = s.read(lba, cnt); val take = minOf(left, b.size)
+                        md.update(b, 0, take); left -= take; lba += cnt
+                    }
+                }
+            }
+            else -> error("не PSP-образ")
+        }
+        md.digest().joinToString("") { "%02x".format(it) }
+    } catch (e: Exception) { null }
+
     // ---------- источник секторов по 2048 байт ----------
     private interface Sectors : Closeable { fun read(lba: Long, count: Int): ByteArray }
 

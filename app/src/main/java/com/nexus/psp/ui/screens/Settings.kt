@@ -1,5 +1,6 @@
 package com.nexus.psp.ui.screens
 
+import kotlinx.coroutines.launch
 import android.app.ActivityManager
 import android.content.Context
 import androidx.compose.foundation.background
@@ -66,6 +67,7 @@ fun SettingsScreen() {
     val nav = listOf(
         Triple("general", "Общие", R.drawable.sl_sliders), Triple("dl", "Игры и память", R.drawable.sl_folder),
         Triple("core", "Эмулятор PSP", R.drawable.sl_monitor), Triple("ctl", "Управление", R.drawable.sl_pad),
+        Triple("ach", "Достижения", R.drawable.sl_trophy),
         Triple("bios", "BIOS", R.drawable.sl_chip), Triple("a11y", "Доступность", R.drawable.ph_hand), Triple("about", "О приложении", R.drawable.sl_info),
     )
     val tab = Nav.settingsTab
@@ -90,6 +92,7 @@ fun SettingsScreen() {
                     "dl" -> Downloads()
                     "core" -> CoreSettings()
                     "ctl" -> Controls()
+                    "ach" -> Achievements()
                     "bios" -> Bios()
                     "a11y" -> A11y()
                     else -> About()
@@ -342,5 +345,52 @@ private fun LegalDialog(onClose: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+
+/** RetroAchievements: вход (токен хранится на телефоне, пароль — нет), включение достижений в играх. */
+@Composable
+private fun Achievements() {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var user by remember { mutableStateOf(S.raUser) }
+    var pass by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<String?>(null) }
+    Text("Достижения из открытого сообщества RetroAchievements: награды за игровые события, очки и прогресс. Для многих игр PSP уже есть наборы.", style = T.small, modifier = Modifier.padding(bottom = 8.dp))
+    if (S.raToken.isNotEmpty()) {
+        Opt("Аккаунт", "${S.raUser} · ${S.raScore} очков") { KButton("Выйти", small = true) { S.raToken = ""; S.raScore = "0"; AppState.say("Вы вышли из RetroAchievements") } }
+        Opt("Достижения в играх", "Всплывают во время игры; список — в паузе, кнопка «Достижения»") { Toggle(S.raOn) { S.raOn = it } }
+        Opt("Режим", "Мягкий: ускорение, сохранения и читы разрешены") { }
+    } else {
+        Opt("Вход", "Аккаунт на retroachievements.org — бесплатно. Пароль не сохраняется: KAPSULA хранит только ключ входа") { }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            SearchField(user, "Имя пользователя", Modifier.weight(1f)) { user = it }
+            PasswordField(pass, "Пароль", Modifier.weight(1f)) { pass = it }
+            KButton(if (busy) "Вход…" else "Войти", kind = com.nexus.psp.ui.kit.BtnKind.Main, small = true, enabled = !busy && user.isNotBlank() && pass.isNotEmpty()) {
+                busy = true; err = null
+                scope.launch {
+                    val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.emulator.RA.login(user.trim(), pass) }
+                    busy = false
+                    r.onSuccess { (token, score) -> S.raUser = user.trim(); S.raToken = token; S.raScore = score.toString(); pass = ""; AppState.say("Вход выполнен: ${user.trim()}", R.drawable.ph_check) }
+                    r.onFailure { err = it.message }
+                }
+            }
+        }
+        err?.let { Text(it, style = T.small.copy(color = K.bad), modifier = Modifier.padding(top = 6.dp)) }
+    }
+}
+
+/** Поле пароля: символы скрыты. */
+@Composable
+private fun PasswordField(value: String, hint: String, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
+    Box(modifier.height(44.dp).clip(RoundedCornerShape(22.dp)).background(K.s2).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+        if (value.isEmpty()) Text(hint, style = T.label.copy(color = K.ink3, fontSize = 14.sp))
+        androidx.compose.foundation.text.BasicTextField(
+            value, onChange, singleLine = true, textStyle = T.label.copy(fontSize = 14.sp),
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(K.acc), modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

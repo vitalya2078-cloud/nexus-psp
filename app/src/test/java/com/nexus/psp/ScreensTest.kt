@@ -78,6 +78,7 @@ class ScreensTest {
     @Test fun h06_pad_classic() = shot("h06-pad-classic", true) { AppState.S.ctlMode = "classic"; Nav.open(Ov.Pad) }
     @Test fun h07_games_light() = shot("h07-games-light", true) { AppState.S.theme = "light"; AppState.applyLook() }
     @Test fun h08_game_light() = shot("h08-game-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Game(firstId())) }
+    @Test fun h10_settings_ach() = shot("h10-settings-ach", true) { Nav.settingsTab = "ach"; Nav.open(Ov.Settings) }
     @Test fun h09_search() = shot("h09-search", true) { Nav.open(Ov.Search) }
     @Test fun g09_quick_light() = shot("g09-quick-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Quick) }
 }
