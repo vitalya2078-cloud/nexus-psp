@@ -46,6 +46,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -82,7 +85,8 @@ object K {
     val s3 get() = when (theme) { "oled" -> Color(0xFF1A1A1F); "light" -> Color(0xFFFFFFFF); else -> Color(0xFF23262E) }
     val ink get() = if (light) Color(0xFF1C1D20) else Color(0xFFF2F1EC)
     val ink2 get() = ink.copy(alpha = if (contrast) .9f else .74f)
-    val ink3 get() = ink.copy(alpha = if (contrast) .75f else .52f)
+    // второстепенный текст: не тусклее ~4.5:1 даже на поверхностях s1 (мелкий шрифт)
+    val ink3 get() = ink.copy(alpha = if (contrast) .78f else .58f)
     val line get() = if (light) Color(0x1A141416) else Color(0x14FFFFFF)
     val line2 get() = if (light) Color(0x33141416) else Color(0x29FFFFFF)
     val acc get() = if (light) Color(0xFF3E6699) else Color(0xFF7FA7D9)
@@ -217,8 +221,27 @@ fun Chip(text: String, on: Boolean = false, dot: Color? = null, count: Int? = nu
 }
 
 @Composable
-fun ChipRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) =
-    Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, content = content)
+fun ChipRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+    val st = rememberScrollState()
+    Row(modifier.fadeEdges(st).horizontalScroll(st), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, content = content)
+}
+
+/** Мягкое затухание краёв у горизонтально прокручиваемого ряда: видно, что дальше есть ещё, без резкого обреза. */
+fun Modifier.fadeEdges(st: androidx.compose.foundation.ScrollState, width: Dp = 28.dp): Modifier =
+    this.graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val w = width.toPx()
+            if (st.canScrollForward) drawRect(
+                Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - w, endX = size.width),
+                topLeft = androidx.compose.ui.geometry.Offset(size.width - w, 0f), size = androidx.compose.ui.geometry.Size(w, size.height),
+                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+            )
+            if (st.canScrollBackward) drawRect(
+                Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = 0f, endX = w),
+                size = androidx.compose.ui.geometry.Size(w, size.height), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+            )
+        }
 
 /** Сегментный переключатель (как .seg). */
 @Composable

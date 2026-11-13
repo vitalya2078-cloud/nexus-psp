@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -134,32 +135,36 @@ private fun padState(): String {
 @Composable
 fun QuickPanel() {
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)).tap { Nav.back() })
+        val p = com.nexus.psp.ui.rememberEnter(220)
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = p.value }.background(Color.Black.copy(alpha = .55f)).tap { Nav.back() })
+        // шторка сверху: выезжает вниз
         Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(K.bg).tap { }
-                .windowInsetsPadding(WindowInsets.displayCutout).padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            Modifier.fillMaxWidth().graphicsLayer { translationY = -(1f - p.value) * 48.dp.toPx(); alpha = p.value }
+                .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(K.bg).tap { }
+                .windowInsetsPadding(WindowInsets.displayCutout).padding(bottom = 16.dp),
         ) {
+            // заголовок и плитки — на одной вертикали (поля 16 dp у обоих)
             com.nexus.psp.ui.OvHead("Быстрая панель")
             val tiles = listOf(
                 Tile(R.drawable.sd_pad, "Геймпад", padState(), false) { Nav.settingsTab = "ctl"; Nav.replace(Ov.Settings) },
-                Tile(R.drawable.sd_moon, "Тема", mapOf("dark" to "Тёмная", "oled" to "OLED", "light" to "Светлая")[S.theme] ?: "", false) {
+                Tile(if (S.theme == "light") R.drawable.sd_sun else R.drawable.sd_moon, "Тема", mapOf("dark" to "Тёмная", "oled" to "OLED", "light" to "Светлая")[S.theme] ?: "", false) {
                     S.theme = mapOf("dark" to "oled", "oled" to "light", "light" to "dark")[S.theme] ?: "dark"; AppState.applyLook()
                 },
                 Tile(R.drawable.ph_hand, "Вибрация", if (S.vib) "Вкл" else "Выкл", S.vib) { S.vib = !S.vib },
                 Tile(R.drawable.sd_music, "Звуки", if (S.sound) "Вкл" else "Выкл", S.sound) { S.sound = !S.sound },
-                Tile(R.drawable.sd_device, "Экранный геймпад", mapOf("touch" to "KAPSULA Touch", "classic" to "Классика", "pad" to "Геймпад")[S.ctlMode] ?: "", false) { Nav.replace(Ov.Pad) },
+                Tile(R.drawable.sd_grid, "Экранный геймпад", mapOf("touch" to "KAPSULA Touch", "classic" to "Классика", "pad" to "Геймпад")[S.ctlMode] ?: "", false) { Nav.replace(Ov.Pad) },
                 Tile(R.drawable.sd_folder, "Добавить игру", "ISO, CSO, CHD, PBP", false) { Nav.back(); Act.addFile() },
                 Tile(R.drawable.sd_search, "Найти игры", "в папке телефона", false) { Nav.back(); Act.findGames() },
                 Tile(R.drawable.sd_gear, "Настройки", "Все параметры", false) { Nav.replace(Ov.Settings) },
             )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 4) {
+            FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 4) {
                 tiles.forEach { t -> QTile(t, Modifier.weight(1f)) }
             }
-            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(K.s1).padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(K.s1).padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SolarIcon(R.drawable.sl_vol, 20.dp, K.ink2); Range(S.vol, 0, 100, fill = true) { S.vol = it }
                 }
-                Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(K.s1).padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(K.s1).padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SolarIcon(R.drawable.sl_sun, 20.dp, K.ink2); Range(S.bright, 40, 100, fill = true) { S.bright = it }
                 }
             }
@@ -175,10 +180,10 @@ private fun QTile(t: Tile, modifier: Modifier) {
         modifier.height(96.dp).clip(RoundedCornerShape(18.dp)).background(if (t.on) K.ink else K.s1).press(onClick = t.onClick).padding(14.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        if (t.on) SolarDuo(t.icon, 24.dp, main = K.bg, accent = K.bg.copy(alpha = .55f)) else SolarDuo(t.icon, 24.dp)
+        if (t.on) SolarDuo(t.icon, 26.dp, main = K.bg, accent = K.bg.copy(alpha = .55f)) else SolarDuo(t.icon, 26.dp)
         Column {
-            Text(t.title, style = T.label.copy(color = if (t.on) K.bg else K.ink))
-            Text(t.sub, style = T.small.copy(color = if (t.on) K.bg.copy(alpha = .65f) else K.ink3))
+            Text(t.title, style = T.label.copy(color = if (t.on) K.bg else K.ink), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(t.sub, style = T.small.copy(color = if (t.on) K.bg.copy(alpha = .7f) else K.ink2), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
     }
 }

@@ -67,7 +67,7 @@ fun PadScreen() {
     var prev by rememberSaveable { mutableStateOf("touch") }
     val chips = when (S.ctlMode) {
         "classic" -> listOf("classic:psp" to "PSP", "classic:ps1" to "PS1", "classic:ps2" to "PS2")
-        "touch" -> listOf("touch:psp" to "PSP", "touch:ps2" to "PS1 / PS2", "foot" to "Пример пресета: пешком", "drive" to "Пример: за рулём")
+        "touch" -> listOf("touch:psp" to "PSP", "touch:ps2" to "PS1 / PS2", "foot" to "Пешком · пример", "drive" to "За рулём · пример")
         else -> emptyList()
     }
     val pv = chips.firstOrNull { it.first == prev }?.first ?: chips.firstOrNull()?.first ?: ""
@@ -101,23 +101,32 @@ fun PadScreen() {
                     }
                 }
                 if (chips.isNotEmpty()) ChipRow(Modifier.padding(top = 10.dp)) { chips.forEach { (id, t) -> Chip(t, pv == id) { prev = id } } }
-                Text("Перетаскивай кнопки на превью — положение запомнится для этой раскладки.", style = T.small, modifier = Modifier.padding(top = 8.dp))
+                Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    com.nexus.psp.ui.kit.SolarIcon(R.drawable.ph_move, 14.dp, K.ink3)
+                    Text("Перетаскивай кнопки на превью — положение запомнится для этой раскладки", style = T.small)
+                }
             }
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                Opt("Режим", null) { Seg(listOf("Touch", "Классика", "Геймпад"), modes.indexOf(S.ctlMode).coerceAtLeast(0), small = true) { S.ctlMode = modes[it] } }
+            // панель инструмента: режим, вид кнопок, поведение — разделами, как в настройках
+            Column(
+                Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(K.s1).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 14.dp),
+            ) {
+                Text("РЕЖИМ", style = T.caps)
+                Box(Modifier.padding(top = 8.dp)) { Seg(listOf("Touch", "Классика", "Геймпад"), modes.indexOf(S.ctlMode).coerceAtLeast(0), small = true) { S.ctlMode = modes[it] } }
                 Text(
                     when (S.ctlMode) {
-                        "touch" -> "Стик появляется там, где коснулся палец. Кнопки действий — дугой под большой палец. В игре: пауза → Настройки → Управление → «Переставить», нажми на кнопку — выберешь значок действия и турбо."
-                        "classic" -> "Свой джойстик для каждой консоли — выбирается сам по игре: у PSP — L/R, крестовина и «таблетка», у PS1 — L1/L2/R1/R2, у PS2 — два стика. Сверху — ускорение, сохранить, загрузить, пауза."
+                        "touch" -> "Стик — там, где коснулся палец, кнопки действий — дугой под большой палец. Значки и турбо: в игре пауза → «Кнопки» → нажми на кнопку."
+                        "classic" -> "Свой джойстик у каждой консоли, выбирается по игре: PSP — L/R и «таблетка», PS1 — L1/L2/R1/R2, PS2 — два стика."
                         else -> "Экранные кнопки скрыты. Подключи геймпад по Bluetooth или USB."
-                    }, style = T.small, modifier = Modifier.padding(vertical = 8.dp),
+                    }, style = T.small, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                 )
-                Text("Прозрачность", style = T.label.copy(fontSize = 14.sp), modifier = Modifier.padding(top = 8.dp))
+                Text("ВИД КНОПОК", style = T.caps, modifier = Modifier.padding(top = 14.dp, bottom = 2.dp))
+                Text("Прозрачность", style = T.label.copy(fontSize = 14.sp), modifier = Modifier.padding(top = 6.dp))
                 Range(S.op, 15, 100, fill = true) { S.op = it }
-                Text("Размер кнопок", style = T.label.copy(fontSize = 14.sp), modifier = Modifier.padding(top = 4.dp))
-                Range(S.sc, 70, 130, fill = true) { S.sc = it }
+                Text("Размер", style = T.label.copy(fontSize = 14.sp), modifier = Modifier.padding(top = 6.dp))
+                Range(S.sc, 70, 140, fill = true) { S.sc = it }
+                Text("ПОВЕДЕНИЕ", style = T.caps, modifier = Modifier.padding(top = 14.dp))
                 Opt("Для левшей", "Зеркальная раскладка") { Toggle(S.mirror) { S.mirror = it } }
-                Opt("Скрывать с геймпадом", null) { Toggle(S.hide) { S.hide = it } }
+                Opt("Скрывать с геймпадом", "Когда подключён Bluetooth или USB-геймпад") { Toggle(S.hide) { S.hide = it } }
             }
         }
     }

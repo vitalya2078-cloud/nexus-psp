@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -209,12 +210,13 @@ private fun SlotCard(sl: GameActivity.Slot, onClick: () -> Unit) {
 
 @Composable
 private fun SlotDialog(sl: GameActivity.Slot, onDismiss: () -> Unit, onLoad: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit) {
+    val enter = com.nexus.psp.ui.rememberEnter(160)
     Box(
         Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable(remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            Modifier.width(380.dp).clip(RoundedCornerShape(20.dp)).background(K.s1)
+            Modifier.width(380.dp).graphicsLayer { alpha = enter.value; val k = .96f + .04f * enter.value; scaleX = k; scaleY = k }.clip(RoundedCornerShape(20.dp)).background(K.s1)
                 .clickable(remember { MutableInteractionSource() }, indication = null) {}.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -330,12 +332,13 @@ private val GLYPH_COLOR = mapOf("ft" to Color(0xFFD9B36C), "fr" to Color(0xFF7FA
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
+    val enter = com.nexus.psp.ui.rememberEnter(200)
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var group by remember { mutableStateOf(0) }
     var cur by remember(key) { mutableStateOf(a.currentIcon(key)) }
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)).clickable(remember { MutableInteractionSource() }, indication = null) { a.closePicker() }) {
         Column(
-            Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.7f).widthIn(min = 500.dp).background(K.bg)
+            Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.7f).widthIn(min = 500.dp).graphicsLayer { translationX = (1f - enter.value) * 56.dp.toPx(); alpha = enter.value }.background(K.bg)
                 .clickable(remember { MutableInteractionSource() }, indication = null) {}
                 .windowInsetsPadding(WindowInsets.displayCutout).padding(start = 20.dp, end = 20.dp, top = 14.dp),
         ) {
@@ -387,11 +390,12 @@ private fun PartIcon(a: GameActivity, k: String, size: androidx.compose.ui.unit.
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun AddButtonPanel(a: GameActivity) {
+    val enter = com.nexus.psp.ui.rememberEnter(200)
     var combo by remember { mutableStateOf(false) }
     val keys = remember { androidx.compose.runtime.mutableStateListOf<String>() }
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)).clickable(remember { MutableInteractionSource() }, indication = null) { a.closeAdding() }) {
         Column(
-            Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.7f).widthIn(min = 500.dp).background(K.bg)
+            Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.7f).widthIn(min = 500.dp).graphicsLayer { translationX = (1f - enter.value) * 56.dp.toPx(); alpha = enter.value }.background(K.bg)
                 .clickable(remember { MutableInteractionSource() }, indication = null) {}
                 .windowInsetsPadding(WindowInsets.displayCutout).padding(start = 20.dp, end = 20.dp, top = 14.dp)
                 .verticalScroll(rememberScrollState()),

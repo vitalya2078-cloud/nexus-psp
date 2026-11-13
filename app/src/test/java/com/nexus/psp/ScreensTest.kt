@@ -70,5 +70,14 @@ class ScreensTest {
     @Test fun g06_settings_core() = shot("g06-settings-core", true) { Nav.settingsTab = "core"; Nav.open(Ov.Settings) }
     @Test fun g07_pad() = shot("g07-pad", true) { Nav.open(Ov.Pad) }
     @Test fun g08_profile() = shot("g08-profile", true) { Nav.open(Ov.Profile) }
+    @Test fun h01_settings_general() = shot("h01-settings-general", true) { Nav.settingsTab = "general"; Nav.open(Ov.Settings) }
+    @Test fun h02_settings_ctl() = shot("h02-settings-ctl", true) { Nav.settingsTab = "ctl"; Nav.open(Ov.Settings) }
+    @Test fun h03_settings_dl() = shot("h03-settings-dl", true) { Nav.settingsTab = "dl"; Nav.open(Ov.Settings) }
+    @Test fun h04_settings_about() = shot("h04-settings-about", true) { Nav.settingsTab = "about"; Nav.open(Ov.Settings) }
+    @Test fun h05_game_settings() = shot("h05-game-settings", true) { Nav.open(Ov.GSet(firstId())) }
+    @Test fun h06_pad_classic() = shot("h06-pad-classic", true) { AppState.S.ctlMode = "classic"; Nav.open(Ov.Pad) }
+    @Test fun h07_games_light() = shot("h07-games-light", true) { AppState.S.theme = "light"; AppState.applyLook() }
+    @Test fun h08_game_light() = shot("h08-game-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Game(firstId())) }
+    @Test fun h09_search() = shot("h09-search", true) { Nav.open(Ov.Search) }
     @Test fun g09_quick_light() = shot("g09-quick-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Quick) }
 }

@@ -48,7 +48,9 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     var onMoved: ((String, Float, Float) -> Unit)? = null
     private var downT = 0L; private var moved = false
     private var dragIdx = -1; private var dragX = 0f; private var dragY = 0f; private var dragOx = 0f; private var dragOy = 0f
-    private val dash = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; pathEffect = DashPathEffect(floatArrayOf(10f, 8f), 0f); color = 0xFF7FA7D9.toInt() }
+    // редактор: спокойный тонкий пунктир у всех кнопок; перетаскиваемая — сплошное кольцо акцента
+    private val dash = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0xFFF2F1EC.toInt(); alpha = 90 }
+    private val sel = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0xFF7FA7D9.toInt() }
 
     var mirror = false
     var scaleK = 1f
@@ -142,9 +144,13 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
             }
             if (keyOf(b) in turbo) drawTurboBadge(c, b)
             if (editMode) {
-                val (x, y) = center(b); dash.strokeWidth = 2 * dp
-                if (b.w != null) { rect.set(x - halfW(b) - 4 * dp, y - halfH(b) - 4 * dp, x + halfW(b) + 4 * dp, y + halfH(b) + 4 * dp); c.drawRoundRect(rect, halfH(b), halfH(b), dash) }
-                else c.drawCircle(x, y, diameter(b) / 2 + 4 * dp, dash)
+                val (x, y) = center(b)
+                val p = if (i == dragIdx && moved) sel.apply { strokeWidth = 2.5f * dp } else dash.apply {
+                    strokeWidth = 1.2f * dp; pathEffect = DashPathEffect(floatArrayOf(5 * dp, 4 * dp), 0f)
+                }
+                val o = 5 * dp
+                if (b.w != null) { rect.set(x - halfW(b) - o, y - halfH(b) - o, x + halfW(b) + o, y + halfH(b) + o); c.drawRoundRect(rect, halfH(b) + o, halfH(b) + o, p) }
+                else c.drawCircle(x, y, diameter(b) / 2 + o, p)
             }
         }
     }
@@ -437,7 +443,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
                 val b = buttons[dragIdx]; val key = keyOf(b)
                 if (moved) offsets[key]?.let { onMoved?.invoke(key, it.x, it.y) }
                 else if (e.actionMasked == MotionEvent.ACTION_UP && e.eventTime - downT < 500 && b.stick == null && !b.dpad && b.act == null) onTap?.invoke(key, b)
-                dragIdx = -1
+                dragIdx = -1; invalidate()
             }
         }
         return true

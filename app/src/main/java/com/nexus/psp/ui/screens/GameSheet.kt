@@ -63,6 +63,7 @@ import com.nexus.psp.ui.kit.Opt
 import com.nexus.psp.ui.kit.Pill
 import com.nexus.psp.ui.kit.Seg
 import com.nexus.psp.ui.kit.SolarIcon
+import com.nexus.psp.ui.kit.SolarDuo
 import com.nexus.psp.ui.kit.StateCard
 import com.nexus.psp.ui.kit.Sub
 import com.nexus.psp.ui.kit.T
@@ -163,8 +164,8 @@ fun GameSheet(id: String) {
 private fun About(g: Game) {
     val p = g.plat
     KvGrid(listOf(
-        Triple("Носитель", p.media, p.mediaImg), Triple("BIOS", if (p.bios) "Нужен BIOS ${p.short}" else "Не нужен", null),
-        Triple("Управление", "Экран или геймпад", null), Triple("Эмулятор", if (p.ready) "KAPSULA" else "Скоро", null),
+        Triple("Носитель", p.media, p.mediaImg), Triple("BIOS", if (p.bios) "Нужен BIOS ${p.short}" else "Не нужен", R.drawable.sd_chip),
+        Triple("Управление", "Любое", R.drawable.sd_pad), Triple("Эмулятор", if (p.ready) "KAPSULA" else "Скоро", R.drawable.sd_monitor),
     ))
     if (!p.ready) StateCard("es-bios.png", "${p.full} пока не поддерживается.", "Ядро для ${p.short} подключим следующим — игра останется в библиотеке.")
     val m = AppState.meta[g.id]
@@ -186,19 +187,26 @@ private fun About(g: Game) {
 
 /** Блок сведений; в сетке все блоки одной ширины и высоты. */
 @Composable
-private fun KvCell(k: String, v: String, img: String? = null, modifier: Modifier = Modifier) {
+private fun KvCell(k: String, v: String, img: Any? = null, modifier: Modifier = Modifier) {
+    // у каждого блока свой значок в одной и той же «ячейке» 28 dp — текст всех блоков начинается на одной вертикали
     Row(
         modifier.height(64.dp).clip(RoundedCornerShape(14.dp)).background(K.s1.copy(alpha = .85f)).padding(horizontal = 13.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp),
     ) {
-        if (img != null) AssetImage(img, Modifier.size(32.dp))
+        when (img) {
+            is String -> AssetImage(img, Modifier.size(28.dp))
+            is Int -> Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { SolarDuo(img, 24.dp) }
+        }
         Column { Text(k.uppercase(), style = T.caps.copy(fontSize = 10.sp), maxLines = 1); Ellip(v, T.label) }
     }
 }
 
 /** Ровная сетка блоков: по cols в ряд, одинаковой ширины. */
 @Composable
-private fun KvGrid(cells: List<Triple<String, String, String?>>, cols: Int = 4) {
+private fun KvGrid(cells: List<Triple<String, String, Any?>>, cols0: Int = 4) {
+    // на узких экранах — по 2 в ряд: подписи и значения не обрезаются
+    androidx.compose.foundation.layout.BoxWithConstraints {
+    val cols = if (cols0 > 2 && maxWidth < 600.dp) 2 else cols0
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         cells.chunked(cols).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -207,16 +215,17 @@ private fun KvGrid(cells: List<Triple<String, String, String?>>, cols: Int = 4) 
             }
         }
     }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FileInfo(g: Game) {
     KvGrid(listOfNotNull(
-        Triple("Формат", g.format, null), Triple("Размер", size(g.size), null), Triple("Консоль", g.plat.full, null),
-        AppState.meta[g.id]?.serial?.let { Triple("Серийный номер", it, null) },
+        Triple("Формат", g.format, R.drawable.sd_list), Triple("Размер", size(g.size), R.drawable.sd_dl), Triple("Консоль", g.plat.full, R.drawable.sd_pad),
+        AppState.meta[g.id]?.serial?.let { Triple("Серийный номер", it, R.drawable.sd_keyhole) },
     ))
-    KvGrid(listOf(Triple("Файл", g.file, null)), cols = 1)
+    KvGrid(listOf(Triple("Файл", g.file, R.drawable.sd_folder)), cols0 = 1)
     Text(g.path.replace("/storage/emulated/0/", ""), style = T.small)
 }
 

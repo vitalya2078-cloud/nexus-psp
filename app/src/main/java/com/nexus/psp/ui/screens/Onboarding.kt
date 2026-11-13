@@ -33,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -70,21 +72,22 @@ fun Onboarding(onDone: () -> Unit) {
         Column(Modifier.fillMaxSize()) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { repeat(3) { i -> Box(Modifier.size(28.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(if (i <= step) K.acc else K.s3)) } }
             AnimatedContent(step, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(150)) }, label = "onb", modifier = Modifier.weight(1f)) { st ->
-                Column(Modifier.fillMaxSize().padding(top = 18.dp)) {
+                // на невысоких экранах шаг прокручивается — карточки не обрезаются
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 18.dp)) {
                     Text(listOf("Во что играешь?", "Как будешь играть?", "Добавь первую игру")[st], style = T.h1)
                     Text(
                         listOf("Выбери консоли — KAPSULA настроит под них библиотеку.", "Можно поменять в любой момент в настройках.", "Образ своего диска или бесплатная homebrew-игра: ISO, CSO, CHD или PBP.")[st],
-                        style = T.body, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                        style = T.body, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
                     )
                     Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         when (st) {
                             0 -> PLATFORMS.forEach { p ->
                                 val on = p.id in cons
                                 Opt(on, Modifier.weight(1f), { if (on) cons.remove(p.id) else cons.add(p.id) }) {
-                                    AssetImage(p.conImg, Modifier.fillMaxWidth().height(90.dp))
+                                    AssetImage(p.conImg, Modifier.fillMaxWidth().height(if (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp < 380) 52.dp else 78.dp))
                                     ConsolePill(p.short, p.color)
                                     Text(p.full, style = T.h3)
-                                    Text(if (p.ready) "Работает" else "Скоро — подключаем следующей", style = T.small.copy(color = if (p.ready) K.ok else K.ink3))
+                                    Text(if (p.ready) "Работает" else "Скоро подключим", style = T.small.copy(color = if (p.ready) K.ok else K.ink3))
                                 }
                             }
                             1 -> listOf(Triple("touch", "Сенсорный экран", "Кнопки KAPSULA Touch поверх игры"), Triple("pad", "Геймпад", "Bluetooth или USB — экранные кнопки скроются")).forEach { (id, t, d) ->
@@ -110,7 +113,8 @@ fun Onboarding(onDone: () -> Unit) {
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            // кнопки шагов — отдельной полосой с воздухом над ней, не впритык к карточкам
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 KButton(if (step == 2) "Позже" else "Пропустить") { finish() }
                 Spacer(Modifier.weight(1f))
                 if (step > 0) { KButton("Назад") { step-- }; Spacer(Modifier.width(8.dp)) }

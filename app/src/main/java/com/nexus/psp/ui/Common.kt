@@ -131,8 +131,19 @@ fun ConChips(src: List<Game>, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Scrim(onClose: () -> Unit) {
-    val a by animateFloatAsState(1f, tween(180), label = "scrim")
-    Box(Modifier.fillMaxSize().alpha(a).background(Color.Black.copy(alpha = .55f)).tap(onClose))
+    val p = rememberEnter(180)
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = p.value }.background(Color.Black.copy(alpha = .55f)).tap(onClose))
+}
+
+/**
+ * Появление слоя: 0 → 1 за ms (быстро, без пружин). «Уменьшить движение» — сразу.
+ * Значение читается в graphicsLayer — кадры анимации не пересобирают содержимое слоя.
+ */
+@Composable
+fun rememberEnter(ms: Int = 220): androidx.compose.animation.core.Animatable<Float, androidx.compose.animation.core.AnimationVector1D> {
+    val a = remember { androidx.compose.animation.core.Animatable(if (com.nexus.psp.data.AppState.S.calm) 1f else 0f) }
+    LaunchedEffect(Unit) { a.animateTo(1f, tween(ms, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
+    return a
 }
 
 /** Шапка слоя: заголовок + действия + закрыть. */
@@ -155,9 +166,9 @@ fun OvHead(title: String? = null, back: Boolean = false, actions: @Composable ()
 fun Drawer(title: String, actions: @Composable () -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
     Box(Modifier.fillMaxSize()) {
         Scrim { Nav.back() }
-        val x by animateFloatAsState(0f, tween(220), label = "dr")
+        val p = rememberEnter(240)
         Column(
-            Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(440.dp).graphicsLayer { translationX = x }
+            Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(440.dp).graphicsLayer { translationX = (1f - p.value) * 72.dp.toPx(); alpha = .4f + .6f * p.value }
                 .clip(RoundedCornerShape(topStart = 22.dp, bottomStart = 22.dp)).background(K.bg).tap { }
                 .windowInsetsPadding(WindowInsets.displayCutout),
         ) {
@@ -170,7 +181,12 @@ fun Drawer(title: String, actions: @Composable () -> Unit = {}, content: @Compos
 /** Полноэкранный слой (библиотека, поиск, настройки). */
 @Composable
 fun Full(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().background(K.bg).tap { }.windowInsetsPadding(WindowInsets.displayCutout), content = content)
+    val p = rememberEnter(200)
+    Column(
+        Modifier.fillMaxSize().graphicsLayer { alpha = p.value; translationY = (1f - p.value) * 14.dp.toPx() }
+            .background(K.bg).tap { }.windowInsetsPadding(WindowInsets.displayCutout),
+        content = content,
+    )
 }
 
 // ---------- контекстное меню по долгому нажатию ----------

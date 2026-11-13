@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -211,26 +212,35 @@ fun CoreQuality(store: CoreStore = GlobalCore, onChange: (CoreOpt?, String) -> U
         SolarDuo(R.drawable.sd_chip, 20.dp)
         Text("Подобрано под твой телефон: ${names[rec]}", style = T.label.copy(fontSize = 13.sp, color = K.ink2))
     }
-    Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(top = 12.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(top = 18.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // строка 1 — разрешение (короткая, без переносов), строка 2 — смысл пресета
         listOf(
-            Triple("quality", "1440×816 · текстуры ×2", "для мощных телефонов" to 4),
-            Triple("balance", "960×544 · чётко", "и плавно" to 3),
-            Triple("battery", "480×272 · как на PSP", "дольше играть" to 1),
-            Triple("custom", "включится само, если", "поменяешь вручную" to 0),
+            Triple("quality", "1440×816", "Текстуры ×2, для мощных телефонов" to 4),
+            Triple("balance", "960×544", "Чётко и плавно" to 3),
+            Triple("battery", "480×272", "Как на PSP, дольше играть" to 1),
+            Triple("custom", "Вручную", "Включится само, если поменяешь настройки" to 0),
         ).forEach { (id, l1, rest) ->
             val on = preset == id
-            Column(
-                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(14.dp)).background(if (on) K.acc.copy(alpha = .1f) else K.s1)
-                    .border(1.5.dp, if (on) K.acc else K.line, RoundedCornerShape(14.dp))
-                    .then(if (id != "custom") Modifier.press { store.applyPreset(id); tick++; onChange(null, id) } else Modifier).padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-            ) {
-                Text(names[id] ?: "Своё", style = T.label.copy(fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = if (id == "custom" && !on) K.ink3 else K.ink))
-                if (id == rec) Text("РЕКОМЕНДУЕМ", style = T.caps.copy(fontSize = 9.5.sp, color = K.bg), maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(K.acc).padding(horizontal = 6.dp, vertical = 1.dp))
-                Text(l1 + "\n" + rest.first, style = T.small.copy(fontSize = 11.sp))
-                Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    repeat(4) { i -> Box(Modifier.size(14.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(if (i < rest.second) (if (on) K.acc else K.ink2) else K.s3)) }
+            // отметка «Рекомендуем» — язычком на верхней границе карточки, вне потока текста: строки всех карточек на одном уровне
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                Column(
+                    Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(if (on) K.acc.copy(alpha = .1f) else K.s1)
+                        .border(1.5.dp, if (on) K.acc else K.line, RoundedCornerShape(14.dp))
+                        .then(if (id != "custom") Modifier.press { store.applyPreset(id); tick++; onChange(null, id) } else Modifier)
+                        .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(names[id] ?: "Своё", style = T.label.copy(fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = if (id == "custom" && !on) K.ink3 else K.ink))
+                    Text(l1, style = T.label.copy(fontSize = 12.5.sp, color = if (on) K.ink else K.ink2), maxLines = 1)
+                    Text(rest.first, style = T.small.copy(fontSize = 11.sp, lineHeight = 14.sp), modifier = Modifier.weight(1f))
+                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        repeat(4) { i -> Box(Modifier.size(14.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(if (i < rest.second) (if (on) K.acc else K.ink2) else K.s3)) }
+                    }
                 }
+                if (id == rec) Text(
+                    "РЕКОМЕНДУЕМ", style = T.caps.copy(fontSize = 9.sp, color = K.bg), maxLines = 1,
+                    modifier = Modifier.align(Alignment.TopEnd).offset(x = (-10).dp, y = (-8).dp).clip(RoundedCornerShape(8.dp)).background(K.acc).padding(horizontal = 6.dp, vertical = 2.dp),
+                )
             }
         }
     }
