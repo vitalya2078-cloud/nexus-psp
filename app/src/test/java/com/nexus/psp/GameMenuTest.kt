@@ -19,7 +19,7 @@ import android.os.Looper
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w844dp-h390dp-land-xhdpi")
 class GameMenuTest {
-    init { System.setProperty("roborazzi.test.record", "true") }
+    init { System.setProperty("roborazzi.test.record", "true"); org.robolectric.shadows.ShadowLog.stream = System.out }
     private fun open(): Pair<GameActivity, org.robolectric.android.controller.ActivityController<GameActivity>> {
         val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
         val boot = JSONObject().put("id", "t").put("name", "Soulcalibur — Broken Destiny").put("plat", "psp").put("path", "")
@@ -30,7 +30,7 @@ class GameMenuTest {
     }
 
     private fun shot(a: GameActivity, name: String) {
-        shadowOf(Looper.getMainLooper()).idle()
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(700))
         a.window.decorView.captureRoboImage("build/shots/$name.png")
     }
 
@@ -54,6 +54,10 @@ class GameMenuTest {
         shot(a, "p05_icon_picker")
         ui.picking = null; ui.adding = true
         shot(a, "p06_add_button")
+        ui.adding = false; ui.presets = true
+        shot(a, "p07_presets")
+        ui.presets = false; ui.genreAsk = true
+        shot(a, "p08_genre_ask")
         c.pause().stop().destroy()
     }
 }

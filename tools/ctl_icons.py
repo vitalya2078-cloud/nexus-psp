@@ -9,6 +9,7 @@ SHEETS = {
  1: 'tap back menu jump attack sprint crouch - block roll camreset map kick throw special lock cover heal bag skill talk skip climb door',
  2: 'aim shoot reload - grenade gas brake hbrake nitro horn wheel car view pass - tackle players combo turbo both tilt layout rewind shot',
  3: 'grab weapon goal sword bow magic potion dash sneak light knife lookback swim lever jab heavy charge key zoom point moto slowmo lights drop',
+ 4: 'jet heli thr_up thr_down climb dive roll_l roll_r yaw_l yaw_r missile mgun bombs flares tgt_switch afterburner airbrake gear cockpit parachute eject winch radar takeoff',
 }
 # старые PNG, которых нет в новых листах
 OLD = 'dpad l1 l2 r1 r2 select start pause ff save load swap edit mirror left right up down leftd rightd cam ok rew stick fb fl fr ft'.split()

@@ -62,6 +62,14 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     val customIcons = HashMap<String, String>()
     /** Кнопки с турбо: пока палец на кнопке, она быстро нажимается сама. */
     val turbo = HashSet<String>()
+    /** Что нажимает кнопка (своё назначение): "раскладка:кнопка" → ft/fb/l1/up… */
+    val keyMap = HashMap<String, String>()
+    /** Размер кнопки: множитель к размеру шаблона. */
+    val sizes = HashMap<String, Float>()
+    /** Роль: "switch:<раскладка>" | "hold:<раскладка>" | "none" (своя, вместо роли шаблона). */
+    val roles = HashMap<String, String>()
+    /** Скрытые кнопки (в редакторе видны полупрозрачными, чтобы вернуть). */
+    val hidden = HashSet<String>()
     /** Короткое касание кнопки в редакторе — выбрать значок / турбо. */
     var onTap: ((String, Btn) -> Unit)? = null
     private var insetL = 0f
@@ -90,6 +98,12 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
 
     fun keyOf(b: Btn) = "$layName:${b.id}"
     fun iconOf(b: Btn): String? = customIcons[keyOf(b)] ?: b.icon
+    /** Кнопка консоли, которую нажимает экранная кнопка. */
+    fun keyName(b: Btn): String? = keyMap[keyOf(b)] ?: b.key ?: b.id.takeIf { ControlLayout.KEY.containsKey(it) }
+    /** Роль кнопки: своя или из шаблона. */
+    fun roleOf(b: Btn): String? = when (val r = roles[keyOf(b)]) { null -> b.to?.let { (if (b.hold) "hold:" else "switch:") + it }; "none" -> null; else -> r }
+    fun isHidden(b: Btn) = keyOf(b) in hidden
+    fun current(): List<Btn> = buttons
 
     /** Векторный значок res/drawable/ctl_<имя>.xml. */
     private fun icon(name: String): Drawable? = icons.getOrPut(name) {
@@ -107,9 +121,10 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
 
     // ---------- геометрия ----------
     private val k get() = width / 844f
-    private fun diameter(b: Btn) = b.size * k * scaleK
-    private fun halfW(b: Btn) = (b.w ?: b.size) * k * scaleK / 2
-    private fun halfH(b: Btn) = b.size * k * scaleK / 2
+    private fun sz(b: Btn) = sizes[keyOf(b)] ?: 1f
+    private fun diameter(b: Btn) = b.size * k * scaleK * sz(b)
+    private fun halfW(b: Btn) = (b.w ?: b.size) * k * scaleK * sz(b) / 2
+    private fun halfH(b: Btn) = b.size * k * scaleK * sz(b) / 2
 
     private fun center(b: Btn): Pair<Float, Float> {
         val dw = (b.w ?: b.size) * k; val dh = b.size * k
@@ -133,6 +148,9 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     override fun onDraw(c: Canvas) {
         val classic = style == "classic"
         buttons.forEachIndexed { i, b ->
+            val hid = isHidden(b)
+            if (hid && !editMode) return@forEachIndexed
+            if (hid) c.saveLayerAlpha(null, 70)
             val t = touches.values.firstOrNull { it.idx == i }
             when {
                 b.stick != null -> if (classic) drawStickClassic(c, b, t) else drawStick(c, b, t)
@@ -142,6 +160,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
                 classic -> drawCap(c, b, t)
                 else -> drawButton(c, b, t)
             }
+            if (hid) c.restore()
             if (keyOf(b) in turbo) drawTurboBadge(c, b)
             if (editMode) {
                 val (x, y) = center(b)
@@ -352,7 +371,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     private fun hit(x: Float, y: Float): Int {
         var best = -1; var bd = Float.MAX_VALUE
         buttons.forEachIndexed { i, b ->
-            if (b.stick == "float") return@forEachIndexed
+            if (b.stick == "float" || (isHidden(b) && !editMode)) return@forEachIndexed
             val (cx, cy) = center(b)
             val d = hypot(x - cx, y - cy)
             val inside = if (b.w != null) abs(x - cx) <= halfW(b) * 1.08f + 4 * dp && abs(y - cy) <= halfH(b) * 1.4f + 4 * dp
@@ -377,7 +396,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
             b.keys != null -> pressExtra(b, t)
             b.act != null -> listener.action(b.act)
             b.dpad -> { t.dir = dpadDir(b, x, y); t.dir?.let { ControlLayout.DIR[it]?.let { c -> listener.key(c, true) } } }
-            else -> (ControlLayout.KEY[b.id] ?: ControlLayout.STEER[b.id])?.let { code ->
+            else -> ((keyName(b)?.let { ControlLayout.code(it) }) ?: ControlLayout.STEER[b.id])?.let { code ->
                 listener.key(code, true)
                 if (keyOf(b) in turbo) {
                     // турбо: ~11 нажатий в секунду, пока палец на кнопке
@@ -386,7 +405,18 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
                 }
             }
         }
+        // роль: «нажал — переключил» (через паузу, когда игра отреагирует) или «пока держишь» (сразу)
+        if (b.act == null) roleOf(b)?.let { r -> listener.action(if (r.startsWith("hold:")) "$r:${b.id}" else r) }
         buzz()
+    }
+
+    /** Сменить раскладку, не отпуская палец на кнопке keepId (для «пока держишь»): нажатие продолжается в новой раскладке. */
+    fun setLayoutKeep(list: List<Btn>, keepId: String) {
+        val keep = touches.filterValues { buttons.getOrNull(it.idx)?.id == keepId }
+        touches.filterValues { buttons.getOrNull(it.idx)?.id != keepId }.forEach { (id, t) -> release(t); touches.remove(id) }
+        buttons = list
+        keep.forEach { (_, t) -> t.idx = list.indexOfFirst { it.id == keepId }.let { if (it < 0) 0 else it } }
+        invalidate()
     }
 
     private fun release(t: Touch) {
@@ -396,8 +426,10 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
             b.stick != null -> listener.stick(b.right, 0f, 0f)
             b.keys != null -> if (!b.combo) b.keys.mapNotNull { ControlLayout.code(it) }.forEach { listener.key(it, false) }
             b.dpad -> t.dir?.let { ControlLayout.DIR[it]?.let { c -> listener.key(c, false) } }
-            b.act == null -> (ControlLayout.KEY[b.id] ?: ControlLayout.STEER[b.id])?.let { listener.key(it, false) }
+            b.act == null -> ((keyName(b)?.let { ControlLayout.code(it) }) ?: ControlLayout.STEER[b.id])?.let { listener.key(it, false) }
         }
+        // «пока держишь» — отпустил кнопку: вернуть прежнюю раскладку
+        if (b.act == null && roleOf(b)?.startsWith("hold:") == true) listener.action("unhold")
     }
 
     /** Своя кнопка: «разом» — все кнопки вниз, пока палец на месте; комбо — по очереди, ~9 нажатий в секунду. */

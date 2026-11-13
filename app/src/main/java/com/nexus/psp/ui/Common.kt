@@ -141,7 +141,9 @@ private fun Scrim(onClose: () -> Unit) {
  */
 @Composable
 fun rememberEnter(ms: Int = 220): androidx.compose.animation.core.Animatable<Float, androidx.compose.animation.core.AnimationVector1D> {
-    val a = remember { androidx.compose.animation.core.Animatable(if (com.nexus.psp.data.AppState.S.calm) 1f else 0f) }
+    // в процессе игры общие настройки приложения не загружены — читаем «Уменьшить движение» безопасно
+    val calm = remember { try { com.nexus.psp.data.AppState.S.calm } catch (e: Throwable) { false } }
+    val a = remember { androidx.compose.animation.core.Animatable(if (calm) 1f else 0f) }
     LaunchedEffect(Unit) { a.animateTo(1f, tween(ms, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
     return a
 }

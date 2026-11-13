@@ -58,5 +58,7 @@ class ControlsShotTest {
                 ControlLayout.extra("x2", listOf("fb", "fb", "fr"), true, null).copy(pos = "r330 b60"))
         }
         shot("c_touch_drive") { v -> v.layName = "drive:psp"; v.setLayout(ControlLayout.preset("drive", true)) }
+        // все шаблоны жанров
+        com.nexus.psp.emulator.Templates.BASES.forEach { (b, _) -> shot("t_$b") { v -> v.layName = "$b:psp"; v.setLayout(com.nexus.psp.emulator.Templates.build(b, "psp")) } }
     }
 }

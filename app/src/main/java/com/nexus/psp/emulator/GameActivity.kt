@@ -97,6 +97,13 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var pickingExtra by mutableStateOf("")
         /** Панель «Новая кнопка». */
         var adding by mutableStateOf(false)
+        var pickingIsExtra by mutableStateOf(false)
+        /** Раскладки игры и текущая; встроенный пресет (имя), панели «Пресеты» и выбора жанра. */
+        var layouts by mutableStateOf<List<LaySpec>>(emptyList())
+        var layId by mutableStateOf("touch")
+        var builtin by mutableStateOf<String?>(null)
+        var presets by mutableStateOf(false)
+        var genreAsk by mutableStateOf(false)
     }
 
     data class Slot(val i: Int, val exists: Boolean, val time: Long, val thumb: File?)
@@ -115,7 +122,6 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     val gameId: String get() = boot.optString("id")
     /** Фон игры для экрана загрузки (картинка из образа или титульный экран). */
     val bgFile: File? get() = boot.optString("bg").takeIf { it.isNotEmpty() }?.let { File(it) }?.takeIf { it.exists() }
-    private var preset: List<String>? = null
     private var layName = ""
     private var tilt = false
     private var startedAt = 0L
@@ -154,9 +160,6 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             alpha = (s.optDouble("op", 55.0) / 100.0).toFloat().coerceIn(.15f, 1f)
             vibrate = s.optBoolean("vib", true)
             visibility = View.GONE
-            s.optJSONObject("keyPos")?.let { o -> o.keys().forEach { k -> val a = o.getJSONArray(k); offsets[k] = android.graphics.PointF(a.getDouble(0).toFloat(), a.getDouble(1).toFloat()) } }
-            s.optJSONObject("keyIcon")?.let { o -> o.keys().forEach { k -> customIcons[k] = o.getString(k) } }
-            s.optJSONObject("keyTurbo")?.let { o -> o.keys().forEach { k -> if (o.optBoolean(k)) turbo.add(k) } }
         }
         ui.ctlMode = s.optString("ctlMode", "touch"); ui.op = s.optInt("op", 55); ui.sc = s.optInt("sc", 100); ui.mirror = s.optBoolean("mirror", false)
         ui.showFps = s.optBoolean("fps", false)
@@ -167,13 +170,13 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         controls.onTap = { key, b ->
             ui.picking = key; ui.pickingDefault = b.icon ?: ""; ui.pickingTurbo = key in controls.turbo
             ui.pickingExtra = b.keys?.joinToString(if (b.combo) " → " else " + ") { partName(it) } ?: ""
+            ui.pickingIsExtra = extrasFor(controls.layName).any { it.id == b.id }
+            ui.tick++
             updateControlsVisibility()
         }
-        boot.optJSONObject("s")?.optJSONObject("extraBtns")?.let { o -> o.keys().forEach { k -> extras.put(k, o.get(k)) } }
-        controls.onMoved = { key, x, y -> persist { o -> o.put("keyPos", (o.optJSONObject("keyPos") ?: JSONObject()).put(key, org.json.JSONArray(listOf(x.toDouble(), y.toDouble())))) } }
-        val classic = s.optString("ctlMode") == "classic"
-        preset = if (!classic) ControlLayout.PRESETS[gameId] else null
-        applyLayout(preset?.first() ?: if (classic) "classic" else "touch")
+        controls.onMoved = { key, x, y -> saveCtl { o -> o.put("keyPos", (o.optJSONObject("keyPos") ?: JSONObject()).put(key, org.json.JSONArray(listOf(x.toDouble(), y.toDouble())))) } }
+        loadCtl(s)
+        applyLayout(if (s.optString("ctlMode") == "classic") "classic" else lays.first().id)
         hideWithPad = s.optBoolean("hide", true)
         val mode = s.optString("ctlMode", "touch")
         root.addView(controls, full)
@@ -232,6 +235,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                     frames++
                     if (ui.phase == "loading") {
                         ui.phase = "ready"; updateControlsVisibility()
+                        ui.builtin?.let { toast("Кнопки настроены под «$it» · изменить: пауза → «Кнопки»") }
+                        maybeAskGenre()
                         // «Продолжить с этого места» или возврат после незаметного перезапуска
                         val slot = boot.optInt("loadSlot", -1)
                         if (slot >= 0) { boot.remove("loadSlot"); lifecycleScope.launch { delay(300); loadSlot(slot, backup = slot == 4, quiet = slot == 8 || slot == 4); if (slot == 4) toast("Продолжаем с места выхода · начать сначала — «Отменить загрузку» в паузе") } }
@@ -265,23 +270,191 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         return v.map { Variable(it.key, it.value) }.toTypedArray()
     }
 
-    /** Раскладка: touch / classic / foot / drive; положения кнопок хранятся по имени «раскладка:консоль». */
+    // ---------- раскладки игры: несколько раскладок, роли кнопок, пресеты ----------
+    /** Раскладки этой игры (до 4). Положения, значки и назначения хранятся по ключу «раскладка:консоль:кнопка». */
+    private var lays = mutableListOf(LaySpec("touch", "Основная", "touch"))
+    /** Настройки кнопок свои у игры (после выбора жанра, пресета или правки ролей) — хранятся в её файле, а не в общих. */
+    private var ctlOwn = false
+    private var holdFrom: String? = null
+
+    private fun specOf(x: String) = lays.firstOrNull { it.id == x } ?: lays.firstOrNull { it.base == x }
+
+    /** Раскладка по id; classic — «Классика» консоли. */
     private fun applyLayout(lay: String) {
-        layName = lay
-        controls.layName = "$lay:$platform"
-        controls.style = if (lay == "classic") "classic" else "touch"
-        controls.platform = platform
-        val base = if (lay == "foot" || lay == "drive") ControlLayout.preset(lay, (preset?.size ?: 0) > 1) else ControlLayout.layout(lay, platform)
-        controls.setLayout(base + extrasFor(controls.layName))
+        holdFrom = null
+        if (lay == "classic") {
+            layName = "classic"; controls.layName = "classic:$platform"; controls.style = "classic"; controls.platform = platform
+            controls.setLayout(ControlLayout.layout("classic", platform) + extrasFor(controls.layName)); ui.layId = "classic"; return
+        }
+        val sp = specOf(lay) ?: lays.first()
+        layName = sp.id
+        controls.layName = "${sp.id}:$platform"
+        controls.style = "touch"; controls.platform = platform
+        controls.setLayout(buildLayout(sp))
+        ui.layId = sp.id; ui.layouts = lays.toList()
+    }
+
+    private fun buildLayout(sp: LaySpec): List<Btn> {
+        val base = Templates.build(sp.base, platform)
+        val swap = if (lays.size > 1 && base.none { it.act == "swap" }) listOf(Templates.swapBtn()) else emptyList()
+        return base + swap + extrasFor("${sp.id}:$platform")
     }
 
     private fun switchLayout(to: String) {
-        val p = preset ?: return
-        if (to !in p || to == layName) return
-        applyLayout(to)
-        toast(if (to == "drive") "Раскладка: за рулём" else "Раскладка: пешком")
+        val sp = specOf(to) ?: return
+        if (sp.id == layName) return
+        applyLayout(sp.id)
+        toast("Раскладка: ${sp.name}")
         controls.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
     }
+
+    /** «Пока держишь»: другая раскладка, нажатая кнопка остаётся под пальцем. */
+    private fun holdLayout(to: String, btnId: String) {
+        val sp = specOf(to) ?: return
+        if (sp.id == layName) return
+        val held = controls.current().firstOrNull { it.id == btnId }
+        holdFrom = layName
+        layName = sp.id; controls.layName = "${sp.id}:$platform"
+        val list = buildLayout(sp).let { l -> if (held != null && l.none { it.id == btnId }) l + held else l }
+        controls.setLayoutKeep(list, btnId); ui.layId = sp.id
+    }
+
+    private fun unhold() { val f = holdFrom ?: return; holdFrom = null; applyLayout(f) }
+
+    /** Загрузить настройки кнопок: свои у игры (ctl) → встроенный пресет → общие. */
+    private fun loadCtl(s: JSONObject) {
+        val own = s.optJSONObject("ctl")
+        val src = when {
+            own != null -> { ctlOwn = true; own }
+            else -> GamePresets.find(title, boot.optString("title2"))?.let { (name, o) -> ui.builtin = name; o } ?: s
+        }
+        readCtl(src)
+    }
+
+    private fun readCtl(o: JSONObject) {
+        controls.offsets.clear(); controls.customIcons.clear(); controls.turbo.clear()
+        controls.keyMap.clear(); controls.sizes.clear(); controls.roles.clear(); controls.hidden.clear()
+        o.optJSONObject("keyPos")?.let { m -> m.keys().forEach { k -> val a = m.getJSONArray(k); controls.offsets[k] = android.graphics.PointF(a.getDouble(0).toFloat(), a.getDouble(1).toFloat()) } }
+        o.optJSONObject("keyIcon")?.let { m -> m.keys().forEach { k -> controls.customIcons[k] = m.getString(k) } }
+        o.optJSONObject("keyTurbo")?.let { m -> m.keys().forEach { k -> if (m.optBoolean(k)) controls.turbo.add(k) } }
+        o.optJSONObject("keyMap")?.let { m -> m.keys().forEach { k -> controls.keyMap[k] = m.getString(k) } }
+        o.optJSONObject("keySize")?.let { m -> m.keys().forEach { k -> controls.sizes[k] = m.getDouble(k).toFloat() } }
+        o.optJSONObject("keyRole")?.let { m -> m.keys().forEach { k -> controls.roles[k] = m.getString(k) } }
+        o.optJSONObject("keyHide")?.let { m -> m.keys().forEach { k -> if (m.optBoolean(k)) controls.hidden.add(k) } }
+        extras.keys().asSequence().toList().forEach { extras.remove(it) }
+        o.optJSONObject("extraBtns")?.let { m -> m.keys().forEach { k -> extras.put(k, m.get(k)) } }
+        val a = o.optJSONArray("layouts")
+        lays = if (a != null && a.length() > 0) (0 until a.length()).map { i -> a.getJSONObject(i).let { LaySpec(it.getString("id"), it.optString("name", "Раскладка"), it.optString("base", "touch")) } }.toMutableList()
+            else mutableListOf(LaySpec("touch", "Основная", "touch"))
+        ui.layouts = lays.toList()
+    }
+
+    /** Все настройки кнопок одним JSON — для сохранения в игре и в «Моих пресетах». */
+    fun ctlSnapshot(): JSONObject {
+        val pos = JSONObject().also { j -> controls.offsets.forEach { (k, p) -> j.put(k, org.json.JSONArray(listOf(p.x.toDouble(), p.y.toDouble()))) } }
+        return JSONObject()
+            .put("layouts", org.json.JSONArray().also { a -> lays.forEach { a.put(JSONObject().put("id", it.id).put("name", it.name).put("base", it.base)) } })
+            .put("keyPos", pos).put("keyIcon", iconsJson()).put("keyTurbo", turboJson())
+            .put("keyMap", JSONObject(controls.keyMap as Map<*, *>)).put("keySize", JSONObject().also { j -> controls.sizes.forEach { (k, v) -> j.put(k, v.toDouble()) } })
+            .put("keyRole", JSONObject(controls.roles as Map<*, *>)).put("keyHide", JSONObject().also { j -> controls.hidden.forEach { j.put(it, true) } })
+            .put("extraBtns", JSONObject(extras.toString()))
+    }
+
+    /** Сохранить кнопки в файл игры (свои у игры, независимо от «для всех игр»). */
+    private fun persistCtl() {
+        ctlOwn = true
+        val snap = ctlSnapshot()
+        lifecycleScope.launch(Dispatchers.IO) { GameConfig(this@GameActivity, gameId).edit { it.put("ctl", snap) } }
+    }
+
+    /** Старые правки (места, значки, турбо, свои кнопки): в файл игры, если у неё свои кнопки, иначе — как раньше. */
+    private fun saveCtl(legacy: (JSONObject) -> Unit) { if (ctlOwn) persistCtl() else persist(legacy) }
+
+    /** Применить настройки кнопок целиком (жанр, свой или встроенный пресет). */
+    fun applyCtl(o: JSONObject, msg: String? = null) {
+        readCtl(o); applyLayout(lays.first().id); persistCtl(); ui.tick++
+        msg?.let { toast(it) }
+    }
+
+    fun openPresets() { ui.presets = true; ui.tick++; updateControlsVisibility() }
+    fun closePresets() { ui.presets = false; updateControlsVisibility() }
+
+    /** Ответ на «Какой это жанр?» при первом запуске (null — «Не сейчас»). Больше не спрашиваем. */
+    fun answerGenre(id: String?) {
+        ui.genreAsk = false
+        lifecycleScope.launch(Dispatchers.IO) { GameConfig(this@GameActivity, gameId).edit { it.put("genreAsked", true) } }
+        if (id != null) applyGenre(id)
+        setPaused(false)
+    }
+
+    /** Первый запуск игры без своих кнопок и без встроенного пресета — спросить жанр (один раз). */
+    private fun maybeAskGenre() {
+        if (ui.ctlMode != "touch" || ctlOwn || ui.builtin != null) return
+        lifecycleScope.launch {
+            val asked = withContext(Dispatchers.IO) { GameConfig(this@GameActivity, gameId).read().optBoolean("genreAsked") }
+            if (asked) return@launch
+            delay(1200)
+            if (ui.phase != "ready" || ui.paused) return@launch
+            setPaused(true); ui.genreAsk = true; updateControlsVisibility()
+        }
+    }
+
+    fun applyGenre(id: String) {
+        val g = Templates.genre(id) ?: return
+        applyCtl(JSONObject().put("layouts", Templates.layoutsJson(g)), "Кнопки: ${g.name}")
+    }
+
+    // ---------- редактор: раскладки и свойства кнопки ----------
+    fun selectLayout(id: String) { applyLayout(id); ui.tick++ }
+
+    fun addLayout(base: String, name: String) {
+        if (lays.size >= 4) { toast("Не больше 4 раскладок"); return }
+        var id = base; var n = 2
+        while (lays.any { it.id == id }) id = base + n++
+        lays.add(LaySpec(id, name, base)); persistCtl(); applyLayout(id); ui.tick++
+    }
+
+    fun removeLayout(id: String) {
+        if (lays.size <= 1) return
+        lays.removeAll { it.id == id }
+        val pre = "$id:"
+        listOf(controls.customIcons.keys, controls.keyMap.keys, controls.sizes.keys, controls.roles.keys, controls.offsets.keys).forEach { ks -> ks.removeAll { it.startsWith(pre) } }
+        controls.turbo.removeAll { it.startsWith(pre) }; controls.hidden.removeAll { it.startsWith(pre) }
+        extras.keys().asSequence().toList().filter { it.startsWith(pre) }.forEach { extras.remove(it) }
+        persistCtl(); applyLayout(lays.first().id); ui.tick++
+    }
+
+    fun renameLayout(id: String, name: String) {
+        val i = lays.indexOfFirst { it.id == id }; if (i < 0 || name.isBlank()) return
+        lays[i] = lays[i].copy(name = name.trim()); ui.layouts = lays.toList(); persistCtl(); ui.tick++
+    }
+
+    fun btnKey(key: String): String? = controls.current().firstOrNull { controls.keyOf(it) == key }?.let { controls.keyName(it) }
+    fun btnSize(key: String): Float = controls.sizes[key] ?: 1f
+    fun btnRole(key: String): String? = controls.current().firstOrNull { controls.keyOf(it) == key }?.let { controls.roleOf(it) }
+    fun btnHidden(key: String) = key in controls.hidden
+
+    fun setBtnKey(key: String, name: String) { controls.keyMap[key] = name; controls.invalidate(); persistCtl(); ui.tick++ }
+    fun setBtnSize(key: String, f: Float) { if (f == 1f) controls.sizes.remove(key) else controls.sizes[key] = f; controls.invalidate(); persistCtl(); ui.tick++ }
+    /** role: null — обычная, "switch:<id>" — нажал и переключил, "hold:<id>" — пока держишь. */
+    fun setBtnRole(key: String, role: String?) { controls.roles[key] = role ?: "none"; persistCtl(); ui.tick++ }
+    fun setBtnHidden(key: String, on: Boolean) { if (on) controls.hidden.add(key) else controls.hidden.remove(key); controls.invalidate(); persistCtl(); ui.tick++ }
+
+    // ---------- мои пресеты (общие для всех игр, файл presets.json) ----------
+    private fun presetsFile() = File(filesDir, "presets.json")
+    fun myPresets(): List<Pair<String, JSONObject>> = try {
+        val a = org.json.JSONArray(presetsFile().readText()); (0 until a.length()).map { a.getJSONObject(it).let { o -> o.getString("name") to o.getJSONObject("ctl") } }
+    } catch (e: Exception) { emptyList() }
+    private fun writePresets(l: List<Pair<String, JSONObject>>) {
+        presetsFile().writeText(org.json.JSONArray().also { a -> l.forEach { (n, c) -> a.put(JSONObject().put("name", n).put("ctl", c)) } }.toString())
+        ui.tick++
+    }
+    fun savePreset(name: String) { val n = name.trim().ifEmpty { title }; writePresets(myPresets().filter { it.first != n } + (n to ctlSnapshot())); toast("Пресет «$n» сохранён") }
+    fun deletePreset(name: String) = writePresets(myPresets().filter { it.first != name })
+    fun renamePreset(old: String, new: String) { if (new.isBlank()) return; writePresets(myPresets().map { if (it.first == old) new.trim() to it.second else it }) }
+    fun applyMyPreset(name: String) { myPresets().firstOrNull { it.first == name }?.let { applyCtl(JSONObject(it.second.toString()), "Пресет «$name» применён") } }
+    fun applyBuiltin() { GamePresets.find(title, boot.optString("title2"))?.let { (n, o) -> applyCtl(JSONObject(o.toString()), "Пресет «$n» применён") } }
+    fun hasBuiltin() = GamePresets.find(title, boot.optString("title2")) != null
 
     private fun fail(msg: String) {
         ui.error = msg; ui.phase = "error"; ui.paused = false
@@ -315,6 +488,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         when {
             ui.phase == "error" -> finish()
             ui.picking != null -> closePicker()
+            ui.genreAsk -> answerGenre(null)
+            ui.presets -> closePresets()
             ui.editing -> stopEditing()
             ui.settings -> ui.settings = false
             ui.phase == "ready" -> setPaused(!ui.paused)
@@ -327,7 +502,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     private fun updateControlsVisibility() {
-        if (ui.picking != null || ui.adding) { controls.visibility = View.GONE; return }
+        if (ui.picking != null || ui.adding || ui.presets || ui.genreAsk) { controls.visibility = View.GONE; return }
         if (ui.editing) { controls.visibility = View.VISIBLE; return }
         val show = ui.phase == "ready" && !ui.paused && ui.ctlMode != "pad" && !(hideWithPad && padConnected())
         controls.visibility = if (show) View.VISIBLE else View.GONE
@@ -492,9 +667,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     fun setCtlMode(m: String) {
         ui.ctlMode = m; persist { it.put("ctlMode", m) }
-        val classic = m == "classic"
-        preset = if (!classic) ControlLayout.PRESETS[gameId] else null
-        applyLayout(preset?.first() ?: if (classic) "classic" else "touch")
+        applyLayout(if (m == "classic") "classic" else lays.first().id)
         updateControlsVisibility()
     }
     fun setOpacity(v: Int) { ui.op = v; controls.alpha = (v / 100f).coerceIn(.15f, 1f); persist { it.put("op", v) } }
@@ -535,7 +708,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun setIcon(key: String, name: String?) {
         if (name == null) controls.customIcons.remove(key) else controls.customIcons[key] = name
         controls.invalidate()
-        persist { o -> o.put("keyIcon", iconsJson()) }
+        saveCtl { o -> o.put("keyIcon", iconsJson()) }
     }
 
     fun currentIcon(key: String): String = controls.customIcons[key] ?: ui.pickingDefault
@@ -553,7 +726,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         return (0 until a.length()).mapNotNull { i ->
             val o = a.optJSONObject(i) ?: return@mapNotNull null
             val keys = o.optJSONArray("keys")?.let { k -> (0 until k.length()).map { k.getString(it) } } ?: return@mapNotNull null
-            ControlLayout.extra(o.getString("id"), keys, o.optBoolean("combo"), null)
+            if (keys.size == 1) Btn(o.getString("id"), o.optString("icon").ifEmpty { "tap" }, 54f, "r230 b150", ControlLayout.AMBER, key = keys[0])
+            else ControlLayout.extra(o.getString("id"), keys, o.optBoolean("combo"), null)
         }
     }
 
@@ -566,12 +740,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun startAdding() { ui.adding = true; updateControlsVisibility() }
     fun closeAdding() { ui.adding = false; updateControlsVisibility() }
 
-    fun addExtra(keys: List<String>, combo: Boolean) {
+    fun addExtra(keys: List<String>, combo: Boolean, icon: String? = null) {
         val lay = controls.layName
         val a = extras.optJSONArray(lay) ?: org.json.JSONArray().also { extras.put(lay, it) }
         val id = "x" + (System.currentTimeMillis() % 1_000_000)
-        a.put(JSONObject().put("id", id).put("keys", org.json.JSONArray(keys)).put("combo", combo))
-        persist { o -> o.put("extraBtns", JSONObject(extras.toString())) }
+        a.put(JSONObject().put("id", id).put("keys", org.json.JSONArray(keys)).put("combo", combo).put("icon", icon ?: ""))
+        saveCtl { o -> o.put("extraBtns", JSONObject(extras.toString())) }
         applyLayout(layName)
         closeAdding()
         toast("Кнопка добавлена — перетащи её на удобное место")
@@ -581,7 +755,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         val lay = controls.layName; val id = key.removePrefix("$lay:")
         extras.optJSONArray(lay)?.let { a -> val keep = org.json.JSONArray(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optString("id") != id }?.let { keep.put(it) }; extras.put(lay, keep) }
         controls.customIcons.remove(key); controls.turbo.remove(key); controls.offsets.remove(key)
-        persist { o ->
+        saveCtl { o ->
             o.put("extraBtns", JSONObject(extras.toString())); o.put("keyIcon", iconsJson()); o.put("keyTurbo", turboJson())
             o.optJSONObject("keyPos")?.remove(key)
         }
@@ -595,7 +769,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun setTurbo(key: String, on: Boolean) {
         if (on) controls.turbo.add(key) else controls.turbo.remove(key)
         ui.pickingTurbo = on; controls.invalidate()
-        persist { o -> o.put("keyTurbo", turboJson()) }
+        saveCtl { o -> o.put("keyTurbo", turboJson()) }
     }
 
     /** Вернуть кнопки текущей раскладки на места по умолчанию. */
@@ -606,11 +780,13 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         controls.invalidate()
         val icons = controls.customIcons.keys.filter { it.startsWith(pre) }; icons.forEach { controls.customIcons.remove(it) }
         val tb = controls.turbo.filter { it.startsWith(pre) }; controls.turbo.removeAll(tb.toSet())
-        persist { o ->
+        listOf(controls.keyMap.keys, controls.sizes.keys, controls.roles.keys).forEach { ks -> ks.removeAll { it.startsWith(pre) } }
+        controls.hidden.removeAll { it.startsWith(pre) }
+        if (ctlOwn) persistCtl() else persist { o ->
             val kp = o.optJSONObject("keyPos") ?: JSONObject(); gone.forEach { kp.remove(it) }; o.put("keyPos", kp)
             o.put("keyIcon", iconsJson()); o.put("keyTurbo", turboJson())
         }
-        toast("Кнопки как по умолчанию: места, значки, турбо")
+        toast("Кнопки этой раскладки — как по умолчанию")
     }
     fun stopEditing() { ui.editing = false; controls.editMode = false; controls.invalidate(); updateControlsVisibility(); toast("Положение кнопок сохранено") }
 
@@ -663,7 +839,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             act == "load" -> loadQuick()
             act == "ff" -> toggleFast()
             act == "tilt" -> { tilt = !tilt; controls.setToggle("tilt", tilt); toast(if (tilt) "Руль — наклоном телефона (скоро)" else "Руль — кнопками") }
-            act == "swap" -> switchLayout(if (layName == "drive") "foot" else "drive")
+            act == "swap" -> if (lays.size > 1) switchLayout(lays[(lays.indexOfFirst { it.id == layName } + 1).mod(lays.size)].id)
+            act.startsWith("switch:") -> lifecycleScope.launch { delay(800); switchLayout(act.removePrefix("switch:")) }
+            act.startsWith("hold:") -> act.removePrefix("hold:").split(":").let { p -> if (p.size >= 2) holdLayout(p[0], p[1]) }
+            act == "unhold" -> unhold()
             // умный триггер «сесть/выйти»: кнопка уходит в игру, раскладка меняется через полсекунды
             act.startsWith("ctx:") -> lifecycleScope.launch { delay(500); switchLayout(act.removePrefix("ctx:")) }
         }

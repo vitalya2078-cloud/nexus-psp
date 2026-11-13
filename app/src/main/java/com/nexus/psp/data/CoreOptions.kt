@@ -66,7 +66,12 @@ class GameConfig(private val c: Context, val id: String) {
     fun write(o: JSONObject) { f.parentFile?.mkdirs(); f.writeText(o.toString()) }
     fun edit(block: (JSONObject) -> Unit) { val o = read(); block(o); write(o) }
     val own get() = read().optBoolean("own", false)
-    fun clear() { f.delete() }
+    /** Вернуть игру к общим настройкам; кнопки игры (ctl) и ответ про жанр остаются — они всегда свои у игры. */
+    fun clear() {
+        val o = read(); val keep = JSONObject()
+        listOf("ctl", "genreAsked").forEach { k -> if (o.has(k)) keep.put(k, o.get(k)) }
+        if (keep.length() == 0) f.delete() else write(keep)
+    }
 
     /** Хранилище настроек ядра этой игры. */
     fun store(onChange: () -> Unit = {}) = object : CoreStore {

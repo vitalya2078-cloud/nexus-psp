@@ -78,14 +78,16 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
         AnimatedVisibility(ui.phase == "loading", enter = fadeIn(), exit = fadeOut(tween(500))) {
             Boot(a.title, conName, conColor, a.bgFile)
         }
-        AnimatedVisibility(ui.phase == "ready" && ui.paused && !ui.editing, enter = fadeIn(tween(160)), exit = fadeOut(tween(160))) {
+        AnimatedVisibility(ui.phase == "ready" && ui.paused && !ui.editing && !ui.genreAsk, enter = fadeIn(tween(160)), exit = fadeOut(tween(160))) {
             PauseMenu(a, ui, conName, conColor)
         }
         AnimatedVisibility(ui.phase == "ready" && ui.paused && ui.settings && !ui.editing, enter = fadeIn(tween(160)), exit = fadeOut(tween(160))) {
             SettingsPanel(a, ui)
         }
         if (ui.adding) AddButtonPanel(a)
-        if (ui.editing && ui.picking == null && !ui.adding) Box(Modifier.align(Alignment.TopCenter).padding(top = 12.dp)) { EditBar(a) }
+        if (ui.editing && ui.picking == null && !ui.adding && !ui.presets) Box(Modifier.align(Alignment.TopCenter).padding(top = 12.dp)) { EditBar(a, ui) }
+        if (ui.presets) PresetsPanel(a, ui)
+        if (ui.genreAsk) PresetsPanel(a, ui, ask = true)
         ui.picking?.let { key -> IconPicker(a, ui, key) }
         // счётчик кадров
         if (ui.showFps && ui.phase == "ready" && !ui.paused) Text(
@@ -303,6 +305,7 @@ private fun Controls(a: GameActivity, ui: GameActivity.UiState) {
     Opt("Прозрачность кнопок", null) { Range(ui.op, 15, 100) { a.setOpacity(it) } }
     Opt("Размер кнопок", null) { Range(ui.sc, 70, 140) { a.setSize(it) } }
     Opt("Для левшей", "Зеркальная раскладка") { Toggle(ui.mirror) { a.setMirror(it) } }
+    Opt("Пресеты кнопок", "Жанры, готовая раскладка игры, свои пресеты") { KButton("Открыть", small = true, enabled = ui.ctlMode == "touch") { a.openPresets() } }
     Opt("Положение кнопок", "Перетащи кнопки пальцем прямо поверх игры") {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             KButton("Сбросить", small = true) { a.resetButtons() }
@@ -343,17 +346,62 @@ private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
                 .windowInsetsPadding(WindowInsets.displayCutout).padding(start = 20.dp, end = 20.dp, top = 14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Значок кнопки", style = T.h2, modifier = Modifier.weight(1f))
-                KButton("Как было", small = true) { a.setIcon(key, null); cur = ui.pickingDefault }
+                Text("Кнопка", style = T.h2, modifier = Modifier.weight(1f))
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).press { a.closePicker() }, contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_x, 18.dp) }
             }
-            if (ui.pickingExtra.isNotEmpty()) Opt("Своя кнопка", ui.pickingExtra) { KButton("Удалить", icon = R.drawable.sl_trash, small = true, danger = true) { a.removeExtra(key) } }
-            else Opt("Турбо", "Пока держишь — кнопка быстро нажимается сама") { Toggle(ui.pickingTurbo) { a.setTurbo(key, it) } }
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
+            @Suppress("UNUSED_VARIABLE") val t = ui.tick
+            val multi = ui.pickingExtra.isNotEmpty()
+            // что нажимает в игре (у «двух разом» и комбо — свой набор, задаётся при создании)
+            if (!multi) {
+                Text("НАЖИМАЕТ В ИГРЕ", style = T.caps, modifier = Modifier.padding(top = 10.dp, bottom = 6.dp))
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val curKey = a.btnKey(key)
+                    ControlLayout.PARTS.forEach { k ->
+                        val on = k == curKey
+                        Box(
+                            Modifier.size(52.dp, 42.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.acc.copy(alpha = .18f) else K.s1)
+                                .border(1.5.dp, if (on) K.acc else K.line, RoundedCornerShape(12.dp)).press { a.setBtnKey(key, k) },
+                            contentAlignment = Alignment.Center,
+                        ) { PartIcon(a, k, 22.dp) }
+                    }
+                }
+            }
+            Opt("Размер", null) {
+                val steps = listOf(.8f, 1f, 1.25f, 1.5f)
+                Seg(listOf("S", "M", "L", "XL"), steps.indexOfFirst { kotlin.math.abs(it - a.btnSize(key)) < .01f }.coerceAtLeast(1), small = true) { a.setBtnSize(key, steps[it]) }
+            }
+            // роль: обычная / нажал — переключил раскладку / пока держишь — другая раскладка
+            val role = a.btnRole(key)
+            val kind = when { role == null -> 0; role.startsWith("hold:") -> 2; else -> 1 }
+            val others = ui.layouts.filter { it.id != ui.layId }
+            Opt("Действие", when (kind) { 1 -> "Нажимает кнопку в игре и через миг переключает раскладку"; 2 -> "Пока палец на кнопке — другая раскладка"; else -> null }) {
+                Seg(listOf("Обычная", "Переключает", "Пока держишь"), kind, small = true) { i ->
+                    val target = (role?.substringAfter(":") ?: others.firstOrNull()?.id)
+                    when {
+                        i == 0 -> a.setBtnRole(key, null)
+                        target == null -> a.toast("Сначала добавь вторую раскладку")
+                        else -> a.setBtnRole(key, (if (i == 2) "hold:" else "switch:") + target)
+                    }
+                }
+            }
+            if (kind != 0) Row(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("На раскладку:", style = T.small)
+                val tgt = role?.substringAfter(":")
+                others.forEach { l -> com.nexus.psp.ui.kit.Chip(l.name, l.id == tgt || l.base == tgt) { a.setBtnRole(key, (if (kind == 2) "hold:" else "switch:") + l.id) } }
+            }
+            if (!multi) Opt("Турбо", "Пока держишь — кнопка быстро нажимается сама") { Toggle(ui.pickingTurbo) { a.setTurbo(key, it) } }
+            if (ui.pickingIsExtra) Opt("Своя кнопка", ui.pickingExtra.ifEmpty { null }) { KButton("Удалить", icon = R.drawable.sl_trash, small = true, danger = true) { a.removeExtra(key) } }
+            else Opt("Скрыть кнопку", "В игре не видна; в редакторе — полупрозрачная, чтобы вернуть") { Toggle(a.btnHidden(key)) { a.setBtnHidden(key, it) } }
+            Row(Modifier.padding(top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("ЗНАЧОК", style = T.caps, modifier = Modifier.weight(1f))
+                KButton("Как было", small = true) { a.setIcon(key, null); cur = ui.pickingDefault }
+            }
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 CtlIcons.GROUPS.forEachIndexed { i, (g, _) -> com.nexus.psp.ui.kit.Chip(g, group == i) { group = i } }
             }
             androidx.compose.foundation.layout.FlowRow(
-                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 16.dp),
+                Modifier.padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 CtlIcons.GROUPS[group].second.forEach { (name, label) ->
@@ -374,6 +422,7 @@ private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
                     }
                 }
             }
+            }
         }
     }
 }
@@ -391,7 +440,8 @@ private fun PartIcon(a: GameActivity, k: String, size: androidx.compose.ui.unit.
 @Composable
 private fun AddButtonPanel(a: GameActivity) {
     val enter = com.nexus.psp.ui.rememberEnter(200)
-    var combo by remember { mutableStateOf(false) }
+    var mode by remember { mutableStateOf(0) } // 0 одна, 1 две разом, 2 комбо
+    val combo = mode == 2
     val keys = remember { androidx.compose.runtime.mutableStateListOf<String>() }
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)).clickable(remember { MutableInteractionSource() }, indication = null) { a.closeAdding() }) {
         Column(
@@ -405,10 +455,13 @@ private fun AddButtonPanel(a: GameActivity) {
                 Text("Новая кнопка", style = T.h2, modifier = Modifier.weight(1f))
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).press { a.closeAdding() }, contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_x, 18.dp) }
             }
-            Seg(listOf("Две разом", "Комбо"), if (combo) 1 else 0) { combo = it == 1; keys.clear() }
+            Seg(listOf("Одна", "Две разом", "Комбо"), mode) { mode = it; keys.clear() }
             Text(
-                if (combo) "Одно касание — кнопки нажимаются по очереди. Нажимай кнопки ниже в нужном порядке (до 8)."
-                else "Пока держишь — нажаты все выбранные кнопки сразу. Выбери 2–4 кнопки.",
+                when (mode) {
+                    0 -> "Обычная кнопка: выбери, что она нажимает в игре. Значок, размер и роль — потом, нажатием на неё в редакторе."
+                    2 -> "Одно касание — кнопки нажимаются по очереди. Нажимай кнопки ниже в нужном порядке (до 8)."
+                    else -> "Пока держишь — нажаты все выбранные кнопки сразу. Выбери 2–4 кнопки."
+                },
                 style = T.small,
             )
             // что получилось
@@ -426,36 +479,162 @@ private fun AddButtonPanel(a: GameActivity) {
             }
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ControlLayout.PARTS.forEach { k ->
-                    val on = !combo && k in keys
+                    val on = mode != 2 && k in keys
                     Box(
                         Modifier.size(64.dp, 52.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.acc.copy(alpha = .16f) else K.s1)
                             .border(1.5.dp, if (on) K.acc else K.line, RoundedCornerShape(12.dp))
                             .press {
-                                if (combo) { if (keys.size < 8) keys.add(k) }
+                                if (mode == 0) { keys.clear(); keys.add(k) }
+                                else if (combo) { if (keys.size < 8) keys.add(k) }
                                 else if (k in keys) keys.remove(k) else if (keys.size < 4) keys.add(k)
                             },
                         contentAlignment = Alignment.Center,
                     ) { PartIcon(a, k, 26.dp) }
                 }
             }
-            KButton("Добавить кнопку", icon = R.drawable.ph_plus, kind = BtnKind.Main, enabled = keys.size >= 2, modifier = Modifier.padding(bottom = 16.dp)) { a.addExtra(keys.toList(), combo) }
+            KButton("Добавить кнопку", icon = R.drawable.ph_plus, kind = BtnKind.Main, enabled = keys.size >= (if (mode == 0) 1 else 2), modifier = Modifier.padding(bottom = 16.dp)) { a.addExtra(keys.toList(), combo) }
         }
     }
 }
 
 /** Плашка редактора кнопок: кнопки видны поверх игры, касание мимо них приходит сюда. */
 @Composable
-private fun EditBar(a: GameActivity) {
-    Row(
-        Modifier.clip(RoundedCornerShape(22.dp)).background(Color.Black.copy(alpha = .75f)).border(1.dp, Color.White.copy(alpha = .15f), RoundedCornerShape(22.dp))
-            .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        SolarIcon(R.drawable.ph_move, 16.dp, Color(0xFFF2F1EC))
-        Text("Перетащи или нажми на кнопку", style = T.label.copy(fontSize = 13.sp, color = Color(0xFFF2F1EC)))
-        KButton("Кнопка", icon = R.drawable.ph_plus, small = true) { a.startAdding() }
-        KButton("Сбросить", small = true) { a.resetButtons() }
-        KButton("Готово", icon = R.drawable.ph_check, kind = BtnKind.Main, small = true) { a.stopEditing() }
+private fun EditBar(a: GameActivity, ui: GameActivity.UiState) {
+    var layMenu by remember { mutableStateOf<String?>(null) }
+    var addLay by remember { mutableStateOf(false) }
+    val glass = Modifier.clip(RoundedCornerShape(22.dp)).background(Color.Black.copy(alpha = .78f)).border(1.dp, Color.White.copy(alpha = .15f), RoundedCornerShape(22.dp))
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            glass.padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SolarIcon(R.drawable.ph_move, 16.dp, Color(0xFFF2F1EC))
+            Text("Перетащи или нажми на кнопку", style = T.label.copy(fontSize = 13.sp, color = Color(0xFFF2F1EC)))
+            KButton("Кнопка", icon = R.drawable.ph_plus, small = true) { a.startAdding() }
+            KButton("Пресеты", small = true) { a.openPresets() }
+            KButton("Сбросить", small = true) { a.resetButtons() }
+            KButton("Готово", icon = R.drawable.ph_check, kind = BtnKind.Main, small = true) { a.stopEditing() }
+        }
+        // раскладки игры: нажатие — открыть, повторное — переименовать/удалить; «+» — новая раскладка из шаблона
+        if (ui.ctlMode != "classic") Row(glass.padding(horizontal = 6.dp, vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            ui.layouts.forEach { l -> com.nexus.psp.ui.kit.Chip(l.name, l.id == ui.layId) { if (l.id == ui.layId) layMenu = l.id else a.selectLayout(l.id) } }
+            if (ui.layouts.size < 4) com.nexus.psp.ui.kit.Chip("Раскладка", icon = R.drawable.ph_plus) { addLay = true }
+        }
+    }
+    layMenu?.let { id -> LayoutDialog(a, ui, id) { layMenu = null } }
+    if (addLay) AddLayoutDialog(a) { addLay = false }
+}
+
+/** Переименовать или удалить раскладку. */
+@Composable
+private fun LayoutDialog(a: GameActivity, ui: GameActivity.UiState, id: String, onClose: () -> Unit) {
+    val l = ui.layouts.firstOrNull { it.id == id } ?: return
+    var name by remember(id) { mutableStateOf(l.name) }
+    DialogBox(onClose) {
+        Text("Раскладка", style = T.h3)
+        com.nexus.psp.ui.screens.SearchField(name, "Название", Modifier.fillMaxWidth()) { name = it }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            KButton("Сохранить", kind = BtnKind.Main, small = true) { a.renameLayout(id, name); onClose() }
+            if (ui.layouts.size > 1) KButton("Удалить", icon = R.drawable.sl_trash, small = true, danger = true) { a.removeLayout(id); onClose() }
+        }
+    }
+}
+
+/** Новая раскладка: основа-шаблон (пешком, транспорт, прицел…). */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun AddLayoutDialog(a: GameActivity, onClose: () -> Unit) {
+    DialogBox(onClose) {
+        Text("Новая раскладка", style = T.h3)
+        Text("Выбери основу — дальше её можно перенастроить", style = T.small)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Templates.BASES.forEach { (base, name) -> com.nexus.psp.ui.kit.Chip(name) { a.addLayout(base, name); onClose() } }
+        }
+    }
+}
+
+/** Небольшое окно поверх игры (затемнение по краям, закрывается касанием мимо). */
+@Composable
+private fun DialogBox(onClose: () -> Unit, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    val enter = com.nexus.psp.ui.rememberEnter(160)
+    androidx.compose.ui.window.Dialog(onClose) {
+        Column(
+            Modifier.width(440.dp).graphicsLayer { alpha = enter.value }.clip(RoundedCornerShape(20.dp)).background(K.s1).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp), content = content,
+        )
+    }
+}
+
+/** Пресеты: встроенный для этой игры, шаблоны жанров, свои (сохранить / применить / переименовать / удалить). */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun PresetsPanel(a: GameActivity, ui: GameActivity.UiState, ask: Boolean = false) {
+    val enter = com.nexus.psp.ui.rememberEnter(200)
+    var newName by remember { mutableStateOf("") }
+    var rename by remember { mutableStateOf<String?>(null) }
+    @Suppress("UNUSED_VARIABLE") val t = ui.tick
+    val close = { if (ask) a.answerGenre(null) else a.closePresets() }
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)).clickable(remember { MutableInteractionSource() }, indication = null) { close() }) {
+        Column(
+            Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.7f).widthIn(min = 500.dp).graphicsLayer { translationX = (1f - enter.value) * 56.dp.toPx(); alpha = enter.value }.background(K.bg)
+                .clickable(remember { MutableInteractionSource() }, indication = null) {}
+                .windowInsetsPadding(WindowInsets.displayCutout).padding(start = 20.dp, end = 20.dp, top = 14.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(if (ask) "Какой это жанр?" else "Пресеты кнопок", style = T.h2, modifier = Modifier.weight(1f))
+                if (ask) KButton("Не сейчас", small = true) { a.answerGenre(null) }
+                else Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).press { close() }, contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_x, 18.dp) }
+            }
+            if (ask) Text("Подберу экранные кнопки под игру. Потом всё можно поменять: пауза → «Кнопки».", style = T.small)
+            if (!ask && a.hasBuiltin()) Opt("Для этой игры", "Готовая раскладка KAPSULA «${ui.builtin ?: a.title}»") { KButton("Применить", kind = BtnKind.Main, small = true) { a.applyBuiltin() } }
+            Text("ЖАНРЫ", style = T.caps, modifier = Modifier.padding(top = 4.dp))
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Templates.GENRES.forEach { g ->
+                    Column(
+                        Modifier.width(104.dp).clip(RoundedCornerShape(14.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(14.dp))
+                            .press { if (ask) a.answerGenre(g.id) else a.applyGenre(g.id) }.padding(vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        val gc = GLYPH_COLOR[g.icon]
+                        if (gc != null) GlyphIcon(g.icon, gc, 28.dp) else {
+                            val ctx = androidx.compose.ui.platform.LocalContext.current
+                            val id = remember(g.icon) { ctx.resources.getIdentifier("ctl_${g.icon}", "drawable", ctx.packageName) }
+                            if (id != 0) SolarIcon(id, 28.dp, K.ink)
+                        }
+                        Text(g.name, style = T.label.copy(fontSize = 13.sp), maxLines = 1)
+                        Text(g.layouts.joinToString(" · ") { it.name }, style = T.small.copy(fontSize = 10.sp), maxLines = 1)
+                    }
+                }
+            }
+            if (!ask) {
+                Text("МОИ ПРЕСЕТЫ", style = T.caps, modifier = Modifier.padding(top = 8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.nexus.psp.ui.screens.SearchField(newName, "Название, например «Мои гонки»", Modifier.weight(1f)) { newName = it }
+                    KButton("Сохранить текущие", icon = R.drawable.sl_save, small = true) { a.savePreset(newName); newName = "" }
+                }
+                val mine = a.myPresets()
+                if (mine.isEmpty()) Text("Сохрани настроенные кнопки — и применяй их к другим играм одним нажатием.", style = T.small)
+                mine.forEach { (n, _) ->
+                    Opt(n, null) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            KButton("Применить", kind = BtnKind.Main, small = true) { a.applyMyPreset(n) }
+                            KButton(icon = R.drawable.sl_text, small = true) { rename = n }
+                            KButton(icon = R.drawable.sl_trash, small = true, danger = true) { a.deletePreset(n) }
+                        }
+                    }
+                }
+            }
+            Box(Modifier.height(16.dp))
+        }
+    }
+    rename?.let { old ->
+        var nn by remember(old) { mutableStateOf(old) }
+        DialogBox({ rename = null }) {
+            Text("Переименовать пресет", style = T.h3)
+            com.nexus.psp.ui.screens.SearchField(nn, "Название", Modifier.fillMaxWidth()) { nn = it }
+            KButton("Сохранить", kind = BtnKind.Main, small = true) { a.renamePreset(old, nn); rename = null }
+        }
     }
 }
 

@@ -86,6 +86,9 @@ object Act {
         val boot = JSONObject().put("id", id).put("name", g.t).put("plat", g.p).put("size", g.size).put("path", g.path).put("s", s).put("vars", vars)
             .put("own", own.optBoolean("own", false)).put("preset", if (own.optBoolean("own")) own.optString("preset", "custom") else S.corePreset)
         AppState.meta[id]?.backdrop?.let { boot.put("bg", it.path) }
+        // кнопки этой игры (раскладки, роли, назначения) — всегда свои у игры; название из базы дисков — для встроенных пресетов
+        com.nexus.psp.data.GameConfig(ctx, id).read().optJSONObject("ctl")?.let { s.put("ctl", it) }
+        AppState.meta[id]?.title?.let { boot.put("title2", it) }
         if (slot >= 0) boot.put("loadSlot", slot)
         return boot
     }

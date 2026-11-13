@@ -18,18 +18,24 @@ object CtlIcons {
             "bow" to "Лук", "lock" to "Цель", "combo" to "Комбо",
         ),
         "Стрельба" to listOf(
-            "aim" to "Прицел", "shoot" to "Огонь", "reload" to "Перезарядка", "weapon" to "Оружие", "grenade" to "Граната",
+            "aim" to "Прицел", "shoot" to "Огонь", "reload" to "Перезарядка", "weapon" to "Оружие", "grenade" to "Граната", "swap" to "Смена",
         ),
         "Транспорт" to listOf(
             "gas" to "Газ", "brake" to "Тормоз", "hbrake" to "Ручник", "nitro" to "Нитро", "horn" to "Сигнал", "wheel" to "Руль",
             "car" to "Машина", "moto" to "Мотоцикл", "view" to "Вид", "lights" to "Фары", "mirror" to "Зеркало", "cam" to "Камера",
+        ),
+        "Полёты" to listOf(
+            "jet" to "Самолёт", "heli" to "Вертолёт", "takeoff" to "Взлёт", "thr_up" to "Газ +", "thr_down" to "Газ −", "climb" to "Вверх",
+            "dive" to "Вниз", "roll_l" to "Крен ←", "roll_r" to "Крен →", "yaw_l" to "Поворот ←", "yaw_r" to "Поворот →", "missile" to "Ракета",
+            "mgun" to "Пулемёт", "bombs" to "Бомбы", "flares" to "Ловушки", "tgt_switch" to "Цель", "afterburner" to "Форсаж", "airbrake" to "Тормоз",
+            "gear" to "Шасси", "cockpit" to "Кабина", "parachute" to "Парашют", "eject" to "Катапульта", "winch" to "Крюк", "radar" to "Радар",
         ),
         "Спорт" to listOf(
             "pass" to "Пас", "goal" to "Удар", "tackle" to "Подкат", "players" to "Игрок",
         ),
         "Кнопки" to listOf(
             "ft" to "Верх", "fr" to "Право", "fb" to "Низ", "fl" to "Лево", "l1" to "L1", "r1" to "R1", "l2" to "L2", "r2" to "R2",
-            "select" to "Select", "start" to "Start",
+            "select" to "Select", "start" to "Start", "layout" to "Раскладка", "both" to "Две разом", "turbo" to "Турбо",
         ),
     )
 }
