@@ -164,7 +164,11 @@ private fun About() {
     Opt("Конфиденциальность", "Данные хранятся только на телефоне") { }
     // авторы и тексты лицензий открытых компонентов — по условиям этих лицензий; на виду только нейтральная строка
     var legal by remember { mutableStateOf(false) }
-    Opt("Правовая информация", null) { KButton("Открыть", small = true) { legal = true } }
+    // незаметная серая ссылка внизу раздела
+    Text(
+        "Правовая информация", style = T.small.copy(fontSize = 11.sp, color = K.ink3),
+        modifier = Modifier.padding(top = 20.dp, bottom = 8.dp).clip(RoundedCornerShape(6.dp)).press { legal = true }.padding(horizontal = 2.dp, vertical = 4.dp),
+    )
     if (legal) LegalDialog { legal = false }
     // последняя ошибка (если приложение или игра падали) — чтобы прислать разработчику
     var crash by remember { mutableStateOf(com.nexus.psp.data.CrashLog.last(ctx)) }
