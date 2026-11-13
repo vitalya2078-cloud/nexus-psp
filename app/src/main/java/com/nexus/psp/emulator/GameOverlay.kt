@@ -92,6 +92,7 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
         if (ui.texOpen) TexturesPanel(a, ui)
         if (ui.netOpen) NetPanel(a, ui)
         if (ui.achOpen) AchPanel(a, ui)
+        if (ui.searchOpen) SearchPanel(a, ui)
         // «Достижение получено» — поверх игры на 5 секунд
         ui.raPopup?.let { p -> Box(Modifier.align(Alignment.TopCenter).padding(top = 14.dp)) { AchPopup(p) } }
         if (ui.genreAsk) PresetsPanel(a, ui, ask = true)
@@ -287,7 +288,10 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 16.dp)) {
                 key(ui.scopeGame) {
                     when (tab) {
-                        0 -> { FilterRow(a, ui); CoreQuality(a.coreStore) }
+                        0 -> {
+                            Opt("Авто-качество", "Держать 60 кадров: при нехватке скорости разрешение снижается само, при запасе — возвращается") { Toggle(ui.autoRes) { a.setAutoRes(it) } }
+                            FilterRow(a, ui); CoreQuality(a.coreStore)
+                        }
                         1 -> {
                             Opt("Ускорение", "Во сколько раз быстрее при включённом ускорении") {
                                 Seg(listOf("×2", "×3", "×4"), (ui.fastLevel - 2).coerceIn(0, 2), small = true) { a.setFastLevel(it + 2) }
@@ -519,6 +523,7 @@ private fun CheatsPanel(a: GameActivity, ui: GameActivity.UiState) {
                 }
             }
         }
+        Opt("Поиск значений", "Найди в памяти игры деньги, здоровье, патроны — и заморозь их") { KButton("Открыть", icon = R.drawable.sl_search, small = true) { a.openSearch() } }
         Text("СВОЙ КОД", style = T.caps, modifier = Modifier.padding(top = 10.dp))
         com.nexus.psp.ui.screens.SearchField(name, "Название, например «Бесконечные деньги»", Modifier.fillMaxWidth()) { name = it }
         com.nexus.psp.ui.screens.SearchField(code, "Строки CWCheat: 0x20123456 0x000003E7", Modifier.fillMaxWidth()) { code = it }
@@ -902,5 +907,49 @@ private fun AchPanel(a: GameActivity, ui: GameActivity.UiState) {
             }
         }
         Text("Режим «мягкий»: ускорение, сохранения и читы не блокируют достижения. Данные — retroachievements.org.", style = T.small.copy(fontSize = 11.sp))
+    }
+}
+
+
+/** Искатель значений: число → поиск → играешь → уточняешь → «Заморозить» (свой чит). */
+@Composable
+private fun SearchPanel(a: GameActivity, ui: GameActivity.UiState) {
+    var num by remember { mutableStateOf("") }
+    SidePanel("Поиск значений", { a.closeSearch() }) {
+        Text("1. Введи, сколько сейчас (например, денег) и нажми «Новый поиск». 2. Вернись в игру, чтобы число поменялось. 3. Пауза → введи новое число → «Стало». Повторяй, пока адресов не останется пара штук.", style = T.small)
+        Opt("Размер числа", "4 байта — деньги и очки; 2 — здоровье, патроны; 1 — маленькие счётчики") {
+            Seg(listOf("1", "2", "4"), listOf(1, 2, 4).indexOf(ui.searchSize).coerceAtLeast(0), small = true) { a.setSearchSize(listOf(1, 2, 4)[it]) }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            com.nexus.psp.ui.screens.SearchField(num, "Число, например 500", Modifier.weight(1f)) { num = it.filter { c -> c.isDigit() }.take(10) }
+            if (ui.searchCount < 0) KButton("Новый поиск", kind = BtnKind.Main, small = true, enabled = !ui.searchBusy) { a.searchRun("first", num.toLongOrNull()?.toInt()) }
+            else KButton("Стало", kind = BtnKind.Main, small = true, enabled = !ui.searchBusy) { a.searchRun("eq", num.toLongOrNull()?.toInt()) }
+        }
+        if (ui.searchCount >= 0) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            KButton("Выросло", small = true, enabled = !ui.searchBusy) { a.searchRun("inc", null) }
+            KButton("Уменьшилось", small = true, enabled = !ui.searchBusy) { a.searchRun("dec", null) }
+            KButton("Не менялось", small = true, enabled = !ui.searchBusy) { a.searchRun("same", null) }
+            KButton("Сбросить", small = true) { a.searchReset() }
+        }
+        when {
+            ui.searchBusy -> StateNote("Ищу в памяти игры…")
+            ui.searchCount == 0 -> StateNote("Ничего не нашлось. Попробуй другой размер числа или начни заново.")
+            ui.searchCount > 30 -> StateNote("Найдено адресов: ${ui.searchCount}. Поменяй значение в игре и уточни поиск.")
+        }
+        ui.searchRows.forEach { (off, v) ->
+            var setTo by remember(off) { mutableStateOf(v.toString()) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(MemSearch.pspAddr(off), style = T.label.copy(fontSize = 13.sp))
+                    Text("Сейчас: $v", style = T.small)
+                }
+                com.nexus.psp.ui.screens.SearchField(setTo, "Значение", Modifier.width(140.dp)) { setTo = it.filter { c -> c.isDigit() }.take(10) }
+                KButton("Заморозить", kind = BtnKind.Main, small = true) {
+                    val value = setTo.toLongOrNull()?.toInt() ?: v
+                    a.freeze(off, value, "Значение ${MemSearch.pspAddr(off)} = $value")
+                }
+            }
+        }
+        if (ui.searchRows.isNotEmpty()) Text("«Заморозить» создаёт свой чит в списке читов — его можно выключить там же.", style = T.small.copy(fontSize = 11.sp))
     }
 }

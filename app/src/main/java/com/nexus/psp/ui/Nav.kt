@@ -85,6 +85,7 @@ object Act {
             .put("mirror", own.optBoolean("mirror", S.mirror)).put("vib", S.vib).put("hide", S.hide).put("resume", S.autoResume).put("fps", own.optBoolean("fps", S.fps)).put("keyPos", kp).put("keyIcon", ki).put("keyTurbo", kt).put("extraBtns", kx)
             .put("shader", own.optString("shader", S.shader)).put("fastLevel", own.optInt("fastLevel", S.fastLevel.toIntOrNull() ?: 2))
             .put("tiltSens", own.optInt("tiltSens", S.tiltSens.toIntOrNull() ?: 100))
+            .put("autoRes", own.optBoolean("autoRes", S.autoRes)).put("autoSave", S.autoSave.toIntOrNull() ?: 0).put("battery", S.batterySaver)
         val boot = JSONObject().put("id", id).put("name", g.t).put("plat", g.p).put("size", g.size).put("path", g.path).put("s", s).put("vars", vars)
             .put("own", own.optBoolean("own", false)).put("preset", if (own.optBoolean("own")) own.optString("preset", "custom") else S.corePreset)
         AppState.meta[id]?.backdrop?.let { boot.put("bg", it.path) }

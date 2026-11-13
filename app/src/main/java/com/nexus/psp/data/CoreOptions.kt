@@ -12,9 +12,9 @@ data class CoreOpt(val key: String, val title: String, val desc: String, val val
 
 object CoreOptions {
     val PRESETS = mapOf(
-        "quality" to mapOf("ppsspp_internal_resolution" to "1440x816", "ppsspp_texture_scaling_level" to "2x", "ppsspp_texture_scaling_type" to "xbrz", "ppsspp_texture_filtering" to "Auto max quality", "ppsspp_texture_anisotropic_filtering" to "16x", "ppsspp_auto_frameskip" to "disabled"),
-        "balance" to mapOf("ppsspp_internal_resolution" to "960x544", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "8x", "ppsspp_auto_frameskip" to "disabled"),
-        "battery" to mapOf("ppsspp_internal_resolution" to "480x272", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "disabled", "ppsspp_auto_frameskip" to "enabled"),
+        "quality" to mapOf("ppsspp_internal_resolution" to "1440x816", "ppsspp_texture_scaling_level" to "2x", "ppsspp_texture_scaling_type" to "xbrz", "ppsspp_texture_filtering" to "Auto max quality", "ppsspp_texture_anisotropic_filtering" to "16x", "ppsspp_auto_frameskip" to "disabled", "ppsspp_skip_gpu_readbacks" to "disabled"),
+        "balance" to mapOf("ppsspp_internal_resolution" to "960x544", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "8x", "ppsspp_auto_frameskip" to "disabled", "ppsspp_skip_gpu_readbacks" to "disabled"),
+        "battery" to mapOf("ppsspp_internal_resolution" to "480x272", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "disabled", "ppsspp_auto_frameskip" to "enabled", "ppsspp_skip_gpu_readbacks" to "enabled"),
     )
     val PRESET_NAMES = mapOf("quality" to "Качество", "balance" to "Баланс", "battery" to "Батарея", "custom" to "Своё")
 
@@ -23,12 +23,19 @@ object CoreOptions {
         CoreOpt("ppsspp_texture_scaling_level", "Улучшение текстур", "Сглаживает пиксели на текстурах. Заметно греет телефон", listOf("disabled", "2x", "3x", "4x"), listOf("Выкл", "×2", "×3", "×4"), "disabled"),
         CoreOpt("ppsspp_texture_filtering", "Фильтрация", "Как сглаживаются текстуры при масштабировании", listOf("Auto", "Nearest", "Linear", "Auto max quality"), listOf("Авто", "Чётко", "Гладко", "Макс"), "Auto"),
         CoreOpt("ppsspp_cropto16x9", "Обрезать до 16:9", "Убрать по строке сверху и снизу ради точного 16:9", listOf("enabled", "disabled"), listOf("Да", "Нет"), "enabled"),
+        CoreOpt("ppsspp_lower_resolution_for_effects", "Мягкие эффекты", "Свечение и размытие считаются в меньшем разрешении: меньше артефактов на высоком разрешении", listOf("disabled", "Safe", "Balanced", "Aggressive"), listOf("Выкл", "Мягко", "Средне", "Сильно"), "disabled"),
+        CoreOpt("ppsspp_depth_raster", "Блики за объектами", "Солнечные блики не просвечивают сквозь стены", listOf("default", "low", "off", "always_on"), listOf("Авто", "Быстро", "Выкл", "Всегда"), "default"),
+        CoreOpt("ppsspp_smart_2d_texture_filtering", "Чёткая 2D-графика", "Убирает размытие в 2D-играх (платформеры, файтинги)", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
+        CoreOpt("ppsspp_texture_deposterize", "Без полос на текстурах", "Сглаживает ступеньки цвета при улучшении текстур", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
     )
     val SPEED = listOf(
         CoreOpt("ppsspp_frameskip", "Пропуск кадров", "Помогает слабым телефонам, но картинка менее плавная", listOf("disabled", "1", "2", "3"), listOf("Выкл", "1", "2", "3"), "disabled"),
         CoreOpt("ppsspp_auto_frameskip", "Авто-пропуск кадров", "Пропускать кадры только когда игра не успевает", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("ppsspp_frame_duplication", "Плавные 60 кадров", "Дублировать кадры игр с 30 кадрами до 60 Гц", listOf("enabled", "disabled"), listOf("Вкл", "Выкл"), "enabled"),
         CoreOpt("ppsspp_inflight_frames", "Буфер команд", "Больше — выше скорость, но чуть больше задержка", listOf("No buffer", "Up to 1", "Up to 2"), listOf("Нет", "1", "2"), "Up to 1"),
+        CoreOpt("ppsspp_skip_gpu_readbacks", "Ускорение для слабых", "Заметно быстрее на слабых телефонах; в редких играх ломает эффекты", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
+        CoreOpt("ppsspp_cache_iso", "Игра в памяти", "Образ целиком в оперативной памяти: без подгрузок. Нужно 2+ ГБ свободной памяти", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
+        CoreOpt("ppsspp_io_timing_method", "Загрузки", "«Как на UMD» чинит редкие игры, которым мешают слишком быстрые загрузки", listOf("Fast", "Simulate UMD delays"), listOf("Быстро", "Как на UMD"), "Fast", restart = true),
     )
     val SYSTEM = listOf(
         CoreOpt("ppsspp_language", "Язык игры", "Если игра поддерживает несколько языков", listOf("Automatic", "Russian", "English", "Japanese"), listOf("Авто", "Русский", "English", "日本語"), "Automatic", restart = true),
@@ -47,6 +54,7 @@ object CoreOptions {
     /** Стик: мёртвая зона и чувствительность (применяются на лету). */
     val INPUT = listOf(
         CoreOpt("ppsspp_analog_deadzone", "Мёртвая зона стика", "Сколько можно сдвинуть стик, прежде чем игра заметит движение", listOf("0.0", "0.05", "0.10", "0.15", "0.25"), listOf("0", "5%", "10%", "15%", "25%"), "0.0"),
+        CoreOpt("ppsspp_analog_is_circular", "Круглый ход стика", "Диагонали стика — как у настоящего стика PSP", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("ppsspp_analog_sensitivity", "Чувствительность стика", "Насколько резко персонаж или машина отзываются на стик", listOf("1.00", "1.10", "1.25", "1.50"), listOf("×1", "×1,1", "×1,25", "×1,5"), "1.00"),
     )
     val ALL = QUALITY + SPEED + SYSTEM + EXPERT + INPUT

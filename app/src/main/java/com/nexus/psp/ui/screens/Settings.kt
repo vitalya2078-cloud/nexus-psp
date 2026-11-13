@@ -109,6 +109,11 @@ private fun General() {
     Opt("Язык", null) { Seg(listOf("RU", "EN"), if (S.lang == "EN") 1 else 0) { S.lang = if (it == 1) "EN" else "RU"; if (it == 1) AppState.say("Английский перевод появится позже") } }
     Opt("Вибрация", "Отклик при выборе и важных действиях") { Toggle(S.vib) { S.vib = it } }
     Opt("Звуки интерфейса", "Тихий щелчок в карусели") { Toggle(S.sound) { S.sound = it } }
+    Opt("Автосохранение", "Каждые N минут игра сохраняется сама — в слот «Место выхода»") {
+        val m = listOf("0", "5", "10", "15")
+        Seg(listOf("Выкл", "5 мин", "10 мин", "15 мин"), m.indexOf(S.autoSave).coerceAtLeast(0), small = true) { S.autoSave = m[it] }
+    }
+    Opt("Экономия батареи", "При заряде 15% и ниже — пресет «Батарея» до зарядки") { Toggle(S.batterySaver) { S.batterySaver = it } }
     Opt("Продолжать с места выхода", "При выходе из игры место сохраняется само, «Играть» возвращает туда же") { Toggle(S.autoResume) { S.autoResume = it } }
     Opt("Облачные сохранения", "Продолжай на другом телефоне (в планах)") { Toggle(S.cloud) { S.cloud = it } }
 }
@@ -289,6 +294,7 @@ private fun CoreSettings() {
     when (sec) {
         0 -> {
             val f = listOf("default" to "Обычный", "smooth" to "Сглаживание", "pixel" to "Пиксели", "lcd" to "ЖК", "crt" to "ЭЛТ")
+            Opt("Авто-качество", "Держать 60 кадров: разрешение снижается само при нехватке скорости") { Toggle(S.autoRes) { S.autoRes = it } }
             Opt("Фильтр картинки", "Для всех игр; в игре можно поменять на лету: пауза → Настройки") {
                 Seg(f.map { it.second }, f.indexOfFirst { it.first == S.shader }.coerceAtLeast(0), small = true) { S.shader = f[it].first }
             }

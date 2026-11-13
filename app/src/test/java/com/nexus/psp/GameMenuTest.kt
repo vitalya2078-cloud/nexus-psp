@@ -76,6 +76,11 @@ class GameMenuTest {
         shot(a, "p13_achievements")
         ui.achOpen = false; ui.paused = false; ui.raPopup = GameActivity.RaPop("Мастер клинка", "Выиграй 10 боёв подряд", "00000", 10)
         shot(a, "p14_ach_popup")
+        ui.raPopup = null; ui.paused = true; ui.searchOpen = true
+        shot(a, "p15_search_empty")
+        ui.searchCount = 2; ui.searchRows = listOf(0x00923450 to 750, 0x00A01200 to 750)
+        shot(a, "p16_search_found")
+        ui.searchOpen = false
         c.pause().stop().destroy()
     }
 }

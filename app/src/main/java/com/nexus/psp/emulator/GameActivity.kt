@@ -126,6 +126,13 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var learnBusy by mutableStateOf(false)
         var autoOn by mutableStateOf(false)
         // достижения RetroAchievements
+        var autoRes by mutableStateOf(false)
+        // искатель значений
+        var searchOpen by mutableStateOf(false)
+        var searchBusy by mutableStateOf(false)
+        var searchCount by mutableStateOf(-1)
+        var searchSize by mutableStateOf(4)
+        var searchRows by mutableStateOf<List<Pair<Int, Int>>>(emptyList())
         var raState by mutableStateOf("off") // off | load | ready | none | fail
         var raMsg by mutableStateOf("")
         var raTitle by mutableStateOf("")
@@ -196,6 +203,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         ui.ctlMode = s.optString("ctlMode", "touch"); ui.op = s.optInt("op", 55); ui.sc = s.optInt("sc", 100); ui.mirror = s.optBoolean("mirror", false)
         ui.showFps = s.optBoolean("fps", false)
         presetName = boot.optString("preset", "")
+        ui.autoRes = s.optBoolean("autoRes", false); autoSaveMin = s.optInt("autoSave", 0); batterySaver = s.optBoolean("battery", true)
         ui.shader = s.optString("shader", "default"); ui.fastLevel = s.optInt("fastLevel", 2).coerceIn(2, 4); ui.tiltSens = s.optInt("tiltSens", 100)
         gx = s.optJSONObject("gx") ?: JSONObject()
         ui.cheatsOn = gx.optJSONObject("cheatsOn")?.let { o -> o.keys().asSequence().filter { o.optBoolean(it) }.toSet() } ?: emptySet()
@@ -292,7 +300,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             }
         }
         // счётчик кадров
-        lifecycleScope.launch { while (true) { delay(1000); ui.fps = frames; frames = 0 } }
+        lifecycleScope.launch { while (true) { delay(1000); ui.fps = frames; frames = 0; autoResTick(ui.fps) } }
+        startAutoSave(); startBatteryWatch()
         lifecycleScope.launch {
             view.getGLRetroErrors().collect { code ->
                 fail(when (code) {
@@ -316,6 +325,11 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> if (k.startsWith("ppsspp_")) v[k] = o.optString(k) } }
         // читы включаются на лету (retro_cheat_set) — движок читов должен работать с запуска
         if (!v.containsKey("ppsspp_cheats")) v["ppsspp_cheats"] = "enabled"
+        // игра в памяти — сама включается на телефонах с 6+ ГБ ОЗУ (если игрок не выбрал иначе)
+        if (!v.containsKey("ppsspp_cache_iso")) {
+            val mi = android.app.ActivityManager.MemoryInfo(); getSystemService(android.app.ActivityManager::class.java)?.getMemoryInfo(mi)
+            if (mi.totalMem >= 5_800L * 1024 * 1024) v["ppsspp_cache_iso"] = "enabled"
+        }
         // HD-текстуры этой игры
         if (gx.optBoolean("tex") && serial != null) v["ppsspp_texture_replacement"] = "enabled"
         // игра по сети
@@ -546,6 +560,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             ui.texOpen -> closeTextures()
             ui.netOpen -> closeNet()
             ui.achOpen -> closeAch()
+            ui.searchOpen -> closeSearch()
             ui.presets -> closePresets()
             ui.editing -> stopEditing()
             ui.settings -> ui.settings = false
@@ -559,7 +574,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     private fun updateControlsVisibility() {
-        if (ui.picking != null || ui.adding || ui.presets || ui.genreAsk || ui.cheatsOpen || ui.texOpen || ui.netOpen || ui.achOpen) { controls.visibility = View.GONE; return }
+        if (ui.picking != null || ui.adding || ui.presets || ui.genreAsk || ui.cheatsOpen || ui.texOpen || ui.netOpen || ui.achOpen || ui.searchOpen) { controls.visibility = View.GONE; return }
         if (ui.editing) { controls.visibility = View.VISIBLE; return }
         val show = ui.phase == "ready" && !ui.paused && ui.ctlMode != "pad" && !(hideWithPad && padConnected())
         controls.visibility = if (show) View.VISIBLE else View.GONE
@@ -794,6 +809,61 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         toast(if (on) "Руль — наклоном телефона: держи ровно, это «прямо»" else "Руль — стиком")
     }
 
+    // ---------- авто-качество: держать 60 кадров, меняя разрешение на лету ----------
+    private val resSteps = listOf("480x272", "960x544", "1440x816", "1920x1088")
+    private var resLow = 0; private var resHigh = 0; private var resCooldown = 0
+    fun setAutoRes(on: Boolean) { ui.autoRes = on; resLow = 0; resHigh = 0; persist { it.put("autoRes", on) }; if (on) toast("Авто-качество: KAPSULA будет держать 60 кадров") }
+
+    private fun autoResTick(fps: Int) {
+        if (!ui.autoRes || ui.phase != "ready" || ui.paused || ui.fast || fps <= 0) { resLow = 0; resHigh = 0; return }
+        if (resCooldown > 0) { resCooldown--; return }
+        // максимум — разрешение, выбранное игроком; ниже ×1 не опускаемся
+        val max = resSteps.indexOf(vars.optString("ppsspp_internal_resolution", "960x544")).coerceAtLeast(0)
+        val cur = resSteps.indexOf(curRes ?: resSteps[max]).coerceAtLeast(0)
+        if (fps < 54) { resLow++; resHigh = 0 } else if (fps >= 59) { resHigh++; resLow = 0 } else { resLow = 0; resHigh = 0 }
+        val to = when { resLow >= 3 && cur > 0 -> cur - 1; resHigh >= 20 && cur < max -> cur + 1; else -> return }
+        curRes = resSteps[to]; resLow = 0; resHigh = 0; resCooldown = 8
+        retro?.updateVariables(Variable("ppsspp_internal_resolution", resSteps[to]))
+        toast(if (to < cur) "Разрешение ×${to + 1} — для плавности" else "Разрешение ×${to + 1} — запас есть")
+    }
+    private var curRes: String? = null
+
+    // ---------- автосохранение по таймеру (слот «Место выхода») ----------
+    private var autoSaveMin = 0
+    private fun startAutoSave() {
+        if (autoSaveMin <= 0) return
+        lifecycleScope.launch {
+            while (true) {
+                delay(autoSaveMin * 60_000L)
+                if (ui.phase == "ready" && !ui.paused) { saveAuto(capture = true); toast("Автосохранение") }
+            }
+        }
+    }
+
+    // ---------- экономия батареи: мало заряда — пресет «Батарея» до зарядки ----------
+    private var batterySaver = true
+    private var savedForBattery: Map<String, String>? = null
+    private fun startBatteryWatch() {
+        if (!batterySaver) return
+        lifecycleScope.launch {
+            while (true) {
+                val bm = getSystemService(android.os.BatteryManager::class.java)
+                val level = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
+                val charging = bm?.isCharging == true
+                if (savedForBattery == null && level in 1..15 && !charging && ui.phase == "ready") {
+                    val preset = CoreOptions.PRESETS["battery"] ?: emptyMap()
+                    savedForBattery = preset.keys.associateWith { vars.optString(it, "") }
+                    preset.forEach { (k, v) -> retro?.updateVariables(Variable(k, v)) }
+                    toast("Заряд $level% — включена экономия батареи до зарядки")
+                } else if (savedForBattery != null && (charging || level > 20)) {
+                    savedForBattery!!.forEach { (k, v) -> if (v.isNotEmpty()) retro?.updateVariables(Variable(k, v)) }
+                    savedForBattery = null; toast("Экономия батареи выключена")
+                }
+                delay(60_000)
+            }
+        }
+    }
+
     // ---------- допы игры: читы, HD-текстуры, игра по сети (хранятся в файле игры, «gx») ----------
     private var gx = JSONObject()
     val serial: String? get() = boot.optString("serial").ifEmpty { null }
@@ -849,6 +919,32 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         val a = gx.optJSONArray("cheatsOwn") ?: return
         val keep = org.json.JSONArray(); for (i in 0 until a.length()) a.getJSONObject(i).takeIf { it.optString("name") != name }?.let { keep.put(it) }
         gx.put("cheatsOwn", keep); ui.cheatsOn = ui.cheatsOn - name; saveGx(); loadCheats()
+    }
+
+    // ---------- искатель значений ----------
+    private val search = MemSearch()
+    fun openSearch() { ui.searchOpen = true; updateControlsVisibility() }
+    fun closeSearch() { ui.searchOpen = false; updateControlsVisibility() }
+    fun setSearchSize(n: Int) { if (search.cands == null) { search.size = n; ui.searchSize = n } }
+    fun searchRun(mode: String, value: Int?) {
+        if (!AutoSwitch.ramReady()) { toast("Память игры ещё не готова"); return }
+        if ((mode == "first" || mode == "eq") && value == null) { toast("Введи число"); return }
+        ui.searchBusy = true
+        lifecycleScope.launch {
+            val n = withContext(Dispatchers.Default) { if (mode == "first") search.first(value!!) else search.next(mode, value ?: 0) }
+            ui.searchCount = n; ui.searchRows = withContext(Dispatchers.Default) { if (n in 1..30) search.current() else emptyList() }
+            ui.searchBusy = false
+            if (search.overflow) toast("Совпадений очень много — продолжай уточнять")
+        }
+    }
+    fun searchReset() { search.reset(); ui.searchCount = -1; ui.searchRows = emptyList() }
+    /** «Заморозить»: адрес становится своим читом — ядро записывает значение каждый кадр. */
+    fun freeze(offset: Int, value: Int, name: String) {
+        ui.cheatsOn = ui.cheatsOn + name
+        gx.put("cheatsOn", JSONObject().also { j -> ui.cheatsOn.forEach { j.put(it, true) } })
+        addOwnCheat(name, MemSearch.cwcheat(offset, search.size, value))
+        // список читов перечитывается в фоне — передаём ядру, когда новый код в нём появится
+        lifecycleScope.launch { repeat(30) { if (ui.cheats.any { it.name == name }) { pushCheats(); toast("Заморожено: $value"); return@launch }; delay(100) } }
     }
 
     // HD-текстуры

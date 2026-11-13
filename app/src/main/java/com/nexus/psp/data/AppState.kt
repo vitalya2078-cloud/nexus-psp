@@ -102,6 +102,10 @@ class Settings(private val sp: SharedPreferences) {
     var raToken by s("raToken", "")
     var raScore by s("raScore", "0")
     var raOn by b("raOn", true)
+    /** Авто-качество 60 кадров, автосохранение (минут, 0 — выкл), экономия батареи при низком заряде. */
+    var autoRes by b("autoRes", false)
+    var autoSave by s("autoSave", "0")
+    var batterySaver by b("batterySaver", true)
 }
 
 object AppState {
@@ -276,6 +280,7 @@ object AppState {
             if (o.has("shader")) S.shader = o.optString("shader")
             if (o.has("fastLevel")) S.fastLevel = o.optInt("fastLevel", 2).toString()
             if (o.has("tiltSens")) S.tiltSens = o.optInt("tiltSens", 100).toString()
+            if (o.has("autoRes")) S.autoRes = o.optBoolean("autoRes")
         } catch (e: Exception) { }
         f.delete()
     }
