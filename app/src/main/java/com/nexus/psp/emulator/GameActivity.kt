@@ -214,6 +214,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             scaleK = (s.optDouble("sc", 100.0) / 100.0).toFloat()
             alpha = (s.optDouble("op", 55.0) / 100.0).toFloat().coerceIn(.15f, 1f)
             vibrate = s.optBoolean("vib", true)
+            captions = s.optBoolean("caps", true)
             visibility = View.GONE
         }
         ui.ctlMode = s.optString("ctlMode", "touch"); ui.op = s.optInt("op", 55); ui.sc = s.optInt("sc", 100); ui.mirror = s.optBoolean("mirror", false)

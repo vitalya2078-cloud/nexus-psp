@@ -38,9 +38,9 @@ object Templates {
     )
 
     fun swapBtn() = Btn("swap", "layout", 40f, "c46 b14", act = "swap")
-    private fun stick() = Btn("ls", null, 128f, "l80 b46", stick = "float")
-    private fun pause() = Btn("pause", "pause", 40f, "c0 b14", act = "pause")
-    private fun small(id: String, icon: String, pos: String, key: String, size: Float = 44f, to: String? = null, hold: Boolean = false, color: Long? = null) =
+    internal fun stick() = Btn("ls", null, 128f, "l80 b46", stick = "float")
+    internal fun pause() = Btn("pause", "pause", 40f, "c0 b14", act = "pause")
+    internal fun small(id: String, icon: String, pos: String, key: String, size: Float = 44f, to: String? = null, hold: Boolean = false, color: Long? = null) =
         Btn(id, icon, size, pos, color, key = key, to = to, hold = hold)
 
     /** Кнопки действий дугой под большой палец (как в Touch): значки и клавиши по порядку верх/право/низ/лево. */
@@ -54,7 +54,7 @@ object Templates {
     }
 
     /** Кнопки раскладки по основе. plat — консоль (для «Джойстика» и «Классики»). */
-    fun build(base: String, plat: String): List<Btn> = when (base) {
+    fun build(base: String, plat: String): List<Btn> = drawer(when (base) {
         "classic" -> ControlLayout.layout("classic", plat)
         // GTA VCS: × бег, □ прыжок, ○ атака, △ сесть, L прицел/смотреть, R цель, ←/→ оружие, Select камера, Start меню
         "foot" -> listOf(small("l1", "aim", "l16 t12", "l1", 52f), small("r1", "lock", "r16 t12", "r1", 52f), stick()) +
@@ -104,7 +104,14 @@ object Templates {
             Btn("msl", "missile", 80f, "r26 b30", ROSE, key = "fr"), Btn("gun", "mgun", 62f, "r120 b24", AMBER, key = "fb"),
             Btn("tgt", "tgt_switch", 52f, "r40 b128", BLUE, key = "ft"), Btn("spc", "bombs", 46f, "r130 b110", key = "fl"),
             small("up", "thr_up", "r16 t12", "r1", 52f), small("dn", "thr_down", "l16 t12", "l1", 52f), small("cam", "cockpit", "l20 t72", "select", 40f), pause())
-        else -> ControlLayout.layout("touch", plat)
+        else -> GameLayouts.build(base) ?: ControlLayout.layout("touch", plat)
+    })
+
+    /** Редкие кнопки (меню, карта, вещи) — в панель «⋯», чтобы на экране было только главное. */
+    private val RARE = setOf("menu", "map", "bag")
+    private fun drawer(list: List<Btn>): List<Btn> {
+        val l = list.map { if (it.id in RARE && it.act == null) it.copy(more = true) else it }
+        return if (l.any { it.more } && l.none { it.act == "more" }) l + ControlLayout.moreBtn() else l
     }
 
     /** Раскладки жанра в виде JSON — для «Применить шаблон» и встроенных пресетов. */

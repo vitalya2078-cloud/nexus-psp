@@ -38,4 +38,7 @@ object CtlIcons {
             "select" to "Select", "start" to "Start", "layout" to "Раскладка", "both" to "Две разом", "turbo" to "Турбо",
         ),
     )
+
+    /** Подпись под кнопкой по её значку (кнопки консоли и служебные — без подписи). */
+    val CAPS: Map<String, String> by lazy { GROUPS.filter { it.first != "Кнопки" }.flatMap { it.second }.toMap() + mapOf("more" to "Ещё", "left" to "Влево", "right" to "Вправо", "camreset" to "Камера") }
 }

@@ -145,6 +145,7 @@ private fun Controls() {
         KButton("Настроить", kind = com.nexus.psp.ui.kit.BtnKind.Main, small = true) { Nav.open(Ov.Pad) }
     }
     Opt("Скрывать кнопки", "Когда подключён геймпад") { Toggle(S.hide) { S.hide = it } }
+    Opt("Подписи под кнопками", "«Газ», «Прыжок», «Удар» — под значками экранных кнопок. Когда привыкнешь, можно выключить") { Toggle(S.caps) { S.caps = it } }
     Opt("Показывать смену раскладки", "Маленькая плашка с названием раскладки, когда переключаешь её в игре") { Toggle(S.layHint) { S.layHint = it } }
     CoreRows(CoreOptions.INPUT)
     Opt("Ускорение", "Во сколько раз быстрее при включённом ускорении") {

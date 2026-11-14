@@ -23,9 +23,22 @@ data class Btn(
     val key: String? = null,        // какую кнопку консоли нажимает (ft, fb, l1, up…); null — по id
     val to: String? = null,         // переключает на раскладку (id или основа шаблона)
     val hold: Boolean = false,      // true — «пока держишь»: другая раскладка только пока палец на кнопке
+    val cap: String? = null,        // подпись под кнопкой (по умолчанию — название значка)
+    val more: Boolean = false,      // редкая кнопка: спрятана в панель «⋯»
+    val cam: String? = null,        // зона камеры свайпом: "u=l1+ft,d=l1+fb,l=l1+fl,r=l1+fr;tap=l1"
 )
 
 object ControlLayout {
+    /** Кнопка «⋯»: открывает панель редких действий. */
+    fun moreBtn(pos: String = "c-46 b14") = Btn("more", "more", 40f, pos, act = "more")
+    /** Невидимая зона камеры на правой половине экрана (свайп → кнопки камеры). */
+    fun camZone(spec: String) = Btn("camz", null, 0f, "r0 b0", cam = spec)
+
+    /** Зона камеры: направление (u/d/l/r) → кнопки консоли; tap — двойное касание. */
+    fun camSpec(spec: String): Map<String, List<String>> = spec.split(',', ';').mapNotNull { p ->
+        val i = p.indexOf('='); if (i <= 0) null else p.substring(0, i).trim() to p.substring(i + 1).split('+').map { it.trim() }.filter { it.isNotEmpty() }
+    }.toMap()
+
     const val AMBER = 0xFFD9B36C; const val BLUE = 0xFF7FA7D9; const val GREEN = 0xFF8FC9A3; const val ROSE = 0xFFD98A8A
 
     /** Экранная кнопка → код Android → LibretroDroid → кнопка консоли (низ = крест, право = круг, верх = треугольник, лево = квадрат). */

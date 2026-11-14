@@ -72,6 +72,12 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     val hidden = HashSet<String>()
     /** Короткое касание кнопки в редакторе — выбрать значок / турбо. */
     var onTap: ((String, Btn) -> Unit)? = null
+    /** Подписи под кнопками Touch (как в мобильных играх: «Газ», «Прыжок»). */
+    var captions = true
+    /** Панель «⋯» с редкими кнопками открыта. */
+    private var drawer = false
+    private val closeDrawer = Runnable { drawer = false; invalidate() }
+    private var lastCamTap = 0L
     private var insetL = 0f
     private var insetR = 0f
     private var buttons: List<Btn> = emptyList()
@@ -79,7 +85,8 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     private val toggles = HashSet<String>()
 
     /** Состояние касания: кнопка (индекс), направление крестовины, смещение стика, повтор турбо. */
-    private class Touch(var idx: Int, var dir: Char? = null, var sx: Float = 0f, var sy: Float = 0f, var kx: Float = 0f, var ky: Float = 0f, var job: Runnable? = null)
+    private class Touch(var idx: Int, var dir: Char? = null, var sx: Float = 0f, var sy: Float = 0f, var kx: Float = 0f, var ky: Float = 0f, var job: Runnable? = null,
+                        var t0: Long = 0L, var far: Boolean = false)
     private val touches = HashMap<Int, Touch>()
 
     private val dp = resources.displayMetrics.density
@@ -103,6 +110,8 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     /** Роль кнопки: своя или из шаблона. */
     fun roleOf(b: Btn): String? = when (val r = roles[keyOf(b)]) { null -> b.to?.let { (if (b.hold) "hold:" else "switch:") + it }; "none" -> null; else -> r }
     fun isHidden(b: Btn) = keyOf(b) in hidden
+    /** Видна ли кнопка сейчас: зона камеры не рисуется, редкие — только при открытой панели «⋯». */
+    private fun shown(b: Btn) = b.cam == null && (!b.more || drawer || editMode)
     fun current(): List<Btn> = buttons
     /** Палец на экранном стике — наклон телефона не перебивает его. */
     fun stickBusy() = touches.values.any { buttons.getOrNull(it.idx)?.stick != null && !buttons[it.idx].right }
@@ -129,6 +138,13 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     private fun halfH(b: Btn) = b.size * k * scaleK * sz(b) / 2
 
     private fun center(b: Btn): Pair<Float, Float> {
+        if (b.more) {
+            // панель «⋯»: редкие кнопки рядом сверху по центру
+            val list = buttons.filter { it.more }; val i = list.indexOf(b); val step = 62f * k * scaleK
+            var cx = width / 2f + (i - (list.size - 1) / 2f) * step; var cy = 92f * k
+            offsets[keyOf(b)]?.let { cx += it.x * k; cy += it.y * k }
+            return cx to cy
+        }
         val dw = (b.w ?: b.size) * k; val dh = b.size * k
         var cx = 0f; var cy = 0f
         for (t in b.pos.split(' ')) {
@@ -149,7 +165,14 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     // ---------- рисование ----------
     override fun onDraw(c: Canvas) {
         val classic = style == "classic"
+        if (drawer && !editMode) buttons.filter { it.more }.takeIf { it.isNotEmpty() }?.let { list ->
+            // подложка панели «⋯»
+            val (x0, y0) = center(list.first()); val (x1, _) = center(list.last()); val r = diameter(list.first()) / 2 + 10 * dp
+            rect.set(x0 - r, y0 - r, x1 + r, y0 + r + (if (captions) 12 * dp else 0f))
+            fill.shader = null; fill.color = 0xFF0B0C0F.toInt(); fill.alpha = 170; c.drawRoundRect(rect, r, r, fill)
+        }
         buttons.forEachIndexed { i, b ->
+            if (!shown(b)) return@forEachIndexed
             val hid = isHidden(b)
             if (hid && !editMode) return@forEachIndexed
             if (hid) c.saveLayerAlpha(null, 70)
@@ -216,12 +239,26 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
             // фигуры — цветом места; пиктограммы — белым
             drawIcon(c, name, cx, cy, r * (if (name in GLYPHS) .5f else .62f), if (name in GLYPHS) col else ivory)
         }
+        if (captions && !b.dpad) caption(b)?.let { cap ->
+            text.color = ivory; text.alpha = 215; text.letterSpacing = 0f
+            text.textSize = max(9f * dp, 10.5f * k * scaleK)
+            text.setShadowLayer(3 * dp, 0f, 1 * dp, 0xCC000000.toInt())
+            c.drawText(cap, cx, cy + diameter(b) / 2 + text.textSize * 1.05f, text)
+            text.clearShadowLayer()
+        }
         if (b.dpad && t?.dir != null) {
             val o = r * .62f
             val (dx, dy) = when (t.dir) { 'u' -> 0f to -o; 'd' -> 0f to o; 'l' -> -o to 0f; else -> o to 0f }
             fill.color = ivory; fill.alpha = 115
             c.drawCircle(cx + dx, cy + dy, r * .14f, fill)
         }
+    }
+
+    /** Подпись: своя у кнопки, иначе по значку; у служебных (пауза, сохранить…) — только у «⋯». */
+    private fun caption(b: Btn): String? {
+        if (b.act != null && b.act != "more" && b.act != "tilt") return null
+        val ic = customIcons[keyOf(b)]
+        return if (ic != null) CtlIcons.CAPS[ic] else b.cap ?: b.icon?.let { CtlIcons.CAPS[it] }
     }
 
     private fun drawStick(c: Canvas, b: Btn, t: Touch?) {
@@ -373,7 +410,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     private fun hit(x: Float, y: Float): Int {
         var best = -1; var bd = Float.MAX_VALUE
         buttons.forEachIndexed { i, b ->
-            if (b.stick == "float" || (isHidden(b) && !editMode)) return@forEachIndexed
+            if (b.stick == "float" || !shown(b) || (isHidden(b) && !editMode)) return@forEachIndexed
             val (cx, cy) = center(b)
             val d = hypot(x - cx, y - cy)
             val inside = if (b.w != null) abs(x - cx) <= halfW(b) * 1.08f + 4 * dp && abs(y - cy) <= halfH(b) * 1.4f + 4 * dp
@@ -396,6 +433,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         val b = buttons[i]
         when {
             b.keys != null -> pressExtra(b, t)
+            b.act == "more" -> { drawer = !drawer; removeCallbacks(closeDrawer); if (drawer) postDelayed(closeDrawer, 6000) }
             b.act != null -> listener.action(b.act)
             b.dpad -> { t.dir = dpadDir(b, x, y); t.dir?.let { ControlLayout.DIR[it]?.let { c -> listener.key(c, true) } } }
             else -> ((keyName(b)?.let { ControlLayout.code(it) }) ?: ControlLayout.STEER[b.id])?.let { code ->
@@ -424,6 +462,8 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     private fun release(t: Touch) {
         t.job?.let { removeCallbacks(it) }; t.job = null
         val b = buttons.getOrNull(t.idx) ?: return
+        if (b.cam != null) { camKeys(b, t.dir, false); t.dir = null; return }
+        if (b.more) { removeCallbacks(closeDrawer); postDelayed(closeDrawer, 250) }
         when {
             b.stick != null -> listener.stick(b.right, 0f, 0f)
             b.keys != null -> if (!b.combo) b.keys.mapNotNull { ControlLayout.code(it) }.forEach { listener.key(it, false) }
@@ -442,6 +482,30 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
             postDelayed({ listener.key(c, true) }, i * 110L)
             postDelayed({ listener.key(c, false) }, i * 110L + 70L)
         }
+    }
+
+    // ---------- камера свайпом ----------
+    private fun camKeys(b: Btn, dir: Char?, down: Boolean) {
+        val d = dir ?: return
+        ControlLayout.camSpec(b.cam ?: return)[d.toString()]?.mapNotNull { ControlLayout.code(it) }?.let { codes ->
+            if (down) codes.forEach { listener.key(it, true) } else codes.asReversed().forEach { listener.key(it, false) }
+        }
+    }
+
+    /** Палец ведёт по зоне камеры: отклонение от точки касания больше порога — держим кнопки этого направления. */
+    private fun moveCam(b: Btn, t: Touch, x: Float, y: Float) {
+        val dx = x - t.sx; val dy = y - t.sy; val th = 22 * dp
+        if (hypot(dx, dy) > 10 * dp) t.far = true
+        val d = when { hypot(dx, dy) < th -> null; abs(dx) > abs(dy) -> if (dx > 0) 'r' else 'l'; else -> if (dy > 0) 'd' else 'u' }
+        if (d != t.dir) { camKeys(b, t.dir, false); t.dir = d; camKeys(b, d, true) }
+    }
+
+    /** Двойное касание зоны камеры — вернуть камеру (кнопки из tap=…). */
+    private fun camTap(b: Btn) {
+        val codes = ControlLayout.camSpec(b.cam ?: return)["tap"]?.mapNotNull { ControlLayout.code(it) } ?: return
+        codes.forEach { listener.key(it, true) }
+        postDelayed({ codes.forEach { listener.key(it, false) } }, 90)
+        buzz()
     }
 
     fun releaseAll() { touches.values.forEach { release(it) }; touches.clear(); invalidate() }
@@ -490,6 +554,12 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val p = e.actionIndex; val id = e.getPointerId(p); val x = e.getX(p); val y = e.getY(p)
                 var i = hit(x, y)
+                if (i < 0 && drawer) { drawer = false; removeCallbacks(closeDrawer); invalidate() }
+                val camIdx = buttons.indexOfFirst { it.cam != null }
+                if (i < 0 && camIdx >= 0 && ((x >= width / 2f) != mirror) && touches.values.none { it.idx == camIdx }) {
+                    // правая половина мимо кнопок — зона камеры
+                    touches[id] = Touch(camIdx, sx = x, sy = y, t0 = e.eventTime); return true
+                }
                 if (i < 0) {
                     // плавающий стик: касание свободной части «своей» половины экрана
                     val left = (x < width / 2f) != mirror
@@ -509,6 +579,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
                     val b = buttons.getOrNull(t.idx) ?: continue
                     val x = e.getX(p); val y = e.getY(p)
                     when {
+                        b.cam != null -> moveCam(b, t, x, y)
                         b.stick != null -> moveStick(b, t, x, y)
                         b.dpad -> {
                             val d = dpadDir(b, x, y)
@@ -530,7 +601,14 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
                 invalidate()
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
-                touches.remove(e.getPointerId(e.actionIndex))?.let { release(it) }
+                touches.remove(e.getPointerId(e.actionIndex))?.let { t ->
+                    val b = buttons.getOrNull(t.idx)
+                    // короткое касание зоны камеры без движения: второе подряд — вернуть камеру
+                    if (b?.cam != null && !t.far && e.eventTime - t.t0 < 250) {
+                        if (e.eventTime - lastCamTap < 350) { camTap(b); lastCamTap = 0L } else lastCamTap = e.eventTime
+                    }
+                    release(t)
+                }
                 invalidate()
             }
             MotionEvent.ACTION_CANCEL -> releaseAll()

@@ -13,7 +13,10 @@ import org.json.JSONObject
  *  - Остальные — шаблон жанра (самая частая схема PSP); игрок подправляет в редакторе.
  */
 object GamePresets {
-    private class P(val name: String, val keys: List<String>, val genre: String, val extra: (JSONObject) -> Unit = {})
+    private class P(val name: String, val keys: List<String>, val genre: String, val extra: (JSONObject) -> Unit = {}, val lays: List<LaySpec>? = null)
+
+    /** Своя раскладка игры (GameLayouts): одна или несколько с переключением. */
+    private fun one(base: String, name: String = "Основная") = listOf(LaySpec("main", name, base))
 
     private fun icons(vararg p: Pair<String, String>): (JSONObject) -> Unit = { o ->
         val m = o.optJSONObject("keyIcon") ?: JSONObject().also { o.put("keyIcon", it) }
@@ -29,7 +32,7 @@ object GamePresets {
         P("The Godfather: Mob Wars", listOf("godfathermobwars", "godfather"), "action"),
         P("Pursuit Force", listOf("pursuitforce"), "race"),
         // файтинги
-        P("Tekken", listOf("tekken"), "fight"),
+        P("Tekken", listOf("tekken"), "fight", lays = one("g_tekken", "Бой")),
         P("Soulcalibur", listOf("soulcalibur", "soulcalibur"), "fight", icons("fight:psp:aft" to "sword", "fight:psp:afl" to "sword", "fight:psp:afb" to "block", "fight:psp:afr" to "kick")),
         P("Mortal Kombat", listOf("mortalkombat"), "fight"),
         P("Street Fighter", listOf("streetfighter"), "fight"),
@@ -37,7 +40,7 @@ object GamePresets {
         P("Dragon Ball Z", listOf("dragonball"), "fight"),
         P("Naruto", listOf("naruto"), "fight"),
         P("Bleach", listOf("bleach"), "fight"),
-        P("Dissidia Final Fantasy", listOf("dissidia"), "fight"),
+        P("Dissidia Final Fantasy", listOf("dissidia"), "fight", lays = one("g_dissidia", "Бой")),
         P("WWE SmackDown vs. Raw", listOf("smackdown", "wwe"), "fight"),
         P("Fight Night Round 3", listOf("fightnight"), "fight"),
         P("BlazBlue", listOf("blazblue"), "fight"),
@@ -46,11 +49,11 @@ object GamePresets {
         P("UFC Undisputed", listOf("ufc"), "fight"),
         P("Marvel vs. Capcom / Capcom Classics", listOf("marvelsuperheroes"), "fight"),
         // слэшеры и приключения
-        P("God of War", listOf("godofwar"), "slasher"),
-        P("Assassin's Creed: Bloodlines", listOf("assassinscreed"), "slasher"),
+        P("God of War", listOf("godofwar"), "slasher", lays = one("g_gow", "Бой")),
+        P("Assassin's Creed: Bloodlines", listOf("assassinscreed"), "slasher", lays = listOf(LaySpec("city", "Город", "g_ac_city"), LaySpec("fight", "Бой", "g_ac_fight"))),
         P("Prince of Persia", listOf("princeofpersia"), "slasher"),
         P("Tomb Raider", listOf("tombraider"), "slasher"),
-        P("Kingdom Hearts: Birth by Sleep", listOf("kingdomhearts"), "slasher"),
+        P("Kingdom Hearts: Birth by Sleep", listOf("kingdomhearts"), "slasher", lays = one("g_khbbs")),
         P("Crisis Core: Final Fantasy VII", listOf("crisiscore"), "slasher"),
         P("Dante's Inferno", listOf("dantesinferno"), "slasher"),
         P("Star Wars: The Force Unleashed", listOf("forceunleashed"), "slasher"),
@@ -58,9 +61,9 @@ object GamePresets {
         P("Spider-Man", listOf("spiderman"), "slasher"),
         P("Thor: God of Thunder", listOf("thorgodofthunder"), "slasher"),
         P("Marvel Ultimate Alliance", listOf("ultimatealliance"), "slasher"),
-        P("Dynasty Warriors", listOf("dynastywarriors", "shinsangokumusou"), "slasher"),
-        P("Warriors Orochi", listOf("warriorsorochi", "musououochi"), "slasher"),
-        P("Monster Hunter", listOf("monsterhunter"), "slasher"),
+        P("Dynasty Warriors", listOf("dynastywarriors", "shinsangokumusou"), "slasher", lays = one("g_musou", "Бой")),
+        P("Warriors Orochi", listOf("warriorsorochi", "musououochi"), "slasher", lays = one("g_musou", "Бой")),
+        P("Monster Hunter", listOf("monsterhunter"), "slasher", lays = one("g_mh", "Охота")),
         P("Gods Eater", listOf("godeater", "godseater"), "slasher"),
         P("Phantasy Star Portable", listOf("phantasystar"), "slasher"),
         P("Ben 10", listOf("ben10"), "slasher"),
@@ -73,7 +76,7 @@ object GamePresets {
         P("Midnight Club", listOf("midnightclub"), "race"),
         P("Gran Turismo", listOf("granturismo"), "race"),
         P("Ridge Racer", listOf("ridgeracer"), "race"),
-        P("WipEout", listOf("wipeout"), "race"),
+        P("WipEout", listOf("wipeout"), "race", lays = one("g_wipeout", "Гонка")),
         P("MotorStorm", listOf("motorstorm"), "race"),
         P("Cars", listOf("cars", "tachki"), "race"),
         P("Ferrari Challenge", listOf("ferrari"), "race"),
@@ -120,11 +123,11 @@ object GamePresets {
         P("Everybody's Golf / Hot Shots Golf", listOf("everybodysgolf", "hotshotsgolf", "minnanogolf"), "sport"),
         P("Tiger Woods PGA Tour", listOf("tigerwoods"), "sport"),
         // платформеры
-        P("LocoRoco", listOf("locoroco"), "platform"),
+        P("LocoRoco", listOf("locoroco"), "platform", lays = one("g_loco")),
         P("Daxter", listOf("daxter"), "platform"),
         P("LittleBigPlanet", listOf("littlebigplanet"), "platform"),
         P("Crash Bandicoot", listOf("crash"), "platform"),
-        P("Mega Man", listOf("megaman", "rockman"), "platform"),
+        P("Mega Man", listOf("megaman", "rockman"), "platform", lays = one("g_megaman")),
         P("Castlevania", listOf("castlevania", "akumajou"), "platform"),
         P("Rayman", listOf("rayman"), "platform"),
         P("SpongeBob", listOf("spongebob"), "platform"),
@@ -147,7 +150,7 @@ object GamePresets {
         P("Wild Arms XF", listOf("wildarms"), "rpg"),
         P("Dungeon Siege / Untold Legends", listOf("untoldlegends", "dungeonsiege"), "slasher"),
         // ритм и головоломки — обычный джойстик (кнопки игры — сами фигуры)
-        P("Patapon", listOf("patapon"), "pad"),
+        P("Patapon", listOf("patapon"), "pad", lays = one("g_patapon", "Барабаны")),
         P("Lumines", listOf("lumines"), "pad"),
         P("Lemmings", listOf("lemmings"), "pad"),
         P("Puzzle Quest", listOf("puzzlequest"), "pad"),
@@ -162,8 +165,8 @@ object GamePresets {
         val ns = names.map { norm(it) }.filter { it.isNotEmpty() }
         if (ns.isEmpty()) return null
         val p = LIST.firstOrNull { e -> e.keys.any { k -> ns.any { it.contains(k) } } } ?: return null
-        val g = Templates.genre(p.genre) ?: return null
-        val o = JSONObject().put("layouts", Templates.layoutsJson(g))
+        val o = if (p.lays != null) JSONObject().put("layouts", org.json.JSONArray().also { a -> p.lays.forEach { a.put(JSONObject().put("id", it.id).put("name", it.name).put("base", it.base)) } })
+            else JSONObject().put("layouts", Templates.layoutsJson(Templates.genre(p.genre) ?: return null))
         p.extra(o)
         return p.name to o
     }
