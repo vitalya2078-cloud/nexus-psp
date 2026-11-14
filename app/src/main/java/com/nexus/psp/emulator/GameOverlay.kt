@@ -166,10 +166,12 @@ private fun PauseMenu(a: GameActivity, ui: GameActivity.UiState, con: String, co
                 }
                 Spacer(Modifier.weight(1f))
                 // дополнительные возможности — отдельными экранами, чтобы не перегружать паузу
-                PauseLink(R.drawable.ctl_key, "Читы", ui.cheatsOn.isNotEmpty()) { a.openCheats() }
-                PauseLink(R.drawable.sl_monitor, "HD-текстуры", a.texOn()) { a.openTextures() }
-                PauseLink(R.drawable.sl_wifi, "По сети", ui.netMode != "off") { a.openNet() }
-                if (a.raEnabled) PauseLink(R.drawable.sl_trophy, if (ui.raState == "ready") "${ui.raUnlocked}/${ui.raTotal}" else "Достижения", ui.raState == "ready") { a.openAch() }
+                if (a.isPsp) {
+                    PauseLink(R.drawable.ctl_key, "Читы", ui.cheatsOn.isNotEmpty()) { a.openCheats() }
+                    PauseLink(R.drawable.sl_monitor, "HD-текстуры", a.texOn()) { a.openTextures() }
+                    PauseLink(R.drawable.sl_wifi, "По сети", ui.netMode != "off") { a.openNet() }
+                }
+                if (a.isPsp && a.raEnabled) PauseLink(R.drawable.sl_trophy, if (ui.raState == "ready") "${ui.raUnlocked}/${ui.raTotal}" else "Достижения", ui.raState == "ready") { a.openAch() }
             }
             Text(a.title, style = T.h1, maxLines = 1)
             // все плитки помещаются в ширину экрана: делят её поровну (не шире 124 dp)
@@ -288,7 +290,7 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 16.dp)) {
                 key(ui.scopeGame) {
                     when (tab) {
-                        0 -> {
+                        0 -> if (!a.isPsp) { FilterRow(a, ui); CoreRows(CoreOptions.PS1_QUALITY, a.coreStore) } else {
                             CoreRows(CoreOptions.RENDER, a.coreStore); com.nexus.psp.ui.screens.VulkanNote()
                             Opt("Авто-качество", "Держать 60 кадров: при нехватке скорости разрешение снижается само, при запасе — возвращается") { Toggle(ui.autoRes) { a.setAutoRes(it) } }
                             FilterRow(a, ui); CoreQuality(a.coreStore)
@@ -297,7 +299,8 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
                             Opt("Ускорение", "Во сколько раз быстрее при включённом ускорении") {
                                 Seg(listOf("×2", "×3", "×4"), (ui.fastLevel - 2).coerceIn(0, 2), small = true) { a.setFastLevel(it + 2) }
                             }
-                            CoreRows(CoreOptions.SPEED, a.coreStore)
+                            if (a.isPsp) CoreRows(CoreOptions.SPEED, a.coreStore)
+                            else CoreRows(CoreOptions.PS1_SYSTEM, a.coreStore) { c, v -> if (c.key == "kapsula_ps1_pad") a.setPs1Pad(v) }
                             Opt("Счётчик кадров", "Число кадров в секунду в углу экрана") { Toggle(ui.showFps) { a.setFps(it) } }
                         }
                         2 -> Controls(a, ui)
@@ -746,7 +749,7 @@ private fun PresetsPanel(a: GameActivity, ui: GameActivity.UiState, ask: Boolean
                 else Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).press { close() }, contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_x, 18.dp) }
             }
             if (ask) Text("Подберу экранные кнопки под игру. Потом всё можно поменять: пауза → «Кнопки».", style = T.small)
-            if (!ask) {
+            if (!ask && a.isPsp) {
                 Text("АВТОПЕРЕКЛЮЧЕНИЕ", style = T.caps, modifier = Modifier.padding(top = 4.dp))
                 val rule = a.autoRule()
                 Opt(

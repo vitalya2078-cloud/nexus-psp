@@ -2,7 +2,7 @@
 # Готовит исходники LibretroDroid 0.14.0 с патчем KAPSULA в ./libretrodroid-src (запускать из корня репозитория).
 set -euo pipefail
 DIR=libretrodroid-src
-STAMP="$DIR/.kapsula-$(sha1sum tools/libretrodroid/patch.py tools/libretrodroid/build.gradle.kts tools/libretrodroid/kapsula_ra.cpp tools/libretrodroid/kapsula_vk.cpp | sha1sum | cut -c1-12)"
+STAMP="$DIR/.kapsula-$(sha1sum tools/libretrodroid/patch.py tools/libretrodroid/build.gradle.kts tools/libretrodroid/kapsula_ra.cpp tools/libretrodroid/kapsula_vk.cpp tools/libretrodroid/kapsula_crash.cpp | sha1sum | cut -c1-12)"
 if [ -f "$STAMP" ]; then echo "libretrodroid: готово"; exit 0; fi
 rm -rf "$DIR"
 git clone -q --depth 1 --branch 0.14.0 https://github.com/Swordfish90/LibretroDroid.git "$DIR"

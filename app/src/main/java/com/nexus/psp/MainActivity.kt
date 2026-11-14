@@ -107,8 +107,13 @@ class MainActivity : ComponentActivity() {
         if (AppState.importing != null) { AppState.say("Подожди — уже копирую игру"); return }
         lifecycleScope.launch {
             var added: Game? = null; var count = 0
-            for ((i, uri) in uris.withIndex()) {
-                val (name, bytes) = GameLibrary.displayName(this@MainActivity, uri)
+            // CUE и M3U — после своих BIN и дисков: к моменту проверки «всё ли на месте» файлы уже скопированы
+            val ordered = withContext(Dispatchers.IO) { uris.map { it to GameLibrary.displayName(this@MainActivity, it) } }
+                .sortedBy { (_, n) -> if (n.first.substringAfterLast('.').lowercase() in setOf("cue", "m3u")) 1 else 0 }
+            for ((i, item) in ordered.withIndex()) {
+                val (uri, nb) = item
+                val (name, bytes) = nb
+                val part = name.substringAfterLast('.').lowercase() in setOf("bin", "img")
                 // тот же файл уже в библиотеке — не копируем заново
                 val same = AppState.hasFile(name)
                 if (same != null) {
@@ -117,7 +122,8 @@ class MainActivity : ComponentActivity() {
                 }
                 // та же игра в другом формате — спросить
                 var replace: Game? = null
-                val twin = AppState.sameTitle(name)
+                // дорожки BIN/IMG одной игры с похожими именами — не спрашиваем «уже есть»
+                val twin = if (part) null else AppState.sameTitle(name)
                 if (twin != null) {
                     val a = AppState.askUser("«${twin.t}» уже есть", "В библиотеке эта игра в формате ${twin.format}. Новый файл — ${name.substringAfterLast('.').uppercase()}.", "Заменить", "Оставить обе", "Не добавлять")
                     if (a == 0) replace = twin else if (a != 1) continue
@@ -128,7 +134,12 @@ class MainActivity : ComponentActivity() {
                     val f = withContext(Dispatchers.IO) {
                         GameLibrary.importFile(this@MainActivity, uri) { p -> runOnUiThread { AppState.importing = Importing(name, p.toFloat(), i + 1, uris.size) } }
                     }
+                    // дорожка игры с CUE в этой же пачке — отдельной игрой не считается
+                    if (part && ordered.any { it.second.first.substringAfterLast('.').equals("cue", true) }) continue
                     added = AppState.addImported(GameLibrary.info(f)); count++
+                    // CUE без своих BIN не запустится — подсказать, какие файлы добавить
+                    val miss = GameLibrary.missingParts(f)
+                    if (miss.isNotEmpty()) AppState.say("Для «${added.t}» добавь ещё: ${miss.take(3).joinToString()}" + (if (miss.size > 3) " и другие" else ""), R.drawable.sl_alert)
                     val r = replace; val ad = added
                     if (r != null && ad != null) AppState.replaceWith(r.id, ad.id)
                 } catch (e: Exception) {
@@ -150,6 +161,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         com.nexus.psp.data.CrashLog.install(applicationContext, "main")
+        Thread { com.nexus.psp.emulator.NativeCrash.collectExitReasons(applicationContext) }.start()
         AppState.init(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

@@ -155,3 +155,8 @@ edit('cpp/CMakeLists.txt', 'add_library(libretrodroid SHARED\n        kapsula_ra
      'add_library(libretrodroid SHARED\n        kapsula_ra.cpp\n        kapsula_vk.cpp\n')
 edit('cpp/CMakeLists.txt', '                      GLESv3\n)', '                      GLESv3\n                      vulkan\n                      nativewindow\n)')
 print('vulkan patched')
+
+# ---- журнал падений нативной части (kapsula_crash.cpp) ----
+shutil.copy(os.path.join(here, 'kapsula_crash.cpp'), os.path.join(root, 'cpp', 'kapsula_crash.cpp'))
+edit('cpp/CMakeLists.txt', '        kapsula_vk.cpp\n', '        kapsula_vk.cpp\n        kapsula_crash.cpp\n')
+print('crash patched')

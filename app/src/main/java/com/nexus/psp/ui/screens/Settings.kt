@@ -67,7 +67,7 @@ import com.nexus.psp.data.CoreStore
 fun SettingsScreen() {
     val nav = listOf(
         Triple("general", "Общие", R.drawable.sl_sliders), Triple("dl", "Игры и память", R.drawable.sl_folder),
-        Triple("core", "Эмулятор PSP", R.drawable.sl_monitor), Triple("ctl", "Управление", R.drawable.sl_pad),
+        Triple("core", "Эмулятор PSP", R.drawable.sl_monitor), Triple("ps1", "Эмулятор PS1", R.drawable.ph_disc), Triple("ctl", "Управление", R.drawable.sl_pad),
         Triple("ach", "Достижения", R.drawable.sl_trophy),
         Triple("bios", "BIOS", R.drawable.sl_chip), Triple("a11y", "Доступность", R.drawable.ph_hand), Triple("about", "О приложении", R.drawable.sl_info),
     )
@@ -93,6 +93,12 @@ fun SettingsScreen() {
                     "general" -> General()
                     "dl" -> Downloads()
                     "core" -> CoreSettings()
+                    "ps1" -> {
+                        Text("Для всех игр PS1. Игре можно задать свои — в её карточке или в паузе.", style = T.small, modifier = Modifier.padding(bottom = 6.dp))
+                        Sub("Картинка"); CoreRows(CoreOptions.PS1_QUALITY)
+                        Sub("Система"); CoreRows(CoreOptions.PS1_SYSTEM)
+                        Text("Изменения применяются при следующем запуске игры.", style = T.small, modifier = Modifier.padding(top = 10.dp))
+                    }
                     "ctl" -> Controls()
                     "ach" -> Achievements()
                     "bios" -> Bios()
@@ -151,14 +157,41 @@ private fun Controls() {
 
 @Composable
 private fun Bios() {
-    Text("BIOS — прошивка консоли. PSP работает без него; для PS1 и PS2 понадобится файл с твоей приставки — KAPSULA проверит его по контрольной сумме.", style = T.small, modifier = Modifier.padding(bottom = 10.dp))
+    val ctx = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var tick by remember { mutableStateOf(0) }
+    val ps1 = remember(tick) { com.nexus.psp.emulator.Bios.ps1(ctx) }
+    val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.emulator.Bios.addPs1(ctx, uri) }
+            if (r.startsWith("ok:")) AppState.say("BIOS PS1 добавлен: " + r.removePrefix("ok:"), R.drawable.ph_check) else AppState.say(r.removePrefix("bad:"), R.drawable.sl_alert)
+            tick++
+        }
+    }
+    Text("BIOS — прошивка консоли. PSP работает без него. PS1 тоже запускается без файла (встроенный BIOS), но со своим совместимость выше. Файл — только с твоей приставки; KAPSULA проверит его по контрольной сумме.", style = T.small, modifier = Modifier.padding(bottom = 10.dp))
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(K.s1)) {
         PLATFORMS.forEachIndexed { i, p ->
             if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(1.dp).background(K.line))
-            Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SolarIcon(R.drawable.sl_chip, 20.dp, if (p.bios) K.ink3 else K.ok)
-                Text(p.full, style = T.label.copy(fontSize = 14.sp), modifier = Modifier.weight(1f))
-                if (!p.bios) Pill("не нужен", icon = R.drawable.ph_check, color = K.ok) else Pill("скоро")
+            Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                val ok = !p.bios || (p.id == "ps1" && ps1.isNotEmpty())
+                SolarIcon(R.drawable.sl_chip, 20.dp, if (ok) K.ok else K.ink3)
+                Column(Modifier.weight(1f)) {
+                    Text(p.short, style = T.label.copy(fontSize = 14.sp))
+                    Text(when {
+                        !p.bios -> "Не нужен"
+                        p.id == "ps1" && ps1.isNotEmpty() -> ps1.joinToString(" · ")
+                        p.id == "ps1" -> "Не добавлен — работает встроенный"
+                        else -> "Понадобится, когда подключим ${p.short}"
+                    }, style = T.small, maxLines = 1)
+                }
+                when {
+                    !p.bios -> Pill("не нужен", icon = R.drawable.ph_check, color = K.ok)
+                    p.id == "ps1" -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (ps1.isNotEmpty()) KButton("Убрать", small = true) { com.nexus.psp.emulator.Bios.clearPs1(ctx); tick++ }
+                        KButton(if (ps1.isEmpty()) "Добавить" else "Ещё", icon = R.drawable.ph_plus, small = true) { pick.launch(arrayOf("*/*")) }
+                    }
+                    else -> Pill("скоро")
+                }
             }
         }
     }
@@ -178,7 +211,8 @@ private fun About() {
     val ver = try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { "" }
     Opt("KAPSULA", "Версия $ver · нативный интерфейс") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
     Opt("Эмулятор PSP", "Ядро KAPSULA") { }
-    Opt("PS1 и PS2", "Будут подключены следующими") { }
+    Opt("PS1", "Работает: свой файл BIOS по желанию") { }
+    Opt("PS2", "В планах") { }
     Opt("Конфиденциальность", "Данные хранятся только на телефоне") { }
     // авторы и тексты лицензий открытых компонентов — по условиям этих лицензий; на виду только нейтральная строка
     var legal by remember { mutableStateOf(false) }
@@ -363,6 +397,7 @@ private fun LegalDialog(onClose: () -> Unit) {
     var open by remember { mutableStateOf<String?>(null) }
     val parts = listOf(
         Triple("Ядро эмуляции PSP", "Основано на PPSSPP — Copyright © 2012– Henrik Rydgård and PPSSPP contributors. GNU GPL версии 2 или более поздней. Изменено командой KAPSULA.", "GPL-2.0.txt"),
+        Triple("Ядро эмуляции PS1", "Основано на PCSX-ReARMed — Copyright © PCSX Team, notaz и участники проекта. GNU GPL версии 2.", "GPL-2.0.txt"),
         Triple("Фронтенд libretro", "LibretroDroid — Copyright © Filippo Scognamiglio. GNU GPL версии 3.", "GPL-3.0.txt"),
         Triple("Значки Solar", "© 480 Design. Creative Commons Attribution 4.0 (CC BY 4.0).", "LICENSE-solar.txt"),
         Triple("Значки Phosphor", "© Phosphor Icons. MIT License.", "LICENSE-phosphor.txt"),

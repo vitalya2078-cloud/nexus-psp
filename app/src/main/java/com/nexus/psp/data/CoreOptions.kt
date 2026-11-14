@@ -60,6 +60,24 @@ object CoreOptions {
         CoreOpt("ppsspp_analog_is_circular", "Круглый ход стика", "Диагонали стика — как у настоящего стика PSP", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("ppsspp_analog_sensitivity", "Чувствительность стика", "Насколько резко персонаж или машина отзываются на стик", listOf("1.00", "1.10", "1.25", "1.50"), listOf("×1", "×1,1", "×1,25", "×1,5"), "1.00"),
     )
+    // ---------- PS1 (ядро PCSX-ReARMed, GPL-2.0) ----------
+    /** Картинка PS1: чёткость ×2 (своя отрисовка NEON), её ускорение, сглаживание цвета (дизеринг). */
+    val PS1_QUALITY = listOf(
+        CoreOpt("pcsx_rearmed_neon_enhancement_enable", "Чёткость ×2", "3D-графика в двойном разрешении. На слабых телефонах может замедлить игру", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
+        CoreOpt("pcsx_rearmed_neon_enhancement_no_main", "Быстрая чёткость", "Ускоряет «Чёткость ×2», но в редких играх появляются ошибки картинки", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
+        CoreOpt("pcsx_rearmed_dithering", "Зернистость цвета", "Как на настоящей PS1: мелкая сетка вместо полос в градиентах", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "enabled"),
+        CoreOpt("pcsx_rearmed_frameskip_type", "Пропуск кадров", "Помогает слабым телефонам: кадры пропускаются, только когда игра не успевает", listOf("disabled", "auto"), listOf("Выкл", "Авто"), "disabled"),
+    )
+    /** Система PS1: регион, BIOS, звук, контроллер. */
+    val PS1_SYSTEM = listOf(
+        CoreOpt("kapsula_ps1_pad", "Джойстик", "«Обычный» — стик работает как крестовина, подходит почти всем играм. DualShock — настоящие стики (Ape Escape, Spyro, гонки); аналог включается L1 + R1 + Select", listOf("standard", "dualshock"), listOf("Обычный", "DualShock"), "standard"),
+        CoreOpt("pcsx_rearmed_region", "Регион", "Обычно определяется сам. PAL — 50 кадров, NTSC — 60", listOf("auto", "NTSC", "PAL"), listOf("Авто", "NTSC", "PAL"), "auto", restart = true),
+        CoreOpt("pcsx_rearmed_bios", "BIOS", "«Свой файл» — лучше совместимость (добавь в «Настройки → BIOS»); «Встроенный» работает и без него", listOf("auto", "HLE"), listOf("Свой файл", "Встроенный"), "auto", restart = true),
+        CoreOpt("pcsx_rearmed_spu_interpolation", "Звук", "«Как на PS1» — ближе всего к оригиналу", listOf("simple", "gaussian", "cubic", "off"), listOf("Простой", "Как на PS1", "Чистый", "Выкл"), "simple"),
+        CoreOpt("pcsx_rearmed_cd_turbo", "Быстрые загрузки", "Ускоряет чтение диска. Некоторые игры из-за этого зависают — включай осторожно", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
+    )
+    val PS1 = PS1_QUALITY + PS1_SYSTEM
+
     val ALL = QUALITY + RENDER + SPEED + SYSTEM + EXPERT + INPUT
     fun byKey(k: String) = ALL.firstOrNull { it.key == k }
 }

@@ -18,12 +18,93 @@ object Disc {
 
     fun read(file: File): Info? = try {
         when (file.extension.lowercase()) {
-            "iso" -> IsoSource(RandomAccessFile(file, "r")).use { fromIso(it) }
+            "iso" -> IsoSource(RandomAccessFile(file, "r")).use { s -> if (isPsx(s)) fromPsx(s) else fromIso(s) }
             "cso" -> CsoSource(RandomAccessFile(file, "r")).use { fromIso(it) }
             "pbp" -> fromPbp(file)
+            "bin", "img" -> RawSource.open(file)?.use { fromPsx(it) }
+            "cue" -> cueTracks(file).firstOrNull()?.let { RawSource.open(it) }?.use { fromPsx(it) }
             else -> null
         }
     } catch (e: Exception) { null }
+
+    // ---------- консоль по файлу ----------
+    /**
+     * PSP или PS1: CSO/ELF/PRX — PSP; CUE/M3U/BIN/IMG — PS1; ISO — по метке тома («PSP GAME» / «PLAYSTATION»);
+     * PBP — PS1-игры в формате PSP («PSISOIMG» в данных); CHD — CD-образ (PS1) или DVD (PSP).
+     */
+    fun platform(file: File): String = try {
+        when (file.extension.lowercase()) {
+            "cue", "m3u", "bin", "img" -> "ps1"
+            "iso" -> IsoSource(RandomAccessFile(file, "r")).use { if (isPsx(it)) "ps1" else "psp" }
+            "pbp" -> if (pbpIsPs1(file)) "ps1" else "psp"
+            "chd" -> if (chdIsCd(file)) "ps1" else "psp"
+            else -> "psp"
+        }
+    } catch (e: Exception) { "psp" }
+
+    private fun isPsx(s: Sectors): Boolean {
+        val pvd = s.read(16, 1)
+        return String(pvd, 1, 5, Charsets.US_ASCII) == "CD001" && String(pvd, 8, 32, Charsets.US_ASCII).trim().startsWith("PLAYSTATION")
+    }
+
+    /** PS1 на PSP (PSN): в DATA.PSAR лежит «PSISOIMG» (один диск) или «PSTITLEIMG» (несколько). */
+    private fun pbpIsPs1(f: File): Boolean = RandomAccessFile(f, "r").use { r ->
+        val h = ByteArray(40); r.readFully(h)
+        if (h[1] != 'P'.code.toByte() || h[2] != 'B'.code.toByte()) return false
+        val psar = le32(h, 8 + 7 * 4).toLong()
+        if (psar <= 0 || psar + 10 > r.length()) return false
+        val m = ByteArray(10); r.seek(psar); r.readFully(m)
+        val t = String(m, Charsets.US_ASCII)
+        t.startsWith("PSISOIMG") || t.startsWith("PSTITLEIMG")
+    }
+
+    /** CHD v5: в метаданных есть дорожки CD (CHT2/CHTR/CHCD) — значит, это компакт-диск. */
+    private fun chdIsCd(f: File): Boolean = RandomAccessFile(f, "r").use { r ->
+        val h = ByteArray(124); r.readFully(h)
+        if (String(h, 0, 8, Charsets.US_ASCII) != "MComprHD") return false
+        val ver = be32(h, 12)
+        var off = if (ver >= 5) be64(h, 48) else if (ver >= 3) be64(h, 36) else return false
+        var n = 0
+        while (off > 0 && off < r.length() && n++ < 64) {
+            val m = ByteArray(16); r.seek(off); r.readFully(m)
+            val tag = String(m, 0, 4, Charsets.US_ASCII)
+            if (tag == "CHT2" || tag == "CHTR" || tag == "CHCD" || tag == "CHGD") return true
+            if (tag == "DVD ") return false
+            off = be64(m, 8)
+        }
+        false
+    }
+
+    /** Файлы дорожек из CUE (рядом с ним). */
+    fun cueTracks(cue: File): List<File> = try {
+        cue.readLines().mapNotNull { l ->
+            val t = l.trim()
+            if (!t.startsWith("FILE", true)) null
+            else {
+                val name = if ('"' in t) t.substringAfter('"').substringBefore('"') else t.removePrefix("FILE").trim().substringBeforeLast(' ')
+                File(cue.parentFile, name.substringAfterLast('/').substringAfterLast('\\'))
+            }
+        }
+    } catch (e: Exception) { emptyList() }
+
+    /** Список дисков из M3U. */
+    fun m3uItems(m3u: File): List<File> = try {
+        m3u.readLines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }.map { File(m3u.parentFile, it.substringAfterLast('/').substringAfterLast('\\')) }
+    } catch (e: Exception) { emptyList() }
+
+    private fun be32(b: ByteArray, o: Int) = ((b[o].toInt() and 0xFF) shl 24) or ((b[o + 1].toInt() and 0xFF) shl 16) or ((b[o + 2].toInt() and 0xFF) shl 8) or (b[o + 3].toInt() and 0xFF)
+    private fun be64(b: ByteArray, o: Int) = (be32(b, o).toLong() shl 32) or (be32(b, o + 4).toLong() and 0xFFFFFFFFL)
+
+    /** PS1: номер из SYSTEM.CNF («BOOT = cdrom:\\SLUS_005.94;1» → SLUS-00594). */
+    private fun fromPsx(s: Sectors): Info {
+        val pvd = s.read(16, 1)
+        require(String(pvd, 1, 5, Charsets.US_ASCII) == "CD001") { "not iso9660" }
+        val root = Entry(le32(pvd, 156 + 2).toLong(), le32(pvd, 156 + 10), true)
+        val cnf = file(s, root, "SYSTEM.CNF")?.let { String(it, Charsets.US_ASCII) }
+        val boot = cnf?.lineSequence()?.firstOrNull { it.trim().startsWith("BOOT", true) }?.substringAfter('=')?.trim()
+        val exe = boot?.substringAfterLast('\\')?.substringAfterLast(':')?.substringBefore(';')
+        return Info(normSerial(exe), null, null, null)
+    }
 
     /**
      * Хеш игры для RetroAchievements — тот же алгоритм, что rc_hash_psp в rcheevos:
@@ -63,6 +144,24 @@ object Disc {
     }
 
     /** CISO v1: заголовок 24 байта, таблица смещений блоков; старший бит — блок не сжат; данные — raw deflate. */
+    /** Сырой образ CD (BIN/IMG, 2352 байта на сектор): данные режима 1 — со смещения 16, режима 2 (PS1) — с 24. ISO по 2048 — как есть. */
+    private class RawSource(val f: RandomAccessFile, val size: Int, val off: Int) : Sectors {
+        override fun read(lba: Long, count: Int): ByteArray {
+            val out = ByteArray(count * 2048); val sec = ByteArray(size)
+            for (i in 0 until count) { f.seek((lba + i) * size); f.readFully(sec); System.arraycopy(sec, off, out, i * 2048, 2048) }
+            return out
+        }
+        override fun close() = f.close()
+        companion object {
+            fun open(file: File): RawSource? {
+                val r = RandomAccessFile(file, "r")
+                if (r.length() % 2352 != 0L) return RawSource(r, 2048, 0)
+                val h = ByteArray(16); r.seek(16L * 2352); r.readFully(h)
+                return RawSource(r, 2352, if (h[15].toInt() == 1) 16 else 24)
+            }
+        }
+    }
+
     private class CsoSource(val f: RandomAccessFile) : Sectors {
         private val blockSize: Int; private val align: Int; private val index: IntArray
         init {

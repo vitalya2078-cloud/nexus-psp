@@ -55,6 +55,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         private const val TAG = "KapsulaGame"
         const val EXTRA_BOOT = "boot"
         const val CORE_PSP = "libppsspp_libretro_android.so"
+        /** PS1: PCSX-ReARMed (GPL-2.0), быстрый на ARM, работает и без BIOS. */
+        const val CORE_PS1 = "libpcsx_rearmed_libretro_android.so"
 
         fun start(context: Context, bootJson: String) {
             context.startActivity(Intent(context, GameActivity::class.java).putExtra(EXTRA_BOOT, bootJson))
@@ -159,6 +161,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     val title: String get() = boot.optString("name", "Игра")
     val platform: String get() = boot.optString("plat", "psp")
+    /** Возможности только для PSP: читы CWCheat, HD-текстуры, сеть, достижения, Vulkan, поиск значений, авто-раскладки по памяти. */
+    val isPsp get() = platform == "psp"
     val gameId: String get() = boot.optString("id")
     /** Фон игры для экрана загрузки (картинка из образа или титульный экран). */
     val bgFile: File? get() = boot.optString("bg").takeIf { it.isNotEmpty() }?.let { File(it) }?.takeIf { it.exists() }
@@ -170,6 +174,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.nexus.psp.data.CrashLog.install(applicationContext, "game")
+        NativeCrash.install(applicationContext)
         boot = try { JSONObject(intent.getStringExtra(EXTRA_BOOT) ?: "{}") } catch (e: Exception) { JSONObject() }
         val s = boot.optJSONObject("s") ?: JSONObject()
 
@@ -261,8 +266,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         val path = boot.optString("path")
         if (path.isEmpty() || !File(path).exists()) { fail("Файл игры не найден: возможно, его удалили"); return }
         val data = GLRetroViewData(this).apply {
-            coreFilePath = CORE_PSP
+            coreFilePath = if (isPsp) CORE_PSP else CORE_PS1
             gameFilePath = path
+            // PS1: карта памяти живёт в ядре — подгружаем сохранённую
+            if (!isPsp) saveRAMState = sramFile().takeIf { it.exists() }?.readBytes()
             systemDirectory = CoreFiles.systemDir(this@GameActivity).absolutePath
             savesDirectory = CoreFiles.savesDir(this@GameActivity).absolutePath
             variables = coreVariables()
@@ -286,10 +293,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                         ui.phase = "ready"; updateControlsVisibility()
                         ui.builtin?.let { toast("Кнопки настроены под «$it» · изменить: пауза → «Кнопки»") }
                         maybeAskGenre()
-                        startAutoPoll()
-                        startRA()
+                        if (isPsp) { startAutoPoll(); startRA() } else applyPs1Pad()
                         // включённые читы этой игры — сразу после запуска
-                        if (ui.cheatsOn.isNotEmpty()) lifecycleScope.launch {
+                        if (isPsp && ui.cheatsOn.isNotEmpty()) lifecycleScope.launch {
                             val l = withContext(Dispatchers.IO) { (serial?.takeIf { CheatDb.ready(this@GameActivity) }?.let { CheatDb.forGame(this@GameActivity, it) } ?: emptyList()) + ownCheats() }
                             ui.cheats = l; delay(1500); pushCheats()
                         }
@@ -301,8 +307,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             }
         }
         // счётчик кадров
-        lifecycleScope.launch { while (true) { delay(1000); ui.fps = frames; frames = 0; autoResTick(ui.fps) } }
-        startAutoSave(); startBatteryWatch(); watchVulkan()
+        lifecycleScope.launch { while (true) { delay(1000); ui.fps = frames; frames = 0; if (isPsp) autoResTick(ui.fps) } }
+        startAutoSave(); if (isPsp) { startBatteryWatch(); watchVulkan() } else startSramSaver()
         lifecycleScope.launch {
             view.getGLRetroErrors().collect { code ->
                 fail(when (code) {
@@ -317,6 +323,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     /** Пресет «Баланс» по умолчанию; экран настроек ядра — следующий этап. */
     private fun coreVariables(): Array<Variable> {
+        if (!isPsp) return ps1Variables()
         val v = mutableMapOf(
             "ppsspp_internal_resolution" to "960x544",
             "ppsspp_button_preference" to "Cross",
@@ -566,7 +573,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         if (p && !ui.paused) {
             // кадр в момент паузы — для слотов сохранений и скриншота; затем ставим ядро на паузу
             ui.paused = true; controls.releaseAll(); updateControlsVisibility()
-            lifecycleScope.launch { pauseFrame = captureFrame(); setCorePaused(true); refreshSlots() }
+            lifecycleScope.launch { pauseFrame = captureFrame(); setCorePaused(true); refreshSlots(); withContext(Dispatchers.IO) { saveSram() } }
             return
         }
         if (!p) { pauseFrame = null; ui.settings = false }
@@ -1239,6 +1246,11 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     override fun stick(right: Boolean, x: Float, y: Float) {
+        // PS1 с обычным джойстиком: левый стик работает как крестовина
+        if (!isPsp && !right && ps1Pad == "standard") {
+            fun d(v: Float) = if (v > .4f) 1f else if (v < -.4f) -1f else 0f
+            retro?.sendMotionEvent(GLRetroView.MOTION_SOURCE_DPAD, d(x), d(y)); return
+        }
         retro?.sendMotionEvent(if (right) GLRetroView.MOTION_SOURCE_ANALOG_RIGHT else GLRetroView.MOTION_SOURCE_ANALOG_LEFT, x, y)
     }
 
@@ -1302,7 +1314,50 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         } catch (e: Exception) { Log.w(TAG, "session", e) }
     }
 
-    override fun finish() { writeSession(); super.finish() }
+    override fun finish() { saveSram(); writeSession(); super.finish() }
+
+    override fun onStop() { saveSram(); super.onStop() }
+
+    // ---------- PS1 ----------
+    /** Карта памяти PS1 — рядом с сохранениями, по имени файла игры. */
+    private fun sramFile() = File(CoreFiles.savesDir(this), File(boot.optString("path")).nameWithoutExtension + ".srm")
+
+    /** Записать карту памяти PS1 на диск (если изменилась). Безопасно из любого потока. */
+    private var sramLast: Int = 0
+    private fun saveSram() {
+        if (isPsp || retro == null || ui.phase != "ready") return
+        try {
+            val b = LibretroDroid.serializeSRAM() ?: return
+            if (b.isEmpty()) return
+            val h = b.contentHashCode(); if (h == sramLast) return
+            sramFile().writeBytes(b); sramLast = h
+        } catch (e: Throwable) { Log.w(TAG, "sram", e) }
+    }
+
+    /** Игра сохраняется на карту памяти когда угодно — пишем на диск раз в 20 секунд и при паузе/выходе. */
+    private fun startSramSaver() = lifecycleScope.launch(Dispatchers.IO) { while (true) { delay(20_000); saveSram() } }
+
+    private var ps1Pad = "standard"
+    /** Тип джойстика PS1: обычный (цифровой) или DualShock (аналоговые стики). */
+    private fun applyPs1Pad() {
+        ps1Pad = vars.optString("kapsula_ps1_pad", "standard")
+        // RETRO_DEVICE_JOYPAD = 1; DualShock = подкласс ANALOG (1) → ((1 + 1) shl 8) or 5
+        try { retro?.setControllerType(0, if (ps1Pad == "dualshock") (2 shl 8) or 5 else 1) } catch (e: Throwable) { Log.w(TAG, "pad", e) }
+    }
+    fun setPs1Pad(v: String) { vars.put("kapsula_ps1_pad", v); applyPs1Pad(); toast(if (v == "dualshock") "DualShock: аналог включается L1 + R1 + Select" else "Обычный джойстик: стик — как крестовина") }
+
+    private fun ps1Variables(): Array<Variable> {
+        val v = mutableMapOf(
+            "pcsx_rearmed_drc" to "enabled",
+            "pcsx_rearmed_dithering" to "enabled",
+            "pcsx_rearmed_spu_interpolation" to "simple",
+            "pcsx_rearmed_analog_combo" to "l1+r1+select",
+            "pcsx_rearmed_gpu_thread_rendering" to "auto",
+        )
+        boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> if (k.startsWith("pcsx_rearmed_")) v[k] = o.optString(k) } }
+        try { Vk.nSetWanted(false) } catch (e: Throwable) { }
+        return v.map { Variable(it.key, it.value) }.toTypedArray()
+    }
 
     override fun onDestroy() {
         if (raStarted) try { RA.nUnload() } catch (e: Throwable) { }

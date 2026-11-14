@@ -7,6 +7,7 @@
 -keep class com.nexus.psp.emulator.RA$** { *; }
 # Vulkan и чтение памяти: JNI-функции привязаны к имени класса
 -keep class com.nexus.psp.emulator.Vk { *; }
+-keep class com.nexus.psp.emulator.NativeCrash { *; }
 -keep class com.nexus.psp.emulator.AutoSwitch { *; }
 # Номера строк в отчётах о падениях (раздел «Последняя ошибка»)
 -keepattributes SourceFile,LineNumberTable

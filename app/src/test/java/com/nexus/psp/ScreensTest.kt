@@ -102,5 +102,16 @@ class ScreensTest {
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/shots/j08-profile-editor-dialog.png")
         com.nexus.psp.ui.screens.ProfileUi.edit.value = false
     }
+    /** Игра PS1: CUE + две дорожки BIN. */
+    private fun ps1Game() {
+        val dir = CoreFiles.gamesDir(ApplicationProvider.getApplicationContext())
+        RandomAccessFile(File(dir, "Spyro the Dragon (USA) (Track 1).bin"), "rw").use { it.setLength(2352L * 300) }
+        RandomAccessFile(File(dir, "Spyro the Dragon (USA) (Track 2).bin"), "rw").use { it.setLength(2352L * 100) }
+        File(dir, "Spyro the Dragon (USA).cue").writeText("FILE \"Spyro the Dragon (USA) (Track 1).bin\" BINARY\n  TRACK 01 MODE2/2352\nFILE \"Spyro the Dragon (USA) (Track 2).bin\" BINARY\n  TRACK 02 AUDIO\n")
+    }
+    @Test fun j09_ps1_settings() = shot("j09-ps1-settings", true) { Nav.settingsTab = "ps1"; Nav.open(Ov.Settings) }
+    @Test fun j10_ps1_library() { ps1Game(); shot("j10-ps1-library", true) { Nav.open(Ov.Library) } }
+    @Test fun j11_ps1_game() { ps1Game(); shot("j11-ps1-game", true) { Nav.open(Ov.Game(AppState.byId.values.first { it.p == "ps1" }.id)) } }
+    @Test fun j12_ps1_gset() { ps1Game(); shot("j12-ps1-gset", true) { val id = AppState.byId.values.first { it.p == "ps1" }.id; com.nexus.psp.data.GameConfig(ApplicationProvider.getApplicationContext(), id).edit { o -> o.put("own", true) }; Nav.open(Ov.GSet(id)) } }
     @Test fun g09_quick_light() = shot("g09-quick-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Quick) }
 }

@@ -203,7 +203,7 @@ private fun EmptyShelf() {
         }
         Column(Modifier.weight(1.1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Твоя полка пока пуста", style = T.h1.copy(fontSize = 28.sp))
-            Text("Добавь образ своей игры с телефона — ISO, CSO, CHD или PBP. Сейчас работает PSP; PS1 и PS2 подключаем следующими.", style = T.body)
+            Text("Добавь образ своей игры с телефона: PSP — ISO, CSO, CHD, PBP; PS1 — CUE вместе с BIN, CHD, PBP. PS2 — в планах.", style = T.body)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                 KButton("Добавить игру", R.drawable.ph_plus, BtnKind.Main) { Act.addFile() }
                 KButton("Найти на телефоне", R.drawable.sl_search) { Act.findGames() }

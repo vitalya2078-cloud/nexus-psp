@@ -10,7 +10,7 @@ data class Platform(
 
 val PLATFORMS = listOf(
     Platform("psp", "PSP", "PlayStation Portable", Color(0xFF9DB8D6), false, "UMD-диск", "ic-umd.png", "con-psp.png", ready = true),
-    Platform("ps1", "PS1", "PlayStation", Color(0xFFB8B4AE), true, "CD-диск", "ic-cd.png", "con-ps1.png", ready = false),
+    Platform("ps1", "PS1", "PlayStation", Color(0xFFB8B4AE), true, "CD-диск", "ic-cd.png", "con-ps1.png", ready = true),
     Platform("ps2", "PS2", "PlayStation 2", Color(0xFF8E96C4), true, "DVD-диск", "ic-dvd.png", "con-ps2.png", ready = false),
 )
 val PL = PLATFORMS.associateBy { it.id }

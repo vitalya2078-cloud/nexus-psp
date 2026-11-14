@@ -164,7 +164,7 @@ fun GameSheet(id: String) {
 private fun About(g: Game) {
     val p = g.plat
     KvGrid(listOf(
-        Triple("Носитель", p.media, p.mediaImg), Triple("BIOS", if (p.bios) "Нужен BIOS ${p.short}" else "Не нужен", R.drawable.sd_chip),
+        Triple("Носитель", p.media, p.mediaImg), Triple("BIOS", when { !p.bios -> "Не нужен"; p.id == "ps1" -> "По желанию"; else -> "Нужен BIOS ${p.short}" }, R.drawable.sd_chip),
         Triple("Управление", "Любое", R.drawable.sd_pad), Triple("Эмулятор", if (p.ready) "KAPSULA" else "Скоро", R.drawable.sd_monitor),
     ))
     if (!p.ready) StateCard("es-bios.png", "${p.full} пока не поддерживается.", "Ядро для ${p.short} подключим следующим — игра останется в библиотеке.")
@@ -312,7 +312,7 @@ fun GameSettingsScreen(id: String) {
     com.nexus.psp.ui.Full {
         com.nexus.psp.ui.OvHead("${g.t} — настройки", back = true)
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            Opt("Свои настройки для этой игры", if (own) "Изменения ниже — только для «${g.t}»" else "Сейчас игра использует общие настройки PSP") {
+            Opt("Свои настройки для этой игры", if (own) "Изменения ниже — только для «${g.t}»" else "Сейчас игра использует общие настройки ${g.plat.short}") {
                 Toggle(own) { on ->
                     own = on
                     if (on) cfg.edit { o -> o.put("own", true); if (!o.has("vars")) o.put("vars", com.nexus.psp.ui.screens.GlobalCore.vars()); if (!o.has("preset")) o.put("preset", AppState.S.corePreset) }
@@ -321,9 +321,14 @@ fun GameSettingsScreen(id: String) {
                 }
             }
             if (own) {
-                CoreQuality(store)
-                Sub("Скорость"); CoreRows(com.nexus.psp.data.CoreOptions.SPEED, store)
-                Sub("Система"); CoreRows(com.nexus.psp.data.CoreOptions.SYSTEM, store)
+                if (g.p == "ps1") {
+                    Sub("Картинка"); CoreRows(com.nexus.psp.data.CoreOptions.PS1_QUALITY, store)
+                    Sub("Система"); CoreRows(com.nexus.psp.data.CoreOptions.PS1_SYSTEM, store)
+                } else {
+                    CoreQuality(store)
+                    Sub("Скорость"); CoreRows(com.nexus.psp.data.CoreOptions.SPEED, store)
+                    Sub("Система"); CoreRows(com.nexus.psp.data.CoreOptions.SYSTEM, store)
+                }
                 Sub("Управление")
                 val modes = listOf("touch", "classic", "pad")
                 var mode by remember(id, tick) { mutableStateOf(cfg.read().optString("ctlMode", S.ctlMode)) }
@@ -331,7 +336,7 @@ fun GameSettingsScreen(id: String) {
                 var fps by remember(id, tick) { mutableStateOf(cfg.read().optBoolean("fps", S.fps)) }
                 Opt("Счётчик кадров", null) { Toggle(fps) { fps = it; cfg.edit { o -> o.put("fps", it) } } }
                 Text("То же можно менять прямо в игре: пауза → «Настройки».", style = T.small, modifier = Modifier.padding(vertical = 10.dp))
-            } else StateCard(null, null, "Общие настройки PSP — в «Настройки → Эмулятор PSP». Включи переключатель выше, чтобы задать этой игре свои: например, ×3 для одной игры и «Батарея» для другой.", tint = K.acc)
+            } else StateCard(null, null, "Общие настройки ${g.plat.short} — в «Настройки → Эмулятор ${g.plat.short}». Включи переключатель выше, чтобы задать этой игре свои: например, ×3 для одной игры и «Батарея» для другой.", tint = K.acc)
         }
     }
 }

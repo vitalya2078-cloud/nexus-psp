@@ -9,19 +9,38 @@ import java.io.File
 
 /** Свои образы игр пользователя: копия в папке приложения (Android/data/…/files/games). */
 object GameLibrary {
-    val EXT = setOf("iso", "cso", "chd", "pbp", "elf", "prx")
+    /** PSP: ISO, CSO, CHD, PBP, ELF, PRX. PS1: CUE + BIN, BIN, IMG, CHD, PBP, M3U (несколько дисков). */
+    val EXT = setOf("iso", "cso", "chd", "pbp", "elf", "prx", "cue", "bin", "img", "m3u")
+
+    /** Части игры, которые не показываются отдельно: дорожки из CUE и диски из M3U. */
+    private fun parts(f: File): List<File> = when (f.extension.lowercase()) {
+        "cue" -> Disc.cueTracks(f)
+        "m3u" -> Disc.m3uItems(f).flatMap { listOf(it) + parts(it) }
+        else -> emptyList()
+    }
 
     fun list(c: Context): String {
         val a = JSONArray()
-        CoreFiles.gamesDir(c).listFiles()?.filter { it.isFile && it.extension.lowercase() in EXT && !it.name.endsWith(".part") }
-            ?.sortedBy { it.name.lowercase() }
-            ?.forEach { f -> a.put(info(f)) }
+        val files = CoreFiles.gamesDir(c).listFiles()?.filter { it.isFile && it.extension.lowercase() in EXT && !it.name.endsWith(".part") } ?: emptyList()
+        val hidden = files.flatMap { parts(it) }.map { it.name.lowercase() }.toSet()
+        files.filter { it.name.lowercase() !in hidden }.sortedBy { it.name.lowercase() }.forEach { f -> a.put(info(f)) }
         return a.toString()
     }
 
-    fun info(f: File): JSONObject = JSONObject()
-        .put("id", idOf(f.name)).put("name", f.nameWithoutExtension).put("file", f.name)
-        .put("path", f.absolutePath).put("size", f.length() / (1024.0 * 1024.0)).put("plat", "psp")
+    /** Платформа считается по содержимому один раз и запоминается рядом (по размеру и времени файла). */
+    private val platCache = HashMap<String, String>()
+
+    fun info(f: File): JSONObject {
+        val key = f.path + ":" + f.length() + ":" + f.lastModified()
+        val plat = platCache.getOrPut(key) { Disc.platform(f) }
+        val size = f.length() + parts(f).sumOf { it.length() }
+        return JSONObject()
+            .put("id", idOf(f.name)).put("name", f.nameWithoutExtension).put("file", f.name)
+            .put("path", f.absolutePath).put("size", size / (1024.0 * 1024.0)).put("plat", plat)
+    }
+
+    /** Недостающие файлы игры (CUE без своих BIN) — их нужно добавить вместе с ним. */
+    fun missingParts(f: File): List<String> = parts(f).filter { !it.exists() }.map { it.name }
 
     fun idOf(name: String) = "f_" + name.lowercase().replace(Regex("[^a-z0-9а-яё]+"), "_").trim('_').take(40)
 
@@ -36,7 +55,7 @@ object GameLibrary {
     fun importFile(c: Context, uri: Uri, onProgress: (Double) -> Unit): File {
         val (name0, total) = displayName(c, uri)
         val name = name0.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-        require(File(name).extension.lowercase() in EXT) { "Формат не поддерживается: нужен ISO, CSO, CHD или PBP" }
+        require(File(name).extension.lowercase() in EXT) { "Формат не поддерживается: нужен ISO, CSO, CHD, PBP, CUE + BIN или M3U" }
         val dir = CoreFiles.gamesDir(c)
         val out = File(dir, name)
         val part = File(dir, "$name.part")
@@ -55,8 +74,11 @@ object GameLibrary {
         return out
     }
 
+    /** Удаляет игру вместе с её частями (дорожки CUE, диски M3U). */
     fun delete(c: Context, path: String): Boolean {
         val f = File(path)
-        return f.parentFile?.canonicalPath == CoreFiles.gamesDir(c).canonicalPath && f.delete()
+        if (f.parentFile?.canonicalPath != CoreFiles.gamesDir(c).canonicalPath) return false
+        parts(f).forEach { p -> if (p.parentFile?.canonicalPath == f.parentFile?.canonicalPath) p.delete() }
+        return f.delete()
     }
 }

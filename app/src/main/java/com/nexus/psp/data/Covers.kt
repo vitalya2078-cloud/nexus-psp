@@ -38,10 +38,13 @@ data class Meta(
  */
 object Covers {
     private const val TAG = "KapsulaCovers"
-    private const val DB_URL = "https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/no-intro/Sony%20-%20PlayStation%20Portable.dat"
-    private const val THUMBS = "https://thumbnails.libretro.com/Sony%20-%20PlayStation%20Portable/Named_Boxarts/"
-    private const val SNAPS = "https://thumbnails.libretro.com/Sony%20-%20PlayStation%20Portable/Named_Snaps/"
-    private const val TITLES = "https://thumbnails.libretro.com/Sony%20-%20PlayStation%20Portable/Named_Titles/"
+    /** Базы названий и картинки — свои у каждой консоли (no-intro для PSP, redump для PS1). */
+    private class Src(val db: String, val thumbs: String, val file: String)
+    private val SRC = mapOf(
+        "psp" to Src("https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/no-intro/Sony%20-%20PlayStation%20Portable.dat", "https://thumbnails.libretro.com/Sony%20-%20PlayStation%20Portable/", "psp-db.tsv"),
+        "ps1" to Src("https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/redump/Sony%20-%20PlayStation.dat", "https://thumbnails.libretro.com/Sony%20-%20PlayStation/", "ps1-db.tsv"),
+    )
+    private fun src(p: String) = SRC[p] ?: SRC.getValue("psp")
     private const val DB_MAX_AGE = 30L * 24 * 3600 * 1000
 
     fun dir(c: Context, id: String) = File(c.filesDir, "meta/$id").apply { mkdirs() }
@@ -96,14 +99,15 @@ object Covers {
         val needCover = old.cover == null || force
         val needExtra = old.extra == 0L || force
         if (online && (needCover || needExtra)) {
-            val db = database(c)
+            val db = database(c, g.p)
+            val base = src(g.p).thumbs
             val name = serial?.let { db?.bySerial?.get(it) } ?: db?.byTitle(sfoTitle ?: g.file.substringBeforeLast('.'))
             if (name != null) {
                 title = cleanTitle(name)
-                if (needCover && !File(d, "cover_user.jpg").exists()) download(THUMBS + thumbName(name) + ".png")?.let { saveImage(it, File(d, "cover.jpg"), 600, byWidth = false) }
+                if (needCover && !File(d, "cover_user.jpg").exists()) download(base + "Named_Boxarts/" + thumbName(name) + ".png")?.let { saveImage(it, File(d, "cover.jpg"), 600, byWidth = false) }
                 if (needExtra) {
-                    download(SNAPS + thumbName(name) + ".png")?.let { saveImage(it, File(d, "snap.jpg"), 960, byWidth = true) }
-                    download(TITLES + thumbName(name) + ".png")?.let { saveImage(it, File(d, "title.jpg"), 960, byWidth = true) }
+                    download(base + "Named_Snaps/" + thumbName(name) + ".png")?.let { saveImage(it, File(d, "snap.jpg"), 960, byWidth = true) }
+                    download(base + "Named_Titles/" + thumbName(name) + ".png")?.let { saveImage(it, File(d, "title.jpg"), 960, byWidth = true) }
                 }
             } else if (sfoTitle != null && title == null) title = cleanTitle(sfoTitle!!)
             tried = System.currentTimeMillis(); extra = System.currentTimeMillis()
@@ -138,17 +142,17 @@ object Covers {
         }
     }
 
-    @Volatile private var db: Db? = null
+    private val dbs = java.util.concurrent.ConcurrentHashMap<String, Db>()
+    private val dbFailedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
-    @Volatile private var dbFailedAt = 0L
-
-    private fun database(c: Context): Db? {
-        db?.let { return it }
-        val f = File(c.filesDir, "meta/psp-db.tsv")
+    private fun database(c: Context, plat: String): Db? {
+        dbs[plat]?.let { return it }
+        val sr = src(plat)
+        val f = File(c.filesDir, "meta/" + sr.file)
         // не скачалась недавно — не пробуем снова для каждой игры (10 минут)
-        val canTry = System.currentTimeMillis() - dbFailedAt > 10 * 60 * 1000
+        val canTry = System.currentTimeMillis() - (dbFailedAt[plat] ?: 0L) > 10 * 60 * 1000
         if (canTry && (!f.exists() || System.currentTimeMillis() - f.lastModified() > DB_MAX_AGE)) {
-            (download(DB_URL) ?: run { dbFailedAt = System.currentTimeMillis(); null })?.let { raw ->
+            (download(sr.db) ?: run { dbFailedAt[plat] = System.currentTimeMillis(); null })?.let { raw ->
                 val out = StringBuilder(); var name: String? = null
                 for (line in String(raw, Charsets.UTF_8).lineSequence()) {
                     val t = line.trim()
@@ -161,7 +165,7 @@ object Covers {
         if (!f.exists()) return null
         val map = HashMap<String, String>(); val names = ArrayList<String>()
         f.forEachLine { l -> val i = l.indexOf('\t'); if (i > 0) { l.substring(0, i).split(',').forEach { s -> map.putIfAbsent(s.trim().uppercase(), l.substring(i + 1)) }; names.add(l.substring(i + 1)) } }
-        return Db(map, names).also { db = it }
+        return Db(map, names).also { dbs[plat] = it }
     }
 
     // Правило имён libretro-thumbnails: символы & * / : ` < > ? \ | заменяются на «_».
