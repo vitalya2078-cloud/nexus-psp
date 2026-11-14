@@ -40,6 +40,7 @@ import com.swordfish.libretrodroid.Variable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -918,10 +919,23 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         if (ok) loadCheats() else ui.cheatState = "fail"
     }
 
-    /** Передать ядру все читы с их состоянием (ядро включает их сразу). */
+    private val cheatLock = kotlinx.coroutines.sync.Mutex()
+    /**
+     * Передать ядру включённые читы (ядро включает их сразу). Только включённые и в фоне:
+     * на каждый чит ядро перезаписывает файл читов и ждёт конца кадра — сотни читов из базы
+     * в главном потоке подвешивали игру («приложение не отвечает»).
+     */
     private fun pushCheats() {
         val v = retro ?: return
-        ui.cheats.forEachIndexed { i, c -> try { v.setCheat(i, c.name in ui.cheatsOn, c.code.replace(' ', '+')) } catch (e: Exception) { Log.w(TAG, "cheat", e) } }
+        val on = ui.cheats.filter { it.name in ui.cheatsOn }.map { it.code.replace(' ', '+') }
+        lifecycleScope.launch(Dispatchers.IO) {
+            cheatLock.withLock {
+                try {
+                    com.swordfish.libretrodroid.LibretroDroid.resetCheat()
+                    on.forEachIndexed { i, code -> v.setCheat(i, true, code, useEmulationThread = false) }
+                } catch (e: Throwable) { Log.w(TAG, "cheat", e) }
+            }
+        }
     }
 
     fun toggleCheat(c: Cheat, on: Boolean) {
