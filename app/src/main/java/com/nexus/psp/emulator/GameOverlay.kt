@@ -92,6 +92,7 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
         if (ui.texOpen) TexturesPanel(a, ui)
         if (ui.netOpen) NetPanel(a, ui)
         if (ui.achOpen) AchPanel(a, ui)
+        if (ui.guideOpen) GuideWindow(a, ui)
         if (ui.searchOpen) SearchPanel(a, ui)
         // «Достижение получено» — поверх игры на 5 секунд
         ui.raPopup?.let { p -> Box(Modifier.align(Alignment.TopCenter).padding(top = 14.dp)) { AchPopup(p) } }
@@ -175,6 +176,7 @@ private fun PauseMenu(a: GameActivity, ui: GameActivity.UiState, con: String, co
                     Text("Отменить загрузку", style = T.label.copy(fontSize = 13.sp))
                 }
                 Spacer(Modifier.weight(1f))
+                if (ui.ctlMode != "pad") PauseLink(R.drawable.sl_pad, "Как управлять", false) { a.openGuide() }
                 // дополнительные возможности — отдельными экранами, чтобы не перегружать паузу
                 if (a.isPsp) {
                     PauseLink(R.drawable.ctl_key, "Читы", ui.cheatsOn.isNotEmpty()) { a.openCheats() }
@@ -831,8 +833,8 @@ private fun ErrorScreen(msg: String, onExit: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        SolarIcon(R.drawable.sl_alert, 40.dp, K.warn)
-        Spacer(Modifier.height(14.dp))
+        com.nexus.psp.ui.kit.Mascot("sad", 120.dp)
+        Spacer(Modifier.height(8.dp))
         Text("Игра не запустилась", style = T.h2)
         Spacer(Modifier.height(6.dp))
         Text(msg, style = T.body.copy(color = K.ink2, fontWeight = FontWeight.Medium), textAlign = TextAlign.Center, modifier = Modifier.width(420.dp))
@@ -964,5 +966,29 @@ private fun SearchPanel(a: GameActivity, ui: GameActivity.UiState) {
             }
         }
         if (ui.searchRows.isNotEmpty()) Text("«Заморозить» создаёт свой чит в списке читов — его можно выключить там же.", style = T.small.copy(fontSize = 11.sp))
+    }
+}
+
+
+/** Окно «Управление»: раскладка с подписями, главное в 2–3 строках и таблица кнопок. Игра ждёт, пока окно открыто. */
+@Composable
+private fun GuideWindow(a: GameActivity, ui: GameActivity.UiState) {
+    val data = androidx.compose.runtime.remember(ui.tick) { a.guideData() }
+    Box(
+        Modifier.fillMaxSize().background(Color(0xF20B0C0F)).clickable(remember { MutableInteractionSource() }, indication = null) {}
+            .windowInsetsPadding(WindowInsets.displayCutout).padding(horizontal = 24.dp, vertical = 14.dp),
+    ) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                com.nexus.psp.ui.kit.Mascot("point", 58.dp)
+                Column(Modifier.weight(1f)) {
+                    Text("Управление", style = T.h1)
+                    Text(a.title, style = T.small, maxLines = 1)
+                }
+                KButton(if (ui.phase == "ready" || ui.paused) "Играть" else "Играть · загрузка…", R.drawable.sb_play, com.nexus.psp.ui.kit.BtnKind.Main) { a.closeGuide() }
+            }
+            com.nexus.psp.ui.kit.GuidePanel(data.second, data.first, a.platform, wide = true)
+            Text("Это окно всегда можно открыть снова: пауза → «Как управлять».", style = T.small)
+        }
     }
 }

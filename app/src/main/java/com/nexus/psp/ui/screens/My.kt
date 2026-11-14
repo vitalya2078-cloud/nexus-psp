@@ -170,7 +170,7 @@ private fun StatsStrip(st: Stats) {
 @Composable
 private fun Empty(img: String, title: String, text: String, action: (@Composable () -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.s1).padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        AssetImage(img, Modifier.width(96.dp).height(64.dp))
+        if (img.startsWith("mascot-")) com.nexus.psp.ui.kit.Mascot(img.removePrefix("mascot-"), 64.dp) else AssetImage(img, Modifier.width(96.dp).height(64.dp))
         Column(Modifier.weight(1f)) { Text(title, style = T.label.copy(fontSize = 14.sp)); Text(text, style = T.small) }
         action?.invoke()
     }
@@ -180,7 +180,7 @@ private fun Empty(img: String, title: String, text: String, action: (@Composable
 @Composable
 private fun AddGuide() {
     Section("Добавь игры")
-    Empty("es-addgames.png", if (AppState.byId.isEmpty()) "Пока тут пусто — закинь первую игру" else "Ещё пару игр — и станет веселее",
+    Empty("mascot-wave", if (AppState.byId.isEmpty()) "Пока тут пусто — закинь первую игру" else "Ещё пару игр — и станет веселее",
         "Образы своих дисков: PSP — ISO, CSO, CHD; PS1 — CUE с BIN, CHD, PBP. Можно выбрать файл или поискать по телефону.") {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             KButton("Выбрать файл", R.drawable.ph_plus, BtnKind.Main, small = true) { Act.addFile() }

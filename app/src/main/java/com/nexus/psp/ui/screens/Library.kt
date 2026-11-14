@@ -128,13 +128,13 @@ fun LibraryScreen() {
         if (list.isEmpty()) Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val reset: @Composable () -> Unit = { KButton("Сбросить фильтры", small = true) { S.lf = "Все"; S.lc = ""; S.con = "all"; q = "" } }
             when {
-                mine.isEmpty() -> StateCard("es-empty.png", "Библиотека пуста", "Добавь образ игры с телефона — ISO, CSO, CHD или PBP.") {
+                mine.isEmpty() -> StateCard("mascot-wave", "Библиотека пуста", "Добавь образ игры с телефона — ISO, CSO, CHD или PBP.") {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { KButton("Найти на телефоне", R.drawable.sl_search, small = true) { Act.findGames() }; KButton("Добавить игру", R.drawable.ph_plus, com.nexus.psp.ui.kit.BtnKind.Main, small = true) { Act.addFile() } }
                 }
-                q.isNotBlank() -> StateCard("es-nothing.png", "Нет игры «${q.trim()}»", "Проверь название или сбрось фильтры.", action = reset)
+                q.isNotBlank() -> StateCard("mascot-search", "Нет игры «${q.trim()}»", "Проверь название или сбрось фильтры.", action = reset)
                 S.lc.isNotEmpty() && (AppState.cols[S.lc]?.isEmpty() != false) -> StateCard("es-empty.png", "Коллекция «${S.lc}» пустая", "Удерживай обложку игры → «Добавить в «${S.lc}»», или открой карточку игры и нажми на название коллекции.")
                 S.lf == "Избранное" -> StateCard("es-empty.png", "В избранном пусто", "Открой карточку игры и нажми «Избранное» — она появится здесь.")
-                else -> StateCard("es-nothing.png", "Ничего не нашлось", "По выбранным фильтрам игр нет.", action = reset)
+                else -> StateCard("mascot-search", "Ничего не нашлось", "По выбранным фильтрам игр нет.", action = reset)
             }
         } else LazyVerticalGrid(
             GridCells.Adaptive(150.dp), Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
@@ -173,7 +173,7 @@ fun SearchScreen() {
                 } else Text("Ищи по названию игры, имени файла или консоли.", style = T.small, modifier = Modifier.padding(top = 8.dp))
             } else {
                 val mine = all.filter { match(it, t) }
-                if (mine.isEmpty()) StateCard("es-nothing.png", "Такой игры у тебя нет", "По запросу «$t» ничего в библиотеке. Если файл есть на телефоне — добавь его.") {
+                if (mine.isEmpty()) StateCard("mascot-search", "Такой игры у тебя нет", "По запросу «$t» ничего в библиотеке. Если файл есть на телефоне — добавь его.") {
                     KButton("Добавить игру", R.drawable.ph_plus, small = true) { Act.addFile() }
                 } else { Sub("В библиотеке · ${mine.size}"); Grid(mine) }
             }

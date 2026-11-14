@@ -118,7 +118,7 @@ fun ConsoleScreen(id: String) {
                 }
             }
             if (list.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-                StateCard("es-addgames.png", "Тут пока пусто", "Добавь образ своей игры для ${p.short} — он появится на этой полке.")
+                StateCard("mascot-wave", "Тут пока пусто", "Добавь образ своей игры для ${p.short} — он появится на этой полке.")
             } else items(list, key = { it.id }) { GameCard(it, null, mine = true) }
         }
     }

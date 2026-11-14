@@ -68,7 +68,7 @@ private fun mb(b: Long) = when { b >= 1L shl 30 -> String.format("%.1f ГБ", b 
 /** Нет доступа к файлам: объясняем зачем и даём два способа. */
 @Composable
 fun AccessAsk(title: String) {
-    StateCard("es-addgames.png", title,
+    StateCard("mascot-wave", title,
         "Чтобы показать твои игры, KAPSULA нужен доступ к файлам. Можно открыть весь телефон — тогда поиск найдёт всё сам. Или выбрать одну папку, где лежат игры. Мы только читаем файлы и ничего никуда не отправляем.") {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             KButton("Весь телефон", R.drawable.sl_device, BtnKind.Main, small = true) { Act.requestAllFiles?.invoke() }
@@ -240,7 +240,7 @@ fun ScanScreen() {
             when {
                 !remember(tick) { Storage.hasAny(ctx) } -> AccessAsk("Где искать игры?")
                 state == "idle" -> Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(K.s1).padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    AssetImage("es-addgames.png", Modifier.width(150.dp).height(80.dp))
+                    com.nexus.psp.ui.kit.Mascot("search", 88.dp)
                     Column(Modifier.weight(1f)) {
                         Text("Пробегусь по файлам и соберу всё, во что можно поиграть", style = T.h3)
                         Text("Где ищем: " + Storage.places(ctx).joinToString(", ") { it.title } + ". Игры добавятся, только когда ты их выберешь.", style = T.small)
@@ -251,7 +251,7 @@ fun ScanScreen() {
                     }
                 }
                 state == "run" -> Column(Modifier.fillMaxWidth().padding(top = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AssetImage("es-addgames.png", Modifier.width(200.dp).height(100.dp))
+                    com.nexus.psp.ui.kit.Mascot("search", 120.dp)
                     Text("Ищу игры…", style = T.h2)
                     Text("Проверено файлов: $checked · нашёл: ${hits.size}", style = T.body)
                 }
@@ -266,7 +266,7 @@ private fun ScanResults(hits: List<Hit>, bioses: List<BiosHit>, pick: MutableLis
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     if (hits.isEmpty() && bioses.isEmpty()) {
-        StateCard("es-nothing.png", "Игр не нашлось", "Проверь, что образы лежат в папке, к которой есть доступ. Можно добавить ещё папку или открыть весь телефон.") {
+        StateCard("mascot-cable", "Игр не нашлось", "Проверь, что образы лежат в папке, к которой есть доступ. Можно добавить ещё папку или открыть весь телефон.") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 KButton("Ещё папка", R.drawable.sl_folder, small = true) { Act.requestFolder?.invoke() }
                 if (!Storage.allFiles(ctx)) KButton("Весь телефон", R.drawable.sl_device, small = true) { Act.requestAllFiles?.invoke() }

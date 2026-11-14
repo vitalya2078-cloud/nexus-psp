@@ -389,7 +389,8 @@ fun StateCard(img: String?, title: String?, text: String, tint: Color? = null, a
             .border(1.dp, if (tint != null) tint.copy(alpha = .3f) else K.line, RoundedCornerShape(18.dp)).padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        if (img != null) AssetImage(img, Modifier.size(64.dp))
+        if (img != null && img.startsWith("mascot-")) Mascot(img.removePrefix("mascot-"), 68.dp)
+        else if (img != null) AssetImage(img, Modifier.size(64.dp))
         Column(Modifier.weight(1f)) {
             if (title != null) Text(title, style = T.label.copy(fontSize = 14.sp))
             Text(text, style = T.body.copy(fontSize = 13.sp, lineHeight = 19.sp))

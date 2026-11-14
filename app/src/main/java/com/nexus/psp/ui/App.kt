@@ -92,7 +92,7 @@ fun KapsulaApp() {
         Column(Modifier.fillMaxSize()) {
             Header()
             AnimatedContent(Nav.tab, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "tab", modifier = Modifier.weight(1f)) { t ->
-                if (t == "my") MyScreen() else GamesScreen()
+                when (t) { "my" -> MyScreen(); "ctl" -> com.nexus.psp.ui.screens.ControlsTab(); else -> GamesScreen() }
             }
         }
         Overlays()
@@ -108,7 +108,7 @@ fun KapsulaApp() {
         if (bright < 1f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 1f - bright)))
     }
     BackHandler(enabled = Nav.stack.isNotEmpty() && Ctx.id == null) { Nav.back() }
-    BackHandler(enabled = Nav.stack.isEmpty() && Nav.tab == "my" && Ctx.id == null) { Nav.go("games") }
+    BackHandler(enabled = Nav.stack.isEmpty() && (Nav.tab == "my" || Nav.tab == "ctl") && Ctx.id == null) { Nav.go("games") }
 }
 
 @Composable
@@ -130,6 +130,7 @@ private fun Overlays() {
             is Ov.Files -> com.nexus.psp.ui.screens.FilesScreen(top.mode)
             Ov.Scan -> com.nexus.psp.ui.screens.ScanScreen()
             is Ov.Console -> com.nexus.psp.ui.screens.ConsoleScreen(top.id)
+            is Ov.Guide -> com.nexus.psp.ui.screens.GuideScreen(top.id, top.preset)
         }
     }
 }

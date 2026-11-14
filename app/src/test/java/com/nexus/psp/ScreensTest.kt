@@ -77,6 +77,15 @@ class ScreensTest {
     @Test fun h06_pad_classic() = shot("h06-pad-classic", true) { AppState.S.ctlMode = "classic"; Nav.open(Ov.Pad) }
     @Test fun h07_games_light() = shot("h07-games-light", true) { AppState.S.theme = "light"; AppState.applyLook() }
     @Test fun h08_game_light() = shot("h08-game-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Game(firstId())) }
+    // 0.33: вкладка «Управление» и гайд
+    @Test fun n01_controls_tab() = shot("n01-controls-tab", true) { Nav.go("ctl") }
+    @Test fun n02_controls_empty() = shot("n02-controls-empty", false) { Nav.go("ctl") }
+    @Test fun n03_guide_patapon() = shot("n03-guide-game", true) { Nav.open(Ov.Guide(id = AppState.myList().first { it.t.contains("Patapon") }.id)) }
+    @Test fun n04_guide_ac() = shot("n04-guide-ac", false) { Nav.open(Ov.Guide(preset = "Assassin's Creed: Bloodlines")) }
+    @Test fun n05_guide_gta() = shot("n05-guide-gta", false) { Nav.open(Ov.Guide(preset = "GTA: Vice City Stories")) }
+    @Config(qualifiers = "w844dp-h1500dp-xhdpi")
+    @Test fun n07_controls_full() = shot("n07-controls-full", true) { Nav.go("ctl") }
+    @Test fun n06_controls_light() = shot("n06-controls-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.go("ctl") }
     @Test fun h10_settings_ach() = shot("h10-settings-ach", true) { Nav.settingsTab = "ach"; Nav.open(Ov.Settings) }
     @Test fun h09_search() = shot("h09-search", true) { Nav.open(Ov.Search) }
     /** Профиль с историей: часы, серия дней, избранное, любимая игра. */

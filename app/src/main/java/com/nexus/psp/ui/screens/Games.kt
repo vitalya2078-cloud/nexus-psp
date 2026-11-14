@@ -146,7 +146,7 @@ private fun Carousel(list: List<Game>) {
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            AssetImage("es-addgames.png", Modifier.width(w * .5f).height(w * .25f))
+                            com.nexus.psp.ui.kit.Mascot("wave", w * .34f)
                             Text("Добавить\nигру", style = T.label.copy(color = K.ink2, textAlign = androidx.compose.ui.text.style.TextAlign.Center), modifier = Modifier.padding(top = 10.dp))
                         }
                     }

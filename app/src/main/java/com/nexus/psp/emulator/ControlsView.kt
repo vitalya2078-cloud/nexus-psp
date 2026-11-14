@@ -73,7 +73,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     /** Короткое касание кнопки в редакторе — выбрать значок / турбо. */
     var onTap: ((String, Btn) -> Unit)? = null
     /** Подписи под кнопками Touch (как в мобильных играх: «Газ», «Прыжок»). */
-    var captions = true
+    var captions = false
     /** Панель «⋯» с редкими кнопками открыта. */
     private var drawer = false
     private val closeDrawer = Runnable { drawer = false; invalidate() }
@@ -100,6 +100,21 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     private val ivory = 0xFFF2F1EC.toInt()
 
     fun setLayout(list: List<Btn>) { releaseAll(); buttons = list; invalidate() }
+
+    /** Превью в гайде: кнопки только рисуются, касания не принимаются. */
+    var preview = false
+
+    /** Настройки кнопок игры (ctl): свои места, значки, назначения, размеры, скрытые. */
+    fun applyCtl(o: org.json.JSONObject?) {
+        offsets.clear(); customIcons.clear(); turbo.clear(); keyMap.clear(); sizes.clear(); roles.clear(); hidden.clear()
+        o ?: return
+        o.optJSONObject("keyPos")?.let { m -> m.keys().forEach { k -> val a = m.getJSONArray(k); offsets[k] = PointF(a.getDouble(0).toFloat(), a.getDouble(1).toFloat()) } }
+        o.optJSONObject("keyIcon")?.let { m -> m.keys().forEach { k -> customIcons[k] = m.getString(k) } }
+        o.optJSONObject("keyMap")?.let { m -> m.keys().forEach { k -> keyMap[k] = m.getString(k) } }
+        o.optJSONObject("keySize")?.let { m -> m.keys().forEach { k -> sizes[k] = m.getDouble(k).toFloat() } }
+        o.optJSONObject("keyHide")?.let { m -> m.keys().forEach { k -> if (m.optBoolean(k)) hidden.add(k) } }
+        invalidate()
+    }
     fun setInsets(l: Float, r: Float) { insetL = l; insetR = r; invalidate() }
     fun setToggle(act: String, on: Boolean) { if (on) toggles.add(act) else toggles.remove(act); invalidate() }
 
@@ -256,7 +271,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
 
     /** Подпись: своя у кнопки, иначе по значку; у служебных (пауза, сохранить…) — только у «⋯». */
     private fun caption(b: Btn): String? {
-        if (b.act != null && b.act != "more" && b.act != "tilt") return null
+        if (b.act != null && b.act != "tilt") return null
         val ic = customIcons[keyOf(b)]
         return if (ic != null) CtlIcons.CAPS[ic] else b.cap ?: b.icon?.let { CtlIcons.CAPS[it] }
     }
@@ -549,6 +564,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (preview) return false
         if (editMode) return editTouch(e)
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {

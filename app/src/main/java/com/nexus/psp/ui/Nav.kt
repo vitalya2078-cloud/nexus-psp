@@ -29,6 +29,8 @@ sealed interface Ov {
     data class Files(val mode: String) : Ov
     data object Scan : Ov
     data class Console(val id: String) : Ov
+    /** Гайд по управлению: игры из библиотеки (id) или из базы раскладок (preset). */
+    data class Guide(val id: String? = null, val preset: String? = null) : Ov
 }
 
 object Nav {

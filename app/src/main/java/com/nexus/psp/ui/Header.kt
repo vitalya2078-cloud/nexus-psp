@@ -70,6 +70,7 @@ fun Header() {
         Row(Modifier.padding(start = 28.dp), horizontalArrangement = Arrangement.spacedBy(26.dp)) {
             TabLabel("Игры", Nav.tab == "games") { Nav.go("games") }
             TabLabel("Моё", Nav.tab == "my") { Nav.go("my") }
+            TabLabel("Управление", Nav.tab == "ctl") { Nav.go("ctl") }
         }
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {

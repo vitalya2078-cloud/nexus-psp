@@ -171,6 +171,23 @@ object GamePresets {
         return p.name to o
     }
 
+    /** Игра из базы для поиска во вкладке «Управление»: название, жанр, есть ли своя раскладка. */
+    class Entry(val name: String, val genre: String, val own: Boolean)
+    val entries: List<Entry> get() = LIST.map { Entry(it.name, it.genre, it.lays != null) }
+
+    /** Раскладки игры по её названию в базе. */
+    fun byName(name: String): JSONObject? = LIST.firstOrNull { it.name == name }?.let { p -> find(p.keys.first()) ?: find(p.name) }?.second
+
+    /** Жанр игры по названию файла/диска (для ярлыка на обложке). */
+    fun genreOf(vararg names: String?): String? {
+        val ns = names.map { norm(it) }.filter { it.isNotEmpty() }
+        return LIST.firstOrNull { e -> e.keys.any { k -> ns.any { it.contains(k) } } }?.genre
+    }
+    fun ownOf(vararg names: String?): Boolean {
+        val ns = names.map { norm(it) }.filter { it.isNotEmpty() }
+        return LIST.firstOrNull { e -> e.keys.any { k -> ns.any { it.contains(k) } } }?.lays != null
+    }
+
     /** Сколько игр знает база (для экрана «О приложении» / тестов). */
     val size get() = LIST.size
 }

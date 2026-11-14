@@ -150,6 +150,7 @@ fun GameSheet(id: String) {
                     Ellip(g.t, T.label)
                     Text(if (e != null && e.play > 0) "Последний запуск: ${e.last}" else "Ещё не запускалась", style = T.small)
                 }
+                KButton("Управление", R.drawable.sl_pad, small = true) { Nav.open(Ov.Guide(id = id)) }
                 KButton(icon = R.drawable.sl_sliders) { Nav.open(Ov.GSet(id)) }
                 KButton(icon = R.drawable.sl_trash) { askDelete = true }
                 ActButton(g)

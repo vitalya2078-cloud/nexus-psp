@@ -148,6 +148,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var raPoints by mutableStateOf(0)
         var raPopup by mutableStateOf<RaPop?>(null)
         var achOpen by mutableStateOf(false)
+        /** Окно «Управление»: при первом запуске игры и из паузы («Как управлять»). */
+        var guideOpen by mutableStateOf(false)
         var achList by mutableStateOf<List<RA.Ach>>(emptyList())
     }
 
@@ -214,7 +216,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             scaleK = (s.optDouble("sc", 100.0) / 100.0).toFloat()
             alpha = (s.optDouble("op", 55.0) / 100.0).toFloat().coerceIn(.15f, 1f)
             vibrate = s.optBoolean("vib", true)
-            captions = s.optBoolean("caps", true)
+            captions = s.optBoolean("caps", false)
             visibility = View.GONE
         }
         ui.ctlMode = s.optString("ctlMode", "touch"); ui.op = s.optInt("op", 55); ui.sc = s.optInt("sc", 100); ui.mirror = s.optBoolean("mirror", false)
@@ -239,6 +241,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         controls.onMoved = { key, x, y -> saveCtl { o -> o.put("keyPos", (o.optJSONObject("keyPos") ?: JSONObject()).put(key, org.json.JSONArray(listOf(x.toDouble(), y.toDouble())))) } }
         loadCtl(s)
         applyLayout(if (s.optString("ctlMode") == "classic") "classic" else lays.first().id)
+        if (s.optString("ctlMode", "touch") == "touch" && (ctlOwn || ui.builtin != null) && !guideSeen()) ui.guideOpen = true
         hideWithPad = s.optBoolean("hide", true)
         val mode = s.optString("ctlMode", "touch")
         root.addView(controls, full)
@@ -313,6 +316,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                         // через пару секунд игры — какие потоки самые занятые, их и держим на больших ядрах
                         lifecycleScope.launch(Dispatchers.IO) { delay(4000); perf.startHints(glTid) }
                         ui.builtin?.let { toast("Кнопки уже под «$it». Поменять — пауза → «Кнопки»") }
+                        if (ui.guideOpen) { setCorePaused(true); guidePausedCore = true }
                         maybeAskGenre()
                         if (isPsp) { startAutoPoll(); startRA() } else if (platform == "ps1") applyPs1Pad()
                         // включённые читы этой игры — сразу после запуска
@@ -523,6 +527,20 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         lifecycleScope.launch(Dispatchers.IO) { GameConfig(this@GameActivity, gameId).edit { it.put("genreAsked", true) } }
         if (id != null) applyGenre(id)
         setPaused(false)
+        if (id != null && !guideSeen()) { ui.guideOpen = true; setCorePaused(true); guidePausedCore = true; updateControlsVisibility() }
+    }
+
+    // ---------- окно «Управление» ----------
+    private var guidePausedCore = false
+    private fun guideSeen() = getSharedPreferences("guide", MODE_PRIVATE).getBoolean(gameId, false)
+    /** Раскладки текущей игры для окна: как они настроены сейчас (с правками игрока). */
+    fun guideData(): Pair<JSONObject, List<GuideMode>> { val c = ctlSnapshot(); return c to Guide.modes(c, platform) }
+    fun openGuide() { ui.guideOpen = true; updateControlsVisibility() }
+    fun closeGuide() {
+        ui.guideOpen = false
+        getSharedPreferences("guide", MODE_PRIVATE).edit().putBoolean(gameId, true).apply()
+        if (guidePausedCore) { guidePausedCore = false; if (!ui.paused) setCorePaused(false) }
+        updateControlsVisibility()
     }
 
     /** Первый запуск игры без своих кнопок и без встроенного пресета — спросить жанр (один раз). */
@@ -626,6 +644,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         when {
             ui.phase == "error" -> finish()
             ui.picking != null -> closePicker()
+            ui.guideOpen -> closeGuide()
             ui.genreAsk -> answerGenre(null)
             ui.cheatsOpen -> closeCheats()
             ui.texOpen -> closeTextures()
@@ -645,7 +664,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     private fun updateControlsVisibility() {
-        if (ui.picking != null || ui.adding || ui.presets || ui.genreAsk || ui.cheatsOpen || ui.texOpen || ui.netOpen || ui.achOpen || ui.searchOpen) { controls.visibility = View.GONE; return }
+        if (ui.guideOpen || ui.picking != null || ui.adding || ui.presets || ui.genreAsk || ui.cheatsOpen || ui.texOpen || ui.netOpen || ui.achOpen || ui.searchOpen) { controls.visibility = View.GONE; return }
         if (ui.editing) { controls.visibility = View.VISIBLE; return }
         val show = ui.phase == "ready" && !ui.paused && ui.ctlMode != "pad" && !(hideWithPad && padConnected())
         controls.visibility = if (show) View.VISIBLE else View.GONE
