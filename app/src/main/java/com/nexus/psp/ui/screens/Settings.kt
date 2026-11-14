@@ -217,7 +217,7 @@ private fun About() {
     // после вылета — неприметная ссылка «Отправить отчёт об ошибке»: окно «Поделиться» с готовым текстом
     // в отчёт идут и сбои загрузки картинок (значки достижений) — чтобы видеть причину, а не гадать
     var crash by remember { mutableStateOf(com.nexus.psp.data.CrashLog.last(ctx)?.let { f -> try { f.readText() } catch (e: Exception) { "" } }
-        .let { c -> listOfNotNull(c?.takeIf { it.isNotBlank() }, com.nexus.psp.data.Net.failLog(ctx)?.let { "Загрузка картинок:\n$it" }).joinToString("\n\n").ifBlank { null }
+        .let { c -> listOfNotNull(c?.takeIf { it.isNotBlank() }, com.nexus.psp.data.Net.failLog(ctx)?.let { "Загрузка картинок:\n$it" }, com.nexus.psp.emulator.Jank.log(ctx)).joinToString("\n\n").ifBlank { null }
             ?.let { "KAPSULA ${com.nexus.psp.BuildConfig.VERSION_NAME} · ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}\n\n$it" } }) }
     crash?.let { txt ->
         Text(
@@ -227,7 +227,7 @@ private fun About() {
                     ctx.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
                         .putExtra(android.content.Intent.EXTRA_SUBJECT, "KAPSULA — отчёт об ошибке").putExtra(android.content.Intent.EXTRA_TEXT, txt), "Отправить отчёт")
                         .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-                    com.nexus.psp.data.CrashLog.clear(ctx); com.nexus.psp.data.Net.clearFailLog(ctx); crash = null
+                    com.nexus.psp.data.CrashLog.clear(ctx); com.nexus.psp.data.Net.clearFailLog(ctx); com.nexus.psp.emulator.Jank.clear(ctx); crash = null
                 } catch (e: Exception) { AppState.say("Не нашлось, чем отправить") }
             }.padding(horizontal = 2.dp, vertical = 4.dp),
         )

@@ -75,6 +75,23 @@ class GameLayoutsTest {
         assertNotNull(more)
     }
 
+    @Test fun gtaHandbrakeIsROnly() {
+        val drive = Templates.build("drive", "psp")
+        assertEquals("r1", drive.first { it.id == "hb" }.key)
+        assertEquals(listOf("l1", "r1"), drive.first { it.id == "look" }.keys)
+        assertEquals("down", drive.first { it.id == "horn" }.key)
+    }
+
+    @Test fun parkourToggleHoldsR() {
+        val v = view(); v.layName = "city"; v.setLayout(Templates.build("g_ac_city", "psp")); keys.clear()
+        // «Паркур» на месте левой кнопки дуги: r196 b84, 56 — в пикселях xhdpi ×2
+        val cx = w - (196f + 28f) * 2; val cy = h - (84f + 28f) * 2
+        touch(v, MotionEvent.ACTION_DOWN, cx, cy, 0); touch(v, MotionEvent.ACTION_UP, cx, cy, 40)
+        assertEquals(listOf(KeyEvent.KEYCODE_BUTTON_R1 to true), keys.toList())
+        touch(v, MotionEvent.ACTION_DOWN, cx, cy, 500); touch(v, MotionEvent.ACTION_UP, cx, cy, 540)
+        assertEquals(KeyEvent.KEYCODE_BUTTON_R1 to false, keys.last())
+    }
+
     @Test fun cameraSwipePressesLPlusFace() {
         val v = view(); v.layName = "city"; v.setLayout(Templates.build("g_ac_city", "psp"))
         keys.clear()
@@ -82,7 +99,10 @@ class GameLayoutsTest {
         val x = w * .62f; val y = h * .45f
         touch(v, MotionEvent.ACTION_DOWN, x, y, 0)
         touch(v, MotionEvent.ACTION_MOVE, x, y - 120f, 30)
-        assertTrue(keys.contains(KeyEvent.KEYCODE_BUTTON_L1 to true)); assertTrue(keys.contains(KeyEvent.KEYCODE_BUTTON_X to true))
+        // L — сразу, △ — через пару кадров (игра должна увидеть уже зажатую L)
+        assertEquals(listOf(KeyEvent.KEYCODE_BUTTON_L1 to true), keys.toList())
+        org.robolectric.shadows.ShadowLooper.idleMainLooper(100, java.util.concurrent.TimeUnit.MILLISECONDS)
+        assertTrue(keys.contains(KeyEvent.KEYCODE_BUTTON_X to true))
         touch(v, MotionEvent.ACTION_UP, x, y - 120f, 60)
         assertTrue(keys.contains(KeyEvent.KEYCODE_BUTTON_L1 to false)); assertTrue(keys.contains(KeyEvent.KEYCODE_BUTTON_X to false))
     }

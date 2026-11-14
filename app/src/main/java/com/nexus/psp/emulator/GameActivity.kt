@@ -178,6 +178,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private var savesMade = 0
 
     private val perf by lazy { Perf(this) }
+    /** Журнал рывков (только при включённом счётчике кадров) — уходит в «Отправить отчёт об ошибке». */
+    private var jank: Jank? = null
+    @Volatile private var autoAt = 0L
     private var hz60 = false
     @Volatile private var glTid = 0
 
@@ -195,6 +198,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             }
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // кнопки громкости в игре меняют громкость игры (а не звонка)
+        volumeControlStream = android.media.AudioManager.STREAM_MUSIC
         hideSystemBars()
         // экран 60 Гц на время игры: на 120/144 Гц движок теряет синхронизацию и игра периодически дёргается
         hz60 = s.optBoolean("hz60", true) && perf.request60Hz()
@@ -221,6 +226,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         }
         ui.ctlMode = s.optString("ctlMode", "touch"); ui.op = s.optInt("op", 55); ui.sc = s.optInt("sc", 100); ui.mirror = s.optBoolean("mirror", false)
         ui.showFps = s.optBoolean("fps", false)
+        if (ui.showFps) jank = Jank()
         presetName = boot.optString("preset", "")
         ui.autoRes = s.optBoolean("autoRes", false); autoSaveMin = s.optInt("autoSave", 0); batterySaver = s.optBoolean("battery", true)
         ui.shader = s.optString("shader", "default"); ui.fastLevel = s.optInt("fastLevel", 2).coerceIn(2, 4); ui.tiltSens = s.optInt("tiltSens", 100)
@@ -311,6 +317,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 if (it is GLRetroView.GLRetroEvents.FrameRendered) {
                     frames++
                     perf.frame()
+                    if (jank != null && ui.phase == "ready" && !ui.paused && !ui.fast) jank?.frame(autoAt)
                     if (ui.phase == "loading") {
                         ui.phase = "ready"; updateControlsVisibility()
                         // через пару секунд игры — какие потоки самые занятые, их и держим на больших ядрах
@@ -657,6 +664,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             ui.phase == "ready" -> setPaused(!ui.paused)
         }
     }
+
+    private val SYSTEM_KEYS = setOf(KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE, KeyEvent.KEYCODE_POWER,
+        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_CAMERA, KeyEvent.KEYCODE_HEADSETHOOK)
 
     private fun padConnected(): Boolean = InputDevice.getDeviceIds().any { id ->
         val d = InputDevice.getDevice(id) ?: return@any false
@@ -1129,6 +1139,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 delay(350)
                 val r = autoRule() ?: continue
                 if (!r.optBoolean("on") || ui.paused || ui.editing || ui.learning || holdFrom != null || ui.ctlMode != "touch" || ui.phase != "ready") continue
+                autoAt = System.nanoTime()
                 val lay = withContext(Dispatchers.Default) { try { AutoSwitch.detect(r) } catch (e: Throwable) { null } } ?: continue
                 if (lay != layName && specOf(lay) != null) { applyLayout(lay); controls.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK) }
             }
@@ -1347,7 +1358,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     // ---------- физический геймпад: прямо в ядро ----------
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val v = retro
-        val fromPad = event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0
+        // у кнопок телефона и геймпада общий признак «кнопка» (SOURCE_CLASS_BUTTON) — проверяем источник целиком,
+        // иначе громкость уходила в эмулятор и не менялась
+        if (event.keyCode in SYSTEM_KEYS) return super.dispatchKeyEvent(event)
+        val fromPad = (event.source and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD || (event.source and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE) { if (event.action == KeyEvent.ACTION_UP) backPressed(); return true }
         if (v != null && fromPad && !ui.paused && ui.phase == "ready" && event.keyCode != KeyEvent.KEYCODE_BACK) {
             if (event.repeatCount == 0) v.sendKeyEvent(event.action, event.keyCode)
@@ -1444,6 +1458,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     override fun onDestroy() {
         if (raStarted) try { RA.nUnload() } catch (e: Throwable) { }
         perf.close()
+        jank?.save(this, "${title} · ${platform} · ${if (vkOn) "Vulkan" else "OpenGL"} · экран ${perf.refreshRate()} Гц · ${vars.optString("ppsspp_internal_resolution")}")
         // обычный выход после того, как Vulkan показал картинку, — не сбой
         if (vkOn && vkSeen && isFinishing) Vk.confirm(this)
         if (tilt) getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(tiltListener)

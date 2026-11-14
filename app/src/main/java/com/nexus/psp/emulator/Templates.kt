@@ -61,13 +61,14 @@ object Templates {
             arc("car" to "ft", "attack" to "fr", "sprint" to "fb", "jump" to "fl", to = mapOf("ft" to "drive")) +
             listOf(small("wpn", "weapon", "r20 t72", "right", 46f), small("wpl", "swap", "r74 t76", "left", 38f),
                 small("menu", "menu", "l20 t72", "start", 40f), small("cam", "camreset", "l20 t120", "select", 40f), pause())
-        // в машине: × газ, □ тормоз/назад, △ выйти, ○ атака, L+R ручник, ↓+R сигнал, стик — руль
+        // в машине (руководство PSP): × газ, □ тормоз/назад, △ выйти, ○ атака, R ручник, L+R смотреть назад,
+        // L + поворот — смотреть вбок, ↓ сигнал/сирена. Ручник — только R: с L камера уходила назад и вбок
         // руль — две большие кнопки ⬅ ➡ вместо стика
         "drive" -> listOf(Btn("sl", "left", 84f, "l26 b36", key = "steer_l"), Btn("sr", "right", 84f, "l128 b36", key = "steer_r"),
             Btn("gas", "gas", 84f, "r22 b24", GREEN, key = "fb"), Btn("brk", "brake", 74f, "r118 b24", ROSE, key = "fl"),
-            Btn("hb", "hbrake", 58f, "r136 b110", AMBER, keys = listOf("l1", "r1")), Btn("atk", "attack", 52f, "r40 b122", BLUE, key = "fr"),
-            small("exit", "car", "r20 t72", "ft", 46f, to = "foot"), Btn("horn", "horn", 44f, "r20 t124", keys = listOf("down", "r1")),
-            small("look", "lookback", "r76 t72", "l1", 44f), small("radio", "right", "r76 t124", "right", 40f), small("cam", "camreset", "l20 t72", "select", 40f),
+            Btn("hb", "hbrake", 58f, "r136 b110", AMBER, key = "r1"), Btn("atk", "attack", 52f, "r40 b122", BLUE, key = "fr"),
+            small("exit", "car", "r20 t72", "ft", 46f, to = "foot"), Btn("horn", "horn", 44f, "r20 t124", key = "down"),
+            Btn("look", "lookback", 44f, "r76 t72", keys = listOf("l1", "r1")), small("radio", "right", "r76 t124", "right", 40f), small("cam", "camreset", "l20 t72", "select", 40f),
             Btn("tilt", "tilt", 40f, "l20 t120", act = "tilt"), pause())
         // вертолёт/самолёт GTA: × вверх, □ вниз, △ выйти, ○ атака, L/R поворот
         "heli" -> listOf(stick(),

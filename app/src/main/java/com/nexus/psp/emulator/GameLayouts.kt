@@ -14,7 +14,8 @@ import com.nexus.psp.emulator.Templates.stick
  *
  * Откуда схемы (кнопки консоли под каждым действием):
  *  - Assassin's Creed: Bloodlines — схема серии: △ голова (в Bloodlines — захват цели), ○ свободная рука, □ оружие,
- *    × ноги; R — «открытый» режим (бег, паркур, убийство); L + кнопки действий — камера, L — камеру назад.
+ *    × ноги; R — «открытый» режим (бег, паркур, убийство) — в KAPSULA это переключатель «Паркур»;
+ *    L + кнопки действий — камера (L нажимается первой), L — камеру назад.
  *  - Monster Hunter Freedom / Unite — △ и ○ атаки, × перекат, □ предмет, R блок/рывок, крестовина — камера, L — камера назад.
  *  - LocoRoco — L/R наклон мира, L+R прыжок, ○ разделить/собрать.
  *  - Patapon — □ Пата, ○ Пон, △ Чака, × Дон.
@@ -43,16 +44,16 @@ object GameLayouts {
 
     fun build(base: String): List<Btn>? = when (base) {
         // ---------- Assassin's Creed: Bloodlines ----------
+        // «Паркур» — переключатель открытого режима (R держится сам): пока включён, × — бег, прыжки и лазание,
+        // □ — убийство, ○ — схватить. Ничего не нужно держать вторым пальцем.
         "g_ac_city" -> listOf(
             stick(),
-            b("run", "sprint", 74f, P_MAIN, keys = listOf("r1", "fb"), color = GREEN, cap = "Бег / паркур"),
-            b("hit", "sword", 56f, P_RIGHT, key = "fl", color = ROSE, cap = "Удар"),
-            b("kill", "knife", 56f, P_LEFT, keys = listOf("r1", "fl"), color = AMBER, cap = "Убить"),
-            b("push", "grab", 56f, P_TOP, key = "fr", color = BLUE, cap = "Толкнуть"),
+            b("legs", "jump", 74f, P_MAIN, key = "fb", color = GREEN, cap = "Бег / прыжок"),
+            b("hit", "knife", 56f, P_RIGHT, key = "fl", color = ROSE, cap = "Удар / убить"),
+            Btn("hp", "sprint", 56f, P_LEFT, AMBER, act = "latch:r1", cap = "Паркур"),
+            b("hand", "grab", 56f, P_TOP, key = "fr", color = BLUE, cap = "Рука"),
             b("lock", "lock", 46f, "r20 t72", key = "ft", cap = "Цель"),
             b("fight", "block", 46f, "r76 t72", to = "fight", cap = "Бой"),
-            b("tackle", "throw", 44f, "c0 t0", keys = listOf("r1", "fr"), cap = "Схватить", more = true),
-            b("blend", "sneak", 44f, "c0 t0", key = "fb", cap = "Скрыться", more = true),
             mapBtn(), menu(), more(), pause(),
             ControlLayout.camZone("u=l1+ft,d=l1+fb,l=l1+fl,r=l1+fr;tap=l1"),
         )

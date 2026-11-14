@@ -86,7 +86,10 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
 
     /** Состояние касания: кнопка (индекс), направление крестовины, смещение стика, повтор турбо. */
     private class Touch(var idx: Int, var dir: Char? = null, var sx: Float = 0f, var sy: Float = 0f, var kx: Float = 0f, var ky: Float = 0f, var job: Runnable? = null,
-                        var t0: Long = 0L, var far: Boolean = false)
+                        var t0: Long = 0L, var far: Boolean = false, val down: ArrayList<Int> = ArrayList(), val pending: ArrayList<Runnable> = ArrayList())
+
+    /** Кнопки-«переключатели» (act = "latch:r1"): нажал — кнопка консоли держится, нажал ещё раз — отпущена. */
+    private val latched = HashMap<String, Int>()
     private val touches = HashMap<Int, Touch>()
 
     private val dp = resources.displayMetrics.density
@@ -271,7 +274,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
 
     /** Подпись: своя у кнопки, иначе по значку; у служебных (пауза, сохранить…) — только у «⋯». */
     private fun caption(b: Btn): String? {
-        if (b.act != null && b.act != "tilt") return null
+        if (b.act != null && b.act != "tilt" && !b.act.startsWith("latch:")) return null
         val ic = customIcons[keyOf(b)]
         return if (ic != null) CtlIcons.CAPS[ic] else b.cap ?: b.icon?.let { CtlIcons.CAPS[it] }
     }
@@ -448,6 +451,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         val b = buttons[i]
         when {
             b.keys != null -> pressExtra(b, t)
+            b.act?.startsWith("latch:") == true -> toggleLatch(b.act)
             b.act == "more" -> { drawer = !drawer; removeCallbacks(closeDrawer); if (drawer) postDelayed(closeDrawer, 6000) }
             b.act != null -> listener.action(b.act)
             b.dpad -> { t.dir = dpadDir(b, x, y); t.dir?.let { ControlLayout.DIR[it]?.let { c -> listener.key(c, true) } } }
@@ -477,11 +481,11 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     private fun release(t: Touch) {
         t.job?.let { removeCallbacks(it) }; t.job = null
         val b = buttons.getOrNull(t.idx) ?: return
-        if (b.cam != null) { camKeys(b, t.dir, false); t.dir = null; return }
+        if (b.cam != null) { chordUp(t); t.dir = null; return }
         if (b.more) { removeCallbacks(closeDrawer); postDelayed(closeDrawer, 250) }
         when {
             b.stick != null -> listener.stick(b.right, 0f, 0f)
-            b.keys != null -> if (!b.combo) b.keys.mapNotNull { ControlLayout.code(it) }.forEach { listener.key(it, false) }
+            b.keys != null -> if (!b.combo) chordUp(t)
             b.dpad -> t.dir?.let { ControlLayout.DIR[it]?.let { c -> listener.key(c, false) } }
             b.act == null -> ((keyName(b)?.let { ControlLayout.code(it) }) ?: ControlLayout.STEER[b.id])?.let { listener.key(it, false) }
         }
@@ -492,19 +496,50 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     /** Своя кнопка: «разом» — все кнопки вниз, пока палец на месте; комбо — по очереди, ~9 нажатий в секунду. */
     private fun pressExtra(b: Btn, t: Touch) {
         val codes = b.keys.orEmpty().mapNotNull { ControlLayout.code(it) }
-        if (!b.combo) { codes.forEach { listener.key(it, true) }; return }
+        if (!b.combo) { chordDown(t, b.keys.orEmpty(), codes); return }
         codes.forEachIndexed { i, c ->
             postDelayed({ listener.key(c, true) }, i * 110L)
             postDelayed({ listener.key(c, false) }, i * 110L + 70L)
         }
     }
 
+    // ---------- сочетания и переключатели ----------
+    private val MODS = setOf("l1", "r1", "l2", "r2")
+    private val h = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /**
+     * «Две разом». Если первая — L/R (модификатор), она нажимается первой, остальные — через ~2 кадра:
+     * игры ждут, что L/R уже зажата (L + △ — камера, а не захват цели). Кнопки действий (□ + × в файтинге) — строго одновременно.
+     */
+    private fun chordDown(t: Touch, names: List<String>, codes: List<Int>) {
+        chordUp(t)
+        if (names.size > 1 && names.first() in MODS && names.drop(1).any { it !in MODS }) {
+            listener.key(codes[0], true); t.down += codes[0]
+            codes.drop(1).forEachIndexed { i, c ->
+                val r = Runnable { listener.key(c, true); t.down += c }
+                t.pending += r; h.postDelayed(r, 40L * (i + 1))
+            }
+        } else codes.forEach { listener.key(it, true); t.down += it }
+    }
+
+    /** Отпустить сочетание: сначала кнопки действий, модификатор — последним. */
+    private fun chordUp(t: Touch) {
+        t.pending.forEach { h.removeCallbacks(it) }; t.pending.clear()
+        t.down.asReversed().forEach { listener.key(it, false) }; t.down.clear()
+    }
+
+    private fun toggleLatch(act: String) {
+        val code = ControlLayout.code(act.substringAfter(':')) ?: return
+        if (latched.remove(act) != null) { listener.key(code, false); setToggle(act, false) }
+        else { latched[act] = code; listener.key(code, true); setToggle(act, true) }
+    }
+
     // ---------- камера свайпом ----------
-    private fun camKeys(b: Btn, dir: Char?, down: Boolean) {
+    private fun camKeys(b: Btn, t: Touch, dir: Char?, down: Boolean) {
+        if (!down) { chordUp(t); return }
         val d = dir ?: return
-        ControlLayout.camSpec(b.cam ?: return)[d.toString()]?.mapNotNull { ControlLayout.code(it) }?.let { codes ->
-            if (down) codes.forEach { listener.key(it, true) } else codes.asReversed().forEach { listener.key(it, false) }
-        }
+        val names = ControlLayout.camSpec(b.cam ?: return)[d.toString()] ?: return
+        chordDown(t, names, names.mapNotNull { ControlLayout.code(it) })
     }
 
     /** Палец ведёт по зоне камеры: отклонение от точки касания больше порога — держим кнопки этого направления. */
@@ -512,7 +547,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         val dx = x - t.sx; val dy = y - t.sy; val th = 22 * dp
         if (hypot(dx, dy) > 10 * dp) t.far = true
         val d = when { hypot(dx, dy) < th -> null; abs(dx) > abs(dy) -> if (dx > 0) 'r' else 'l'; else -> if (dy > 0) 'd' else 'u' }
-        if (d != t.dir) { camKeys(b, t.dir, false); t.dir = d; camKeys(b, d, true) }
+        if (d != t.dir) { camKeys(b, t, t.dir, false); t.dir = d; camKeys(b, t, d, true) }
     }
 
     /** Двойное касание зоны камеры — вернуть камеру (кнопки из tap=…). */
@@ -523,7 +558,10 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         buzz()
     }
 
-    fun releaseAll() { touches.values.forEach { release(it) }; touches.clear(); invalidate() }
+    fun releaseAll() {
+        latched.forEach { (act, code) -> listener.key(code, false); toggles.remove(act) }; latched.clear()
+        touches.values.forEach { release(it) }; touches.clear(); invalidate()
+    }
 
     private fun moveStick(b: Btn, t: Touch, x: Float, y: Float) {
         val (hx, hy) = if (b.stick == "float") t.sx to t.sy else center(b)

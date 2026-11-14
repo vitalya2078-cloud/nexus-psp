@@ -46,6 +46,7 @@ object Guide {
             b.stick != null -> GuideRow(null, if (b.right) "Правый стик" else "Движение", emptyList(), if (b.stick == "float") "коснись левой половины экрана" else null)
             b.dpad -> GuideRow("dpad", "Крестовина", listOf("up", "down", "left", "right"))
             b.act == "tilt" -> GuideRow("tilt", "Руль наклоном", emptyList(), "наклоняй телефон")
+            b.act?.startsWith("latch:") == true -> GuideRow(icon, name(b, ctl, lay), listOf(b.act.substringAfter(':')), "касание — вкл., ещё раз — выкл.")
             else -> {
                 val keys = str(ctl, "keyMap", "$lay:${b.id}")?.let { listOf(it) } ?: b.keys ?: listOfNotNull(b.key ?: b.id.takeIf { ControlLayout.KEY.containsKey(it) })
                 val how = when {
@@ -61,6 +62,7 @@ object Guide {
 
     private fun tips(btns: List<Btn>, specs: List<LaySpec>, ctl: JSONObject?, lay: String): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>()
+        btns.firstOrNull { it.act?.startsWith("latch:") == true }?.let { b -> out += "sprint" to "«${name(b, ctl, lay)}» включается касанием — пока горит, обычные кнопки делают паркур" }
         if (btns.any { it.cam != null }) out += "cam" to "Свайп по правой половине — камера. Два касания — вернуть её за спину"
         btns.firstOrNull { it.keys != null && it.keys.size > 1 && !it.combo && it.to == null }?.let { b ->
             out += "both" to "«${name(b, ctl, lay)}» — одно касание вместо ${b.keys!!.joinToString(" + ") { KEY_NAMES[it] ?: it }}"
