@@ -164,10 +164,23 @@ fun GameSheet(id: String) {
 private fun About(g: Game) {
     val p = g.plat
     KvGrid(listOf(
-        Triple("Носитель", p.media, p.mediaImg), Triple("BIOS", when { !p.bios -> "Не нужен"; p.id == "ps1" -> "По желанию"; else -> "Нужен BIOS ${p.short}" }, R.drawable.sd_chip),
-        Triple("Управление", "Любое", R.drawable.sd_pad), Triple("Эмулятор", if (p.ready) "KAPSULA" else "Скоро", R.drawable.sd_monitor),
+        Triple("Консоль", p.short, R.drawable.sd_device), Triple("BIOS", when (p.biosLevel) { 0 -> "Не нужен"; 1 -> "По желанию"; else -> "Нужен" }, R.drawable.sd_chip),
+        Triple("Носитель", p.media, p.mediaImg), Triple("Эмулятор", if (p.exp) "KAPSULA · тест" else "KAPSULA", R.drawable.sd_monitor),
     ))
-    if (!p.ready) StateCard("es-bios.png", "${p.full} пока не поддерживается.", "Ядро для ${p.short} подключим следующим — игра останется в библиотеке.")
+    // консоль угадана не так (CHD, BIN и ISO бывают от разных консолей) — можно поменять
+    val ext = g.file.substringAfterLast('.').lowercase()
+    val alt = com.nexus.psp.data.PLATFORMS.filter { ext in it.exts || (ext in setOf("cue", "bin", "img", "chd", "iso", "m3u") && it.exts.any { e -> e in setOf("cue", "chd", "iso", "bin") }) }
+    if (alt.size > 1) {
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        var open by remember { mutableStateOf(false) }
+        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Не та консоль?", style = T.small)
+            KButton(if (open) "Скрыть" else "Сменить", small = true) { open = !open }
+        }
+        if (open) androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            alt.forEach { a -> com.nexus.psp.ui.kit.Chip(a.short, a.id == p.id) { com.nexus.psp.emulator.GameLibrary.setPlatform(ctx, g.file, a.id); AppState.loadReal(); AppState.say("Теперь это игра для ${a.short}"); open = false } }
+        }
+    }
     val m = AppState.meta[g.id]
     Sub("Обложка")
     Text(

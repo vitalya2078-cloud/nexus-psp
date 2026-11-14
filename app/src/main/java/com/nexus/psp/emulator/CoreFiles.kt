@@ -36,6 +36,28 @@ object CoreFiles {
         }
     } catch (e: Exception) { Log.e(TAG, "ensureSystem", e); false }
 
+    /** PS2: служебные файлы эмулятора (шейдеры, база игр, шрифты) из APK — в system/pcsx2/resources, один раз на версию. */
+    fun ensurePs2Resources(c: Context): Boolean = try {
+        val dir = File(systemDir(c), "pcsx2/resources")
+        File(systemDir(c), "pcsx2/bios").mkdirs()
+        val stamp = File(dir, ".kapsula")
+        val want = (try { c.assets.openFd("pcsx2/resources.zip").use { it.length.toString() } } catch (e: Exception) { "?" }) + ":" + appVersion(c)
+        if (stamp.exists() && stamp.readText() == want) true
+        else {
+            dir.deleteRecursively(); dir.mkdirs()
+            val base = dir.canonicalPath + File.separator
+            ZipInputStream(c.assets.open("pcsx2/resources.zip").buffered()).use { z ->
+                while (true) {
+                    val e = z.nextEntry ?: break
+                    val out = File(dir, e.name)
+                    if (!out.canonicalPath.startsWith(base)) continue
+                    if (e.isDirectory) out.mkdirs() else { out.parentFile?.mkdirs(); out.outputStream().use { z.copyTo(it) } }
+                }
+            }
+            stamp.writeText(want); true
+        }
+    } catch (e: Exception) { Log.e(TAG, "ps2 resources", e); false }
+
     private fun appVersion(c: Context): String =
         try { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(c.packageManager.getPackageInfo(c.packageName, 0)).toString() } catch (e: Exception) { "0" }
 }

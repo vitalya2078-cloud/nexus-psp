@@ -33,14 +33,68 @@ object Disc {
      * PBP — PS1-игры в формате PSP («PSISOIMG» в данных); CHD — CD-образ (PS1) или DVD (PSP).
      */
     fun platform(file: File): String = try {
-        when (file.extension.lowercase()) {
-            "cue", "m3u", "bin", "img" -> "ps1"
-            "iso" -> IsoSource(RandomAccessFile(file, "r")).use { if (isPsx(it)) "ps1" else "psp" }
+        when (val ext = file.extension.lowercase()) {
+            "cue" -> cueTracks(file).firstOrNull()?.takeIf { it.exists() }?.let { discPlatform(it) } ?: "ps1"
+            "m3u" -> m3uItems(file).firstOrNull()?.takeIf { it.exists() }?.let { platform(it) } ?: "ps1"
+            "bin", "img" -> binPlatform(file)
+            "iso" -> discPlatform(file)
             "pbp" -> if (pbpIsPs1(file)) "ps1" else "psp"
-            "chd" -> if (chdIsCd(file)) "ps1" else "psp"
-            else -> "psp"
+            "chd" -> chdPlatform(file)
+            // остальные форматы однозначны (у CSO — PSP раньше PS2 в списке)
+            else -> com.nexus.psp.data.PLATFORMS.firstOrNull { ext in it.exts }?.id ?: "psp"
         }
     } catch (e: Exception) { "psp" }
+
+    /** Образ диска (ISO 2048 или сырой 2352): Saturn, Mega CD, PS1/PS2, PSP — по первым секторам. */
+    private fun discPlatform(f: File): String {
+        val raw = RawSource.open(f) ?: return "psp"
+        raw.use { s ->
+            val s0 = String(s.read(0, 1), 0, 32, Charsets.US_ASCII)
+            if (s0.startsWith("SEGA SEGASATURN")) return "saturn"
+            if (s0.startsWith("SEGADISCSYSTEM") || s0.startsWith("SEGA SEGAKATANA")) return if (s0.contains("KATANA")) "dc" else "md"
+            val pvd = s.read(16, 1)
+            if (String(pvd, 1, 5, Charsets.US_ASCII) != "CD001") return if (f.extension.equals("iso", true)) "psp" else "ps1"
+            val sys = String(pvd, 8, 32, Charsets.US_ASCII).trim()
+            if (sys.startsWith("PSP GAME")) return "psp"
+            if (sys.startsWith("PLAYSTATION")) {
+                val root = Entry(le32(pvd, 156 + 2).toLong(), le32(pvd, 156 + 10), true)
+                val cnf = file(s, root, "SYSTEM.CNF")?.let { String(it, Charsets.US_ASCII) } ?: ""
+                return if (cnf.contains("BOOT2", true)) "ps2" else "ps1"
+            }
+            return if (f.extension.equals("iso", true)) "psp" else "ps1"
+        }
+    }
+
+    /** BIN: образ CD (кратен 2352) или картридж: Mega Drive («SEGA» в заголовке), Master System («TMR SEGA»), иначе маленький — Atari 2600. */
+    private fun binPlatform(f: File): String {
+        if (f.length() % 2352 == 0L && f.length() >= 2352L * 17) return discPlatform(f)
+        RandomAccessFile(f, "r").use { r ->
+            val h = ByteArray(minOf(0x8000L, r.length()).toInt()); r.readFully(h)
+            if (h.size > 0x104 && String(h, 0x100, 4, Charsets.US_ASCII) == "SEGA") return "md"
+            for (o in intArrayOf(0x7FF0, 0x3FF0, 0x1FF0)) if (h.size > o + 8 && String(h, o, 8, Charsets.US_ASCII) == "TMR SEGA") return "sms"
+            return if (r.length() <= 64 * 1024) "a26" else "md"
+        }
+    }
+
+    /** CHD: GD-ROM — Dreamcast; CD — PS1 (чаще всего); DVD — PS2, если образ больше 1,9 ГБ, иначе PSP. Консоль можно сменить в карточке игры. */
+    private fun chdPlatform(f: File): String = RandomAccessFile(f, "r").use { r ->
+        val h = ByteArray(124); r.readFully(h)
+        if (String(h, 0, 8, Charsets.US_ASCII) != "MComprHD") return "psp"
+        val ver = be32(h, 12)
+        val logical = if (ver >= 5) be64(h, 32) else 0L
+        var off = if (ver >= 5) be64(h, 48) else if (ver >= 3) be64(h, 36) else return "psp"
+        var n = 0
+        while (off > 0 && off < r.length() && n++ < 64) {
+            val m = ByteArray(16); r.seek(off); r.readFully(m)
+            when (String(m, 0, 4, Charsets.US_ASCII)) {
+                "CHGD" -> return "dc"
+                "CHT2", "CHTR", "CHCD" -> return "ps1"
+                "DVD " -> return if (logical > 1_900_000_000L) "ps2" else "psp"
+            }
+            off = be64(m, 8)
+        }
+        "psp"
+    }
 
     private fun isPsx(s: Sectors): Boolean {
         val pvd = s.read(16, 1)

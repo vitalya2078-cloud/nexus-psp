@@ -59,11 +59,10 @@ import com.nexus.psp.ui.screens.GamesScreen
 import com.nexus.psp.ui.screens.LibraryScreen
 import com.nexus.psp.ui.screens.Onboarding
 import com.nexus.psp.ui.screens.PadScreen
-import com.nexus.psp.ui.screens.ProfileScreen
 import com.nexus.psp.ui.screens.QuickPanel
 import com.nexus.psp.ui.screens.SearchScreen
 import com.nexus.psp.ui.screens.SettingsScreen
-import com.nexus.psp.ui.screens.StoreScreen
+import com.nexus.psp.ui.screens.MyScreen
 import kotlinx.coroutines.delay
 
 /** Фоновый оттенок под выбранную игру (п. 25). */
@@ -93,7 +92,7 @@ fun KapsulaApp() {
         Column(Modifier.fillMaxSize()) {
             Header()
             AnimatedContent(Nav.tab, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "tab", modifier = Modifier.weight(1f)) { t ->
-                if (t == "store") StoreScreen() else GamesScreen()
+                if (t == "my") MyScreen() else GamesScreen()
             }
         }
         Overlays()
@@ -109,7 +108,7 @@ fun KapsulaApp() {
         if (bright < 1f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 1f - bright)))
     }
     BackHandler(enabled = Nav.stack.isNotEmpty() && Ctx.id == null) { Nav.back() }
-    BackHandler(enabled = Nav.stack.isEmpty() && Nav.tab == "store" && Ctx.id == null) { Nav.go("games") }
+    BackHandler(enabled = Nav.stack.isEmpty() && Nav.tab == "my" && Ctx.id == null) { Nav.go("games") }
 }
 
 @Composable
@@ -126,8 +125,11 @@ private fun Overlays() {
             Ov.Alerts -> AlertsDrawer()
             Ov.Quick -> QuickPanel()
             Ov.Settings -> SettingsScreen()
-            Ov.Profile -> ProfileScreen()
             Ov.Pad -> PadScreen()
+            Ov.Consoles -> com.nexus.psp.ui.screens.ConsolesScreen()
+            is Ov.Files -> com.nexus.psp.ui.screens.FilesScreen(top.mode)
+            Ov.Scan -> com.nexus.psp.ui.screens.ScanScreen()
+            is Ov.Console -> com.nexus.psp.ui.screens.ConsoleScreen(top.id)
         }
     }
 }

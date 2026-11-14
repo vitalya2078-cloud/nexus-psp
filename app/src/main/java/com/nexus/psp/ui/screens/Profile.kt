@@ -95,79 +95,7 @@ object ProfileUi { val edit = androidx.compose.runtime.mutableStateOf(false) }
 /** Белый текст на фоне карточки — фон всегда тёмный, при любой теме. */
 private val OnCard = Color(0xFFF2F1EC)
 
-/** Профиль игрока: карточка с оформлением, цифры, любимая игра, недавние, активность, награды. */
-@Composable
-fun ProfileScreen() {
-    val ctx = LocalContext.current
-    val st = Stats()
-    var edit by ProfileUi.edit
-    val scope = rememberCoroutineScope()
-    Full {
-        OvHead("Профиль")
-        Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            // ---- игрок ----
-            Column(Modifier.width(300.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                PlayerCard(st, Modifier.fillMaxWidth()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                        KButton("Оформить", icon = R.drawable.sl_sliders, small = true) { edit = true }
-                        KButton("Поделиться", small = true) { scope.launch { shareProfile(ctx, st) } }
-                    }
-                }
-                val tiles = listOf(
-                    Triple(R.drawable.sl_clock, if (st.play > 0) hrs(st.play) else "—", "наиграно"),
-                    Triple(R.drawable.sl_bolt, if (st.streak > 0) days(st.streak) else "—", "подряд"),
-                    Triple(R.drawable.sl_grid, "${st.games}", "в библиотеке"),
-                    Triple(R.drawable.sl_save, "${st.saves}", "сохранений"),
-                    Triple(R.drawable.sl_heart, "${st.favs}", "в избранном"),
-                    Triple(R.drawable.sl_trophy, if (S.raToken.isNotEmpty()) S.raScore else "—", "очков достижений"),
-                )
-                tiles.chunked(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { (ic, n, l) ->
-                            Row(Modifier.weight(1f).height(60.dp).clip(RoundedCornerShape(14.dp)).background(K.s1).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                SolarIcon(ic, 18.dp, K.acc)
-                                Column { Text(n, style = T.h3.copy(fontSize = 15.sp), maxLines = 1); Text(l, style = T.small.copy(fontSize = 11.sp), maxLines = 1) }
-                            }
-                        }
-                    }
-                }
-            }
-            // ---- игры, активность, награды ----
-            Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(bottom = 20.dp)) {
-                if (st.play == 0) StateCard("ach-first.png", "Сыграй первую игру", "Здесь появятся любимая игра, недавние игры и активность по дням.") {
-                    KButton(if (AppState.byId.isEmpty()) "Добавить игру" else "Играть", if (AppState.byId.isEmpty()) R.drawable.ph_plus else R.drawable.sb_play, BtnKind.Main, small = true) {
-                        val first = AppState.myList().firstOrNull()
-                        if (first == null) Act.addFile() else Act.play(ctx, first.id)
-                    }
-                }
-                st.fav?.let { g -> FavGame(g) }
-                if (st.recent.size > 1) {
-                    Sub("Недавно")
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        st.recent.forEach { g ->
-                            Column(Modifier.width(84.dp).press { Nav.open(Ov.Game(g.id)) }, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Box(Modifier.size(84.dp, 112.dp).clip(RoundedCornerShape(12.dp))) { Cover(g, 300, 400, modifier = Modifier.fillMaxSize()) }
-                                Text(g.t, style = T.small.copy(fontSize = 11.sp, color = K.ink2), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                    }
-                }
-                Week()
-                Sub("Награды KAPSULA")
-                Badges(st)
-                Sub("Достижения в играх")
-                RaCard()
-                if (AppState.favs.isNotEmpty()) {
-                    Sub("Избранное")
-                    AppState.favs.keys.mapNotNull { AppState.byId[it] }.forEach { g -> Item(g.id, g.t, g.plat.short + " · " + size(g.size), onClick = { Nav.open(Ov.Game(g.id)) }) }
-                }
-            }
-        }
-    }
-    if (edit) ProfileEditor { edit = false }
-}
-
-private fun days(n: Int) = "$n " + when { n % 10 == 1 && n % 100 != 11 -> "день"; n % 10 in 2..4 && n % 100 !in 12..14 -> "дня"; else -> "дней" }
+internal fun days(n: Int) = "$n " + when { n % 10 == 1 && n % 100 != 11 -> "день"; n % 10 in 2..4 && n % 100 !in 12..14 -> "дня"; else -> "дней" }
 
 /** Карточка игрока: фон (оформление или обложка любимой игры), аватар, ник, девиз, уровень. */
 @Composable
@@ -192,49 +120,10 @@ private fun PlayerCard(st: Stats, modifier: Modifier = Modifier, actions: @Compo
     }
 }
 
-@Composable
-private fun FavGame(g: Game) {
-    val ctx = LocalContext.current
-    val e = AppState.lib[g.id]
-    Sub("Любимая игра")
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.s1).padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Box(Modifier.size(66.dp, 88.dp).clip(RoundedCornerShape(12.dp))) { Cover(g, 300, 400, modifier = Modifier.fillMaxSize()) }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(g.t, style = T.h3, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(listOfNotNull(e?.play?.takeIf { it > 0 }?.let { hrs(it) + " в игре" }, e?.last).joinToString(" · "), style = T.small, maxLines = 1)
-            Text(g.plat.full, style = T.small.copy(fontSize = 11.sp))
-        }
-        KButton("Играть", R.drawable.sb_play, BtnKind.Main, small = true) { Act.play(ctx, g.id) }
-    }
-}
 
-/** Активность за 7 дней — столбики, сегодня справа. */
-@Composable
-private fun Week() {
-    val week = AppState.week().reversed()
-    Sub("Активность за неделю")
-    if (week.none { it.second > 0 }) { Text("Пока нет сыгранных дней — здесь появится время в играх по дням.", style = T.small); return }
-    val mx = week.maxOf { it.second }.coerceAtLeast(1)
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.s1).padding(14.dp)) {
-        Text("Всего за неделю: ${hrs(week.sumOf { it.second })}", style = T.small.copy(color = K.ink2), modifier = Modifier.padding(bottom = 10.dp))
-        Row(Modifier.fillMaxWidth().height(120.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Bottom) {
-            week.forEachIndexed { i, (d, m) ->
-                val today = i == week.lastIndex
-                Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
-                    if (m > 0) Text(if (m >= 60) "${m / 60}ч" else "${m}м", style = T.small.copy(fontSize = 10.sp), maxLines = 1)
-                    Box(Modifier.padding(top = 3.dp).fillMaxWidth(.62f).height((4f + m.toFloat() / mx * 72f).dp).clip(RoundedCornerShape(6.dp)).background(if (m == 0) K.s3 else if (today) K.acc else K.acc.copy(alpha = .55f)))
-                    Text(d, style = T.small.copy(fontSize = 10.5.sp, color = if (today) K.ink else K.ink3), maxLines = 1, modifier = Modifier.padding(top = 5.dp))
-                }
-            }
-        }
-    }
-}
 
 @Composable
-private fun Badges(st: Stats) {
+internal fun Badges(st: Stats) {
     val consoles = AppState.byId.values.filter { (AppState.lib[it.id]?.play ?: 0) > 0 }.map { it.p }.toSet().size
     val list = listOf(
         Triple("ach-first.png", "Первый запуск", minOf(1f, st.play.toFloat())),
@@ -262,7 +151,7 @@ private fun Badges(st: Stats) {
 }
 
 @Composable
-private fun RaCard() {
+internal fun RaCard() {
     val logged = S.raToken.isNotEmpty()
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.s1).padding(12.dp),
@@ -282,7 +171,7 @@ private fun RaCard() {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ProfileEditor(onClose: () -> Unit) {
+internal fun ProfileEditor(onClose: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var nick by remember { mutableStateOf(S.nick) }
@@ -382,7 +271,7 @@ private fun saveAvatar(ctx: Context, uri: android.net.Uri): Boolean = try {
 // ---------- «Поделиться» ----------
 
 /** Карточка профиля картинкой 1200×630 — для мессенджеров и соцсетей. */
-private suspend fun shareProfile(ctx: Context, st: Stats) {
+internal suspend fun shareProfile(ctx: Context, st: Stats) {
     val f = withContext(Dispatchers.IO) { try { drawShareCard(ctx, st) } catch (e: Exception) { null } }
     if (f == null) { AppState.say("Не удалось подготовить карточку"); return }
     val uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".share", f)

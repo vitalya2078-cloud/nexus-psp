@@ -58,8 +58,7 @@ class PortraitScreensTest {
     @Test fun a5() = shot("v5-quick", true) { Nav.open(Ov.Quick) }
     @Test fun a6() = shot("v6-onboarding", false) { AppState.S.onboarded = false }
     @Test fun a7() = shot("v7-library", true) { Nav.open(Ov.Library) }
-    @Test fun a8() = shot("v8-profile", true) { Nav.open(Ov.Profile) }
-    @Test fun a9() = shot("v9-store", true) { Nav.go("store") }
+    @Test fun a8() = shot("v8-profile", true) { Nav.go("my") }
     @Test fun b1() = shot("v10-search", true) { Nav.open(Ov.Search) }
     @Test fun b2() = shot("v11-alerts", true) { Nav.open(Ov.Alerts) }
     @Test fun b3() = shot("v12-downloads", true) { Nav.open(Ov.Downloads) }

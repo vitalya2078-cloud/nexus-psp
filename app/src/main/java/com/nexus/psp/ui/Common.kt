@@ -123,7 +123,7 @@ fun GameCard(g: Game, width: Dp? = 132.dp, withAct: Boolean = true, mine: Boolea
 fun ConChips(src: List<Game>, modifier: Modifier = Modifier) {
     ChipRow(modifier) {
         Chip("Все", S.con == "all", count = src.size) { S.con = "all" }
-        PLATFORMS.forEach { p -> Chip(p.short, S.con == p.id, dot = p.color, count = src.count { it.p == p.id }) { S.con = p.id } }
+        PLATFORMS.filter { p -> src.any { it.p == p.id } }.forEach { p -> Chip(p.short, S.con == p.id, dot = p.color, count = src.count { it.p == p.id }) { S.con = p.id } }
     }
 }
 

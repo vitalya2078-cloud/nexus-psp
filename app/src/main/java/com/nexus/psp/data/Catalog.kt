@@ -2,16 +2,43 @@ package com.nexus.psp.data
 
 import androidx.compose.ui.graphics.Color
 
-/** Консоль: короткое и полное имя, цвет, работает ли уже в KAPSULA, нужен ли BIOS. */
+/**
+ * Консоль: имена, цвет, ядро (lib<core>_libretro_android.so), форматы, BIOS.
+ * bios: 0 — не нужен, 1 — по желанию, 2 — нужен. analog — есть стики (иначе стик экрана работает как крестовина).
+ * exp — экспериментально (нужен мощный телефон). family — к какой группе относится на экране консолей.
+ */
 data class Platform(
-    val id: String, val short: String, val full: String, val color: Color, val bios: Boolean,
-    val media: String, val mediaImg: String, val conImg: String, val ready: Boolean,
-)
+    val id: String, val short: String, val full: String, val color: Color, val biosLevel: Int,
+    val media: String, val mediaImg: String, val conImg: String, val ready: Boolean = true,
+    val core: String = "", val exts: List<String> = emptyList(), val analog: Boolean = false, val exp: Boolean = false,
+    val family: String = "", val biosHint: String = "",
+) {
+    val bios get() = biosLevel > 0
+    val coreLib get() = "lib${core}_libretro_android.so"
+}
 
 val PLATFORMS = listOf(
-    Platform("psp", "PSP", "PlayStation Portable", Color(0xFF9DB8D6), false, "UMD-диск", "ic-umd.png", "con-psp.png", ready = true),
-    Platform("ps1", "PS1", "PlayStation", Color(0xFFB8B4AE), true, "CD-диск", "ic-cd.png", "con-ps1.png", ready = true),
-    Platform("ps2", "PS2", "PlayStation 2", Color(0xFF8E96C4), true, "DVD-диск", "ic-dvd.png", "con-ps2.png", ready = false),
+    Platform("psp", "PSP", "PSP", Color(0xFF9DB8D6), 0, "UMD-диск", "ic-umd.png", "con-psp.png", core = "ppsspp", exts = listOf("iso", "cso", "chd", "pbp", "elf", "prx"), analog = true, family = "Sony"),
+    Platform("ps1", "PS1", "PS1", Color(0xFFB8B4AE), 1, "CD-диск", "ic-cd.png", "con-ps1.png", core = "pcsx_rearmed", exts = listOf("cue", "bin", "img", "chd", "pbp", "m3u", "iso"), family = "Sony",
+        biosHint = "Работает и без него. Свой BIOS — чуть лучше совместимость"),
+    Platform("ps2", "PS2", "PS2", Color(0xFF8E96C4), 2, "DVD-диск", "ic-dvd.png", "con-ps2.png", core = "armsx2", exts = listOf("iso", "chd", "cso", "zso"), analog = true, exp = true, family = "Sony",
+        biosHint = "Нужен BIOS с твоей PS2 (например scph39001.bin)"),
+    Platform("md", "Mega Drive", "Sega Mega Drive", Color(0xFF9AA3B5), 0, "Картридж", "ic-cd.png", "con-md.png", core = "clownmdemu", exts = listOf("md", "gen", "smd", "bin"), family = "Sega"),
+    Platform("sms", "Master System", "Sega Master System", Color(0xFFB59A9A), 0, "Картридж", "ic-cd.png", "con-sms.png", core = "gearsystem", exts = listOf("sms", "sg"), family = "Sega"),
+    Platform("gg", "Game Gear", "Sega Game Gear", Color(0xFF8FA7A0), 0, "Картридж", "ic-cd.png", "con-gg.png", core = "gearsystem", exts = listOf("gg"), family = "Sega"),
+    Platform("dc", "Dreamcast", "Sega Dreamcast", Color(0xFFD9A07C), 1, "GD-диск", "ic-cd.png", "con-dc.png", core = "flycast", exts = listOf("gdi", "cdi", "chd"), analog = true, family = "Sega",
+        biosHint = "Работает и без него. Свой BIOS: dc_boot.bin"),
+    Platform("saturn", "Saturn", "Sega Saturn", Color(0xFF9DA2B0), 1, "CD-диск", "ic-cd.png", "con-saturn.png", core = "yabasanshiro", exts = listOf("cue", "chd", "iso", "ccd", "mds"), exp = true, family = "Sega",
+        biosHint = "Лучше со своим BIOS: saturn_bios.bin"),
+    Platform("pce", "PC Engine", "NEC PC Engine", Color(0xFFC7A6D6), 0, "HuCard", "ic-cd.png", "con-pce.png", core = "geargrafx", exts = listOf("pce", "sgx"), family = "NEC и SNK"),
+    Platform("neogeo", "Neo Geo", "SNK Neo Geo", Color(0xFFD9B36C), 2, "Картридж", "ic-cd.png", "con-neogeo.png", core = "geolith", exts = listOf("neo"), family = "NEC и SNK",
+        biosHint = "Нужен BIOS: aes.zip или neogeo.zip"),
+    Platform("ngp", "Neo Geo Pocket", "SNK Neo Geo Pocket", Color(0xFF8FB3C8), 0, "Картридж", "ic-cd.png", "con-ngp.png", core = "mednafen_ngp", exts = listOf("ngp", "ngc"), family = "NEC и SNK"),
+    Platform("ws", "WonderSwan", "Bandai WonderSwan", Color(0xFFA9C79B), 0, "Картридж", "ic-cd.png", "con-ws.png", core = "mednafen_wswan", exts = listOf("ws", "wsc", "pc2"), family = "Bandai и Atari"),
+    Platform("a26", "Atari 2600", "Atari 2600", Color(0xFFC79B7C), 0, "Картридж", "ic-cd.png", "con-a26.png", core = "stella", exts = listOf("a26"), family = "Bandai и Atari"),
+    Platform("a78", "Atari 7800", "Atari 7800", Color(0xFFB3A27C), 0, "Картридж", "ic-cd.png", "con-a26.png", core = "prosystem", exts = listOf("a78"), family = "Bandai и Atari"),
+    Platform("lynx", "Lynx", "Atari Lynx", Color(0xFF9CB0A8), 2, "Картридж", "ic-cd.png", "con-lynx.png", core = "gearlynx", exts = listOf("lnx", "lyx"), family = "Bandai и Atari",
+        biosHint = "Нужен BIOS: lynxboot.img"),
 )
 val PL = PLATFORMS.associateBy { it.id }
 

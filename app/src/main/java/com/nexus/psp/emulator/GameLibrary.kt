@@ -10,7 +10,15 @@ import java.io.File
 /** Свои образы игр пользователя: копия в папке приложения (Android/data/…/files/games). */
 object GameLibrary {
     /** PSP: ISO, CSO, CHD, PBP, ELF, PRX. PS1: CUE + BIN, BIN, IMG, CHD, PBP, M3U (несколько дисков). */
-    val EXT = setOf("iso", "cso", "chd", "pbp", "elf", "prx", "cue", "bin", "img", "m3u")
+    val EXT: Set<String> = com.nexus.psp.data.PLATFORMS.flatMap { it.exts }.toSet() + setOf("cue", "bin", "img", "m3u")
+
+    /** Консоль, выбранная игроком вручную (если автоматически угадали не так): имя файла → консоль. */
+    private fun overrides(c: Context) = File(CoreFiles.gamesDir(c), ".kapsula-plat.json")
+    fun setPlatform(c: Context, fileName: String, plat: String) {
+        val o = try { JSONObject(overrides(c).readText()) } catch (e: Exception) { JSONObject() }
+        overrides(c).writeText(o.put(fileName, plat).toString())
+    }
+    private var ov: JSONObject? = null
 
     /** Части игры, которые не показываются отдельно: дорожки из CUE и диски из M3U. */
     private fun parts(f: File): List<File> = when (f.extension.lowercase()) {
@@ -47,6 +55,7 @@ object GameLibrary {
     } catch (e: Exception) { null }
 
     fun list(c: Context): String {
+        ov = try { JSONObject(overrides(c).readText()) } catch (e: Exception) { JSONObject() }
         val a = JSONArray()
         dirGames(c).forEach { a.put(it) }
         val files = CoreFiles.gamesDir(c).listFiles()?.filter { it.isFile && it.extension.lowercase() in EXT && !it.name.endsWith(".part") } ?: emptyList()
@@ -60,7 +69,7 @@ object GameLibrary {
 
     fun info(f: File): JSONObject {
         val key = f.path + ":" + f.length() + ":" + f.lastModified()
-        val plat = platCache.getOrPut(key) { Disc.platform(f) }
+        val plat = ov?.optString(f.name)?.takeIf { it.isNotEmpty() } ?: platCache.getOrPut(key) { Disc.platform(f) }
         val size = f.length() + parts(f).sumOf { it.length() }
         return JSONObject()
             .put("id", idOf(f.name)).put("name", f.nameWithoutExtension).put("file", f.name)

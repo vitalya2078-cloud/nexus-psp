@@ -48,6 +48,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Папка для проводника и поиска: разрешение на чтение запоминается навсегда. */
+    private val grantTree = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree == null) return@registerForActivityResult
+        try { contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (e: Exception) { }
+        AppState.storageTick++
+        AppState.say("Папка открыта для KAPSULA", R.drawable.ph_check)
+    }
+    private val askRead = registerForActivityResult(ActivityResultContracts.RequestPermission()) { AppState.storageTick++ }
+
+    private fun requestAllFiles() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            try { startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName"))) }
+            catch (e: Exception) { startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
+            AppState.say("Включи «Доступ ко всем файлам» для KAPSULA и вернись назад")
+        } else askRead.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+
     /** Своя обложка из галереи для игры coverFor. */
     private var coverFor: String? = null
     private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -173,6 +190,9 @@ class MainActivity : ComponentActivity() {
         Act.pickFile = { pickGame.launch(arrayOf("*/*")) }
         Act.pickFolder = { pickTree.launch(null) }
         Act.importAll = { l -> importQueue(l.filter { !it.exists }.map { it.uri }) }
+        Act.importUris = { l -> importQueue(l) }
+        Act.requestAllFiles = { requestAllFiles() }
+        Act.requestFolder = { grantTree.launch(null) }
         Act.pickCover = { id -> coverFor = id; pickImage.launch("image/*") }
         Act.ensureNotify = { cb -> ensureNotify(cb) }
         Act.openNotifySettings = { openNotifySettings() }
@@ -185,6 +205,8 @@ class MainActivity : ComponentActivity() {
         // после выхода из игры — время в игре, сохранения; файлы могли удалить вручную
         AppState.loadReal()
         AppState.consumePendingGlobal()
+        // вернулись из настроек «Доступ ко всем файлам» — перечитать места
+        AppState.storageTick++
         // «незаметный перезапуск»: игра сохранилась и просит запустить себя заново с новыми настройками
         val r = java.io.File(filesDir, "relaunch.json")
         if (r.exists()) {

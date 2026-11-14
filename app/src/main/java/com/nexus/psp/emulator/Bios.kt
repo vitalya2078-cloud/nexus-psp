@@ -48,3 +48,55 @@ object Bios {
         dir.listFiles()?.filter { it.name.startsWith("kapsula_ps1_") }?.forEach { it.delete() }
     }
 }
+
+/**
+ * BIOS других консолей: куда класть (относительно папки system), какие имена и размеры подходят.
+ * Файлы — только с приставки игрока; KAPSULA проверяет размер (и для PS1 — контрольную сумму).
+ */
+object BiosFiles {
+    private class Spec(val dir: String, val fixedName: String?, val names: Set<String> = emptySet(), val size: Long = 0)
+    private val SPECS = mapOf(
+        "ps2" to Spec("pcsx2/bios", null, size = 4L * 1024 * 1024),
+        "dc" to Spec("dc", "dc_boot.bin", size = 2L * 1024 * 1024),
+        "saturn" to Spec("", "saturn_bios.bin", size = 512L * 1024),
+        "neogeo" to Spec("", null, names = setOf("aes.zip", "neogeo.zip")),
+        "lynx" to Spec("", "lynxboot.img", size = 512),
+    )
+
+    private fun dir(c: Context, s: Spec) = if (s.dir.isEmpty()) CoreFiles.systemDir(c) else File(CoreFiles.systemDir(c), s.dir).apply { mkdirs() }
+
+    /** Найденные файлы BIOS консоли (имена). */
+    fun found(c: Context, plat: String): List<String> {
+        if (plat == "ps1") return Bios.ps1(c)
+        val s = SPECS[plat] ?: return emptyList()
+        val d = dir(c, s)
+        return when {
+            s.fixedName != null -> listOfNotNull(s.fixedName.takeIf { File(d, it).exists() })
+            s.names.isNotEmpty() -> s.names.filter { File(d, it).exists() }
+            else -> d.listFiles()?.filter { it.isFile && it.length() == s.size }?.map { it.name } ?: emptyList()
+        }
+    }
+
+    /** Нужен, но не добавлен — игру не запустить. */
+    fun missing(c: Context, plat: String) = com.nexus.psp.data.PL[plat]?.biosLevel == 2 && found(c, plat).isEmpty()
+
+    /** Добавить файл: «ok:…» или «bad:причина». */
+    fun add(c: Context, plat: String, uri: Uri): String {
+        if (plat == "ps1") return Bios.addPs1(c, uri)
+        val s = SPECS[plat] ?: return "bad:Этой консоли BIOS не нужен"
+        val name = GameLibrary.displayName(c, uri).first.substringAfterLast('/')
+        val b = c.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return "bad:Файл не открылся"
+        val want = when { s.size >= 1048576 -> "${s.size / 1048576} МБ"; s.size >= 1024 -> "${s.size / 1024} КБ"; else -> "${s.size} байт" }
+        if (s.size > 0 && b.size.toLong() != s.size) return "bad:Это не BIOS: у него размер ровно $want"
+        if (s.names.isNotEmpty() && name.lowercase() !in s.names) return "bad:Нужен файл ${s.names.joinToString(" или ")}"
+        val out = File(dir(c, s), s.fixedName ?: name.lowercase().takeIf { s.names.isNotEmpty() } ?: name)
+        out.writeBytes(b)
+        return "ok:${out.name}"
+    }
+
+    fun clear(c: Context, plat: String) {
+        if (plat == "ps1") { Bios.clearPs1(c); return }
+        val s = SPECS[plat] ?: return
+        found(c, plat).forEach { File(dir(c, s), it).delete() }
+    }
+}

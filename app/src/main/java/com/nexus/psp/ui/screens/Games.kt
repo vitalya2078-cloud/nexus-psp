@@ -83,10 +83,14 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GamesScreen() {
-    val list = AppState.myList()
+    // главная полка — PSP; игры других консолей живут на их полках («Консоли» в шапке)
+    val list = AppState.lib.keys.mapNotNull { AppState.byId[it] }.filter { it.p == "psp" }.sortedByDescending { AppState.lib[it.id]?.t ?: 0 }
+    val others = AppState.byId.values.count { it.p != "psp" }
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            ConChips(AppState.lib.keys.mapNotNull { AppState.byId[it] }, Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("PSP", style = T.h3)
+            Text(if (list.isEmpty()) "" else "${list.size}", style = T.small, modifier = Modifier.weight(1f))
+            if (others > 0) KButton("Другие консоли · $others", R.drawable.sl_pad, small = true) { Nav.open(Ov.Consoles) }
             KButton("Вся библиотека", R.drawable.sl_grid, small = true) { Nav.open(Ov.Library) }
         }
         if (list.isEmpty()) { EmptyShelf(); return@Column }
@@ -145,6 +149,17 @@ private fun Carousel(list: List<Game>) {
                 }
                 item {
                     Box(
+                        Modifier.width(w * .7f).fillMaxHeight(.7f).clip(RoundedCornerShape(20.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(20.dp)).press { Act.addFile() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            AssetImage("es-addgames.png", Modifier.width(w * .5f).height(w * .25f))
+                            Text("Добавить\nигру", style = T.label.copy(color = K.ink2, textAlign = androidx.compose.ui.text.style.TextAlign.Center), modifier = Modifier.padding(top = 10.dp))
+                        }
+                    }
+                }
+                item {
+                    Box(
                         Modifier.width(w * .7f).fillMaxHeight(.7f).clip(RoundedCornerShape(20.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(20.dp)).press { Nav.open(Ov.Library) },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -170,7 +185,7 @@ private fun Info(g: Game) {
         Column(Modifier.weight(1f)) {
             Ellip(g.t, T.h1)
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                ConsolePill(g.plat.full, g.plat.color)
+                ConsolePill(g.plat.short, g.plat.color)
                 if (e != null && e.play > 0) { Meta("Наиграно ${hrs(e.play)}"); Meta(e.last) } else Meta("Ещё не запускалась")
                 Meta("${g.format} · ${size(g.size)}")
             }
@@ -202,8 +217,8 @@ private fun EmptyShelf() {
             }
         }
         Column(Modifier.weight(1.1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Твоя полка пока пуста", style = T.h1.copy(fontSize = 28.sp))
-            Text("Добавь образ своей игры с телефона: PSP — ISO, CSO, CHD, PBP; PS1 — CUE вместе с BIN, CHD, PBP. PS2 — в планах.", style = T.body)
+            Text("Полка PSP пока пустая", style = T.h1.copy(fontSize = 28.sp))
+            Text("Закинь образ своего UMD — ISO, CSO, CHD или PBP. Игры для PS1, PS2, Sega и других консолей живут на своих полках: значок с джойстиком в шапке.", style = T.body)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                 KButton("Добавить игру", R.drawable.ph_plus, BtnKind.Main) { Act.addFile() }
                 KButton("Найти на телефоне", R.drawable.sl_search) { Act.findGames() }
@@ -241,7 +256,7 @@ fun WhereToGet(onClose: () -> Unit) {
             Text("Где взять игры?", style = T.h2)
             Tip("Свои диски.", "Сделай образ (дамп) своего UMD-диска на прошитой PSP — получится файл ISO или CSO. Это законный способ играть в купленные игры.")
             Tip("Бесплатные homebrew-игры.", "Любительские игры, которые авторы раздают бесплатно — обычно в формате PBP.")
-            Tip("Магазин KAPSULA.", "Скоро: игры от авторов, которые разрешили их распространять.")
+            Tip("Другие консоли.", "Картриджи и диски Sega, Atari, NEC, SNK и Bandai — тоже своими образами. Если консоли нужен BIOS, KAPSULA подскажет.")
             Text("KAPSULA не скачивает коммерческие игры и не помогает их искать.", style = T.small)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { KButton("Понятно", kind = BtnKind.Main, small = true) { onClose() } }
         }

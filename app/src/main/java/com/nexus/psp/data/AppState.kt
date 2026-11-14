@@ -135,6 +135,8 @@ object AppState {
     var toast by mutableStateOf<Toast?>(null)
     var online by mutableStateOf(true)
     var importing by mutableStateOf<Importing?>(null)
+    /** Меняется, когда игрок дал доступ к файлам или папке — экраны проводника перечитывают места. */
+    var storageTick by androidx.compose.runtime.mutableIntStateOf(0)
     /** Результат «Найти игры на телефоне» — ждёт подтверждения. */
     var found by mutableStateOf<List<Found>?>(null)
     var scanning by mutableStateOf(false)

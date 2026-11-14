@@ -18,6 +18,8 @@
 #include <cstring>
 #include <mutex>
 #include <vector>
+#include <chrono>
+#include <unistd.h>
 #include "libretro.h"
 #include "libretro_vulkan.h"
 
@@ -25,7 +27,7 @@
 
 namespace {
 
-constexpr uint32_t SLOTS = 2;
+constexpr uint32_t SLOTS = 3;   // три кадра в работе: ядро не ждёт, пока мы перенесём предыдущий
 
 bool wanted = false;          // игрок выбрал Vulkan (ставится из Kotlin до запуска ядра)
 bool active = false;          // устройство создано, ядро получило интерфейс
@@ -79,6 +81,15 @@ PFNGLEGLIMAGETARGETTEXTURE2DOESPROC pImageTarget = nullptr;
 PFNEGLCREATESYNCKHRPROC pCreateSync = nullptr;
 PFNEGLCLIENTWAITSYNCKHRPROC pWaitSync = nullptr;
 PFNEGLDESTROYSYNCKHRPROC pDestroySync = nullptr;
+PFNEGLWAITSYNCKHRPROC pWaitSyncGpu = nullptr;
+
+// ожидание на видеокарте: Vulkan отдаёт «кадр готов» как sync fd, OpenGL ждёт его сам — процессор не стоит
+bool gpuSync = false;
+PFN_vkGetSemaphoreFdKHR pGetSemFd = nullptr;
+VkSemaphore doneSems[SLOTS]{};
+// диагностика: способ передачи и сколько миллисекунд процессор тратит на кадр
+double presentMs = 0;
+uint64_t presentN = 0;
 
 const char* DEVICE_EXTS[] = {
     "VK_ANDROID_external_memory_android_hardware_buffer",
@@ -89,6 +100,10 @@ const char* DEVICE_EXTS[] = {
     "VK_KHR_bind_memory2",
     "VK_KHR_maintenance1",
     "VK_EXT_queue_family_foreign",
+    "VK_KHR_external_semaphore",
+    "VK_KHR_external_semaphore_fd",
+    "VK_KHR_external_fence",
+    "VK_KHR_external_fence_fd",
 };
 constexpr unsigned NUM_DEVICE_EXTS = sizeof(DEVICE_EXTS) / sizeof(DEVICE_EXTS[0]);
 
@@ -214,6 +229,15 @@ bool createAll() {
     VkCommandBufferAllocateInfo ai{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO}; ai.commandPool = pool; ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; ai.commandBufferCount = SLOTS;
     if (vkAllocateCommandBuffers(dev, &ai, cmds) != VK_SUCCESS) return false;
     for (auto& f : fences) { VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO}; if (vkCreateFence(dev, &fi, nullptr, &f) != VK_SUCCESS) return false; }
+    pGetSemFd = (PFN_vkGetSemaphoreFdKHR) vkGetDeviceProcAddr(dev, "vkGetSemaphoreFdKHR");
+    gpuSync = pGetSemFd != nullptr;
+    for (auto& sm : doneSems) {
+        if (!gpuSync) break;
+        VkExportSemaphoreCreateInfo ex{VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO}; ex.handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
+        VkSemaphoreCreateInfo si{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO}; si.pNext = &ex;
+        if (vkCreateSemaphore(dev, &si, nullptr, &sm) != VK_SUCCESS) { gpuSync = false; sm = VK_NULL_HANDLE; }
+    }
+    VKLOG("ожидание кадра: %s", gpuSync ? "на видеокарте" : "на процессоре");
 
     iface = {};
     iface.interface_type = RETRO_HW_RENDER_INTERFACE_VULKAN;
@@ -243,6 +267,7 @@ bool loadEgl() {
     pCreateSync = (PFNEGLCREATESYNCKHRPROC) eglGetProcAddress("eglCreateSyncKHR");
     pWaitSync = (PFNEGLCLIENTWAITSYNCKHRPROC) eglGetProcAddress("eglClientWaitSyncKHR");
     pDestroySync = (PFNEGLDESTROYSYNCKHRPROC) eglGetProcAddress("eglDestroySyncKHR");
+    pWaitSyncGpu = (PFNEGLWAITSYNCKHRPROC) eglGetProcAddress("eglWaitSyncKHR");
     if (!pGetClientBuffer || !pCreateImage || !pDestroyImage || !pImageTarget) { ahbOk = false; VKLOG("EGL без общих буферов — запасной путь"); }
     return true;
 }
@@ -424,6 +449,7 @@ int kapsula_vk_surface_created() {
 /** Кадр готов: копируем картинку ядра в GL-кадр dstFbo. flip — LibretroDroid ждёт начало снизу. */
 bool kapsula_vk_present(unsigned w, unsigned h, unsigned dstFbo, bool flip) {
     if (!active || w == 0 || h == 0) return false;
+    auto t0 = std::chrono::steady_clock::now();
     retro_vulkan_image img; std::vector<VkSemaphore> sems; std::vector<VkCommandBuffer> extra; VkSemaphore sig;
     {
         std::lock_guard<std::mutex> l(imx);
@@ -489,12 +515,32 @@ bool kapsula_vk_present(unsigned w, unsigned h, unsigned dstFbo, bool flip) {
     VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     si.waitSemaphoreCount = (uint32_t) sems.size(); si.pWaitSemaphores = sems.data(); si.pWaitDstStageMask = stages.data();
     si.commandBufferCount = (uint32_t) extra.size(); si.pCommandBuffers = extra.data();
-    if (sig) { si.signalSemaphoreCount = 1; si.pSignalSemaphores = &sig; }
+    bool useGpu = ahbOk && gpuSync && doneSems[i] && pCreateSync && pWaitSyncGpu;
+    VkSemaphore sigs[2]; uint32_t ns = 0;
+    if (sig) sigs[ns++] = sig;
+    if (useGpu) sigs[ns++] = doneSems[i];
+    si.signalSemaphoreCount = ns; si.pSignalSemaphores = ns ? sigs : nullptr;
     VkResult r;
     { std::lock_guard<std::mutex> l(qmx); r = vkQueueSubmit(queue, 1, &si, fences[i]); }
     if (r != VK_SUCCESS) { VKLOG("vkQueueSubmit: %d", r); return false; }
     fenceBusy[i] = true;
-    vkWaitForFences(dev, 1, &fences[i], VK_TRUE, UINT64_MAX);
+    bool waited = false;
+    if (useGpu) {
+        // «кадр готов» → sync fd → нативный fence EGL → OpenGL ждёт на видеокарте
+        VkSemaphoreGetFdInfoKHR gi{VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR}; gi.semaphore = doneSems[i]; gi.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
+        int fd = -1;
+        if (pGetSemFd(dev, &gi, &fd) == VK_SUCCESS) {
+            if (fd < 0) waited = true; // уже готов
+            else {
+                EGLint at[] = { EGL_SYNC_NATIVE_FENCE_FD_ANDROID, fd, EGL_NONE };
+                EGLSyncKHR es = pCreateSync(dpy, EGL_SYNC_NATIVE_FENCE_ANDROID, at);
+                if (es != EGL_NO_SYNC_KHR) { pWaitSyncGpu(dpy, es, 0); pDestroySync(dpy, es); waited = true; }
+                else close(fd);
+            }
+        }
+        if (!waited) { gpuSync = false; VKLOG("ожидание на видеокарте не вышло — на процессоре"); }
+    }
+    if (!waited) vkWaitForFences(dev, 1, &fences[i], VK_TRUE, UINT64_MAX);
     slot.store((i + 1) % SLOTS);
 
     GLint prevFbo = 0, prevTex = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo); glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTex);
@@ -514,6 +560,8 @@ bool kapsula_vk_present(unsigned w, unsigned h, unsigned dstFbo, bool flip) {
     if (scissor) glEnable(GL_SCISSOR_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, (GLuint) prevFbo);
     glBindTexture(GL_TEXTURE_2D, (GLuint) prevTex);
+    double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    presentMs = presentN++ == 0 ? ms : presentMs * .9 + ms * .1;
     return true;
 }
 
@@ -524,6 +572,7 @@ void kapsula_vk_shutdown() {
     if (dev) {
         vkDeviceWaitIdle(dev);
         for (auto& f : fences) if (f) { vkDestroyFence(dev, f, nullptr); f = VK_NULL_HANDLE; }
+        for (auto& sm : doneSems) if (sm) { vkDestroySemaphore(dev, sm, nullptr); sm = VK_NULL_HANDLE; }
         if (pool) vkDestroyCommandPool(dev, pool, nullptr);
         pool = VK_NULL_HANDLE;
         if (neg && neg->destroy_device) neg->destroy_device();
@@ -538,6 +587,13 @@ void kapsula_vk_shutdown() {
 // ---------- JNI для приложения ----------
 JNIEXPORT void JNICALL Java_com_nexus_psp_emulator_Vk_nSetWanted(JNIEnv*, jclass, jboolean on) { wanted = on; failed = false; }
 JNIEXPORT jboolean JNICALL Java_com_nexus_psp_emulator_Vk_nActive(JNIEnv*, jclass) { return active; }
+
+/** Для счётчика кадров: «ahb|gpu|1.4» — способ передачи кадра, где ждём, миллисекунды процессора на кадр. */
+JNIEXPORT jstring JNICALL Java_com_nexus_psp_emulator_Vk_nStats(JNIEnv* e, jclass) {
+    if (!active) return nullptr;
+    char b[64]; snprintf(b, sizeof b, "%s|%s|%.1f", ahbOk ? "ahb" : "cpu", gpuSync && ahbOk ? "gpu" : "cpu", presentMs);
+    return e->NewStringUTF(b);
+}
 
 /** Проверка телефона: Vulkan 1.1+ и общий буфер с OpenGL. 0 — подходит, иначе код причины. */
 JNIEXPORT jint JNICALL Java_com_nexus_psp_emulator_Vk_nProbe(JNIEnv*, jclass) {

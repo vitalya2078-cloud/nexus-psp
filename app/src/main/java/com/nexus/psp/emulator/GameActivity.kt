@@ -130,6 +130,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var autoOn by mutableStateOf(false)
         // достижения RetroAchievements
         var autoRes by mutableStateOf(false)
+        /** Диагностика Vulkan для счётчика кадров: способ передачи кадра и время на него. */
+        var vkInfo by mutableStateOf("")
         // искатель значений
         var searchOpen by mutableStateOf(false)
         var searchBusy by mutableStateOf(false)
@@ -265,8 +267,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private fun startCore() {
         val path = boot.optString("path")
         if (path.isEmpty() || !File(path).exists()) { fail("Файл игры не найден: возможно, его удалили"); return }
+        val pl = com.nexus.psp.data.PL[platform]
+        // без нужного BIOS ядро не запустится — говорим сразу и понятно
+        if (BiosFiles.missing(this, platform)) { fail("Для ${pl?.short ?: platform} нужен BIOS со своей приставки. ${pl?.biosHint ?: ""}. Добавь его: Настройки → BIOS."); return }
+        if (platform == "ps2" && !CoreFiles.ensurePs2Resources(this)) { fail("Не удалось подготовить файлы эмулятора PS2"); return }
         val data = GLRetroViewData(this).apply {
-            coreFilePath = if (isPsp) CORE_PSP else CORE_PS1
+            coreFilePath = pl?.coreLib ?: CORE_PSP
             gameFilePath = path
             // PS1: карта памяти живёт в ядре — подгружаем сохранённую
             if (!isPsp) saveRAMState = sramFile().takeIf { it.exists() }?.readBytes()
@@ -293,7 +299,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                         ui.phase = "ready"; updateControlsVisibility()
                         ui.builtin?.let { toast("Кнопки настроены под «$it» · изменить: пауза → «Кнопки»") }
                         maybeAskGenre()
-                        if (isPsp) { startAutoPoll(); startRA() } else applyPs1Pad()
+                        if (isPsp) { startAutoPoll(); startRA() } else if (platform == "ps1") applyPs1Pad()
                         // включённые читы этой игры — сразу после запуска
                         if (isPsp && ui.cheatsOn.isNotEmpty()) lifecycleScope.launch {
                             val l = withContext(Dispatchers.IO) { (serial?.takeIf { CheatDb.ready(this@GameActivity) }?.let { CheatDb.forGame(this@GameActivity, it) } ?: emptyList()) + ownCheats() }
@@ -307,7 +313,14 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             }
         }
         // счётчик кадров
-        lifecycleScope.launch { while (true) { delay(1000); ui.fps = frames; frames = 0; if (isPsp) autoResTick(ui.fps) } }
+        lifecycleScope.launch {
+            while (true) {
+                delay(1000); ui.fps = frames; frames = 0; if (isPsp) autoResTick(ui.fps)
+                if (vkOn) ui.vkInfo = try {
+                    Vk.nStats()?.split('|')?.let { p -> " · Vulkan " + (if (p[0] == "ahb") "буфер" else "память") + (if (p[1] == "gpu") "" else " · ждёт ЦП") + " · " + p[2].replace('.', ',') + " мс" } ?: ""
+                } catch (e: Throwable) { "" }
+            }
+        }
         startAutoSave(); if (isPsp) { startBatteryWatch(); watchVulkan() } else startSramSaver()
         lifecycleScope.launch {
             view.getGLRetroErrors().collect { code ->
@@ -323,7 +336,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     /** Пресет «Баланс» по умолчанию; экран настроек ядра — следующий этап. */
     private fun coreVariables(): Array<Variable> {
-        if (!isPsp) return ps1Variables()
+        if (platform == "ps1") return ps1Variables()
+        if (!isPsp) { try { Vk.nSetWanted(false) } catch (e: Throwable) { }; return otherVariables() }
         val v = mutableMapOf(
             "ppsspp_internal_resolution" to "960x544",
             "ppsspp_button_preference" to "Cross",
@@ -381,7 +395,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     /** Раскладка по id; classic — «Классика» консоли. */
     private fun applyLayout(lay: String) {
         holdFrom = null
-        if (lay == "classic") {
+        // «Классика» — только у консолей PlayStation (у остальных её значки были бы чужими)
+        if (lay == "classic" && platform in setOf("psp", "ps1", "ps2")) {
             layName = "classic"; controls.layName = "classic:$platform"; controls.style = "classic"; controls.platform = platform
             controls.setLayout(ControlLayout.layout("classic", platform) + extrasFor(controls.layName)); ui.layId = "classic"; return
         }
@@ -719,6 +734,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                     if (Build.VERSION.SDK_INT >= 29) put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/KAPSULA")
                 }
                 val uri = contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v) ?: return@withContext false
+                // копия для «Моментов» во вкладке «Моё»
+                try { saveJpeg(b, File(File(filesDir, "moments").apply { mkdirs() }, gameId + "__" + System.currentTimeMillis() + ".jpg"), 960) } catch (e: Exception) { }
                 contentResolver.openOutputStream(uri)?.use { b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) } != null
             } catch (e: Exception) { Log.w(TAG, "shot", e); false }
         }
@@ -1247,7 +1264,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     override fun stick(right: Boolean, x: Float, y: Float) {
         // PS1 с обычным джойстиком: левый стик работает как крестовина
-        if (!isPsp && !right && ps1Pad == "standard") {
+        val analog = com.nexus.psp.data.PL[platform]?.analog == true || (platform == "ps1" && ps1Pad == "dualshock")
+        if (!analog && !right) {
             fun d(v: Float) = if (v > .4f) 1f else if (v < -.4f) -1f else 0f
             retro?.sendMotionEvent(GLRetroView.MOTION_SOURCE_DPAD, d(x), d(y)); return
         }
@@ -1345,6 +1363,14 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         try { retro?.setControllerType(0, if (ps1Pad == "dualshock") (2 shl 8) or 5 else 1) } catch (e: Throwable) { Log.w(TAG, "pad", e) }
     }
     fun setPs1Pad(v: String) { vars.put("kapsula_ps1_pad", v); applyPs1Pad(); toast(if (v == "dualshock") "DualShock: аналог включается L1 + R1 + Select" else "Обычный джойстик: стик — как крестовина") }
+
+    /** Остальные консоли: настройки ядра по умолчанию + свои из настроек игры (по ключам этого ядра). */
+    private fun otherVariables(): Array<Variable> {
+        val core = com.nexus.psp.data.PL[platform]?.core ?: return emptyArray()
+        val v = mutableMapOf<String, String>()
+        boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> if (k.startsWith(core + "_")) v[k] = o.optString(k) } }
+        return v.map { Variable(it.key, it.value) }.toTypedArray()
+    }
 
     private fun ps1Variables(): Array<Variable> {
         val v = mutableMapOf(

@@ -24,8 +24,11 @@ sealed interface Ov {
     data object Alerts : Ov
     data object Quick : Ov
     data object Settings : Ov
-    data object Profile : Ov
     data object Pad : Ov
+    data object Consoles : Ov
+    data class Files(val mode: String) : Ov
+    data object Scan : Ov
+    data class Console(val id: String) : Ov
 }
 
 object Nav {
@@ -101,8 +104,16 @@ object Act {
         return boot
     }
 
-    fun addFile() { pickFile?.invoke() ?: AppState.say("Выбор файла недоступен") }
-    fun findGames() { pickFolder?.invoke() ?: AppState.say("Выбор папки недоступен") }
+    /** Добавить игру — свой проводник KAPSULA (системное окно — запасной путь внутри него). */
+    fun addFile() { Nav.open(Ov.Files("games")) }
+    /** Найти игры — сканирование по кнопке (с разрешением на доступ к файлам). */
+    fun findGames() { Nav.open(Ov.Scan) }
+    /** Доступ ко всем файлам (Android 11+: экран настроек; 8–10: разрешение на память). */
+    var requestAllFiles: (() -> Unit)? = null
+    /** Выбрать папку — разрешение запоминается навсегда. */
+    var requestFolder: (() -> Unit)? = null
+    /** Скопировать файлы в библиотеку (CUE — после своих BIN). */
+    var importUris: ((List<android.net.Uri>) -> Unit)? = null
 
     fun icon(name: String): Int = when (name) {
         "check" -> R.drawable.ph_check; "x" -> R.drawable.ph_x; "plus" -> R.drawable.ph_plus

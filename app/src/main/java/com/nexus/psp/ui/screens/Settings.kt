@@ -160,37 +160,29 @@ private fun Bios() {
     val ctx = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var tick by remember { mutableStateOf(0) }
-    val ps1 = remember(tick) { com.nexus.psp.emulator.Bios.ps1(ctx) }
+    var target by remember { mutableStateOf("ps1") }
     val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
-            val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.emulator.Bios.addPs1(ctx, uri) }
-            if (r.startsWith("ok:")) AppState.say("BIOS PS1 добавлен: " + r.removePrefix("ok:"), R.drawable.ph_check) else AppState.say(r.removePrefix("bad:"), R.drawable.sl_alert)
+            val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.emulator.BiosFiles.add(ctx, target, uri) }
+            if (r.startsWith("ok:")) AppState.say("BIOS на месте: " + r.removePrefix("ok:"), R.drawable.ph_check) else AppState.say(r.removePrefix("bad:"), R.drawable.sl_alert)
             tick++
         }
     }
-    Text("BIOS — прошивка консоли. PSP работает без него. PS1 тоже запускается без файла (встроенный BIOS), но со своим совместимость выше. Файл — только с твоей приставки; KAPSULA проверит его по контрольной сумме.", style = T.small, modifier = Modifier.padding(bottom = 10.dp))
+    Text("BIOS — прошивка консоли. Бери только со своей приставки: KAPSULA проверит файл и положит куда надо. Консолям без строчки ниже BIOS не нужен вообще.", style = T.small, modifier = Modifier.padding(bottom = 10.dp))
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(K.s1)) {
-        PLATFORMS.forEachIndexed { i, p ->
+        PLATFORMS.filter { it.bios }.forEachIndexed { i, p ->
+            val found = remember(tick, p.id, AppState.storageTick) { com.nexus.psp.emulator.BiosFiles.found(ctx, p.id) }
             if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(1.dp).background(K.line))
-            Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                val ok = !p.bios || (p.id == "ps1" && ps1.isNotEmpty())
-                SolarIcon(R.drawable.sl_chip, 20.dp, if (ok) K.ok else K.ink3)
+            Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SolarIcon(R.drawable.sl_chip, 20.dp, if (found.isNotEmpty()) K.ok else if (p.biosLevel == 2) K.warn else K.ink3)
                 Column(Modifier.weight(1f)) {
                     Text(p.short, style = T.label.copy(fontSize = 14.sp))
-                    Text(when {
-                        !p.bios -> "Не нужен"
-                        p.id == "ps1" && ps1.isNotEmpty() -> ps1.joinToString(" · ")
-                        p.id == "ps1" -> "Не добавлен — работает встроенный"
-                        else -> "Понадобится, когда подключим ${p.short}"
-                    }, style = T.small, maxLines = 1)
+                    Text(if (found.isNotEmpty()) "Есть: " + found.joinToString(" · ") else p.biosHint, style = T.small, maxLines = 1)
                 }
-                when {
-                    !p.bios -> Pill("не нужен", icon = R.drawable.ph_check, color = K.ok)
-                    p.id == "ps1" -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (ps1.isNotEmpty()) KButton("Убрать", small = true) { com.nexus.psp.emulator.Bios.clearPs1(ctx); tick++ }
-                        KButton(if (ps1.isEmpty()) "Добавить" else "Ещё", icon = R.drawable.ph_plus, small = true) { pick.launch(arrayOf("*/*")) }
-                    }
-                    else -> Pill("скоро")
+                if (found.isNotEmpty()) KButton("Убрать", small = true) { com.nexus.psp.emulator.BiosFiles.clear(ctx, p.id); tick++ }
+                KButton(if (found.isEmpty()) "Добавить" else "Ещё", icon = R.drawable.ph_plus, small = true) {
+                    // свой проводник; без доступа к файлам — системное окно
+                    if (com.nexus.psp.data.Storage.hasAny(ctx)) com.nexus.psp.ui.Nav.open(com.nexus.psp.ui.Ov.Files("bios:" + p.id)) else { target = p.id; pick.launch(arrayOf("*/*")) }
                 }
             }
         }
@@ -398,6 +390,16 @@ private fun LegalDialog(onClose: () -> Unit) {
     val parts = listOf(
         Triple("Ядро эмуляции PSP", "Основано на PPSSPP — Copyright © 2012– Henrik Rydgård and PPSSPP contributors. GNU GPL версии 2 или более поздней. Изменено командой KAPSULA.", "GPL-2.0.txt"),
         Triple("Ядро эмуляции PS1", "Основано на PCSX-ReARMed — Copyright © PCSX Team, notaz и участники проекта. GNU GPL версии 2.", "GPL-2.0.txt"),
+        Triple("Ядро PS2", "Основано на ARMSX2 (форк PCSX2) — © команда ARMSX2 и PCSX2. GNU GPL версии 3.", "GPL-3.0.txt"),
+        Triple("Ядро Dreamcast", "Основано на Flycast — © Flycast team. GNU GPL версии 2.", "GPL-2.0.txt"),
+        Triple("Ядро Saturn", "Основано на YabaSanshiro — © devMiyax и участники Yabause. GNU GPL версии 2.", "GPL-2.0.txt"),
+        Triple("Ядро Mega Drive", "Основано на ClownMDEmu — © Clownacy. GNU AGPL версии 3.", "GPL-3.0.txt"),
+        Triple("Ядро Master System / Game Gear", "Основано на Gearsystem — © Ignacio Sanchez. GNU GPL версии 3.", "GPL-3.0.txt"),
+        Triple("Ядро PC Engine", "Основано на Geargrafx — © Ignacio Sanchez. GNU GPL версии 3.", "GPL-3.0.txt"),
+        Triple("Ядро Lynx", "Основано на Gearlynx — © Ignacio Sanchez. GNU GPL версии 3.", "GPL-3.0.txt"),
+        Triple("Ядро Neo Geo", "Основано на Geolith — © Rupert Carmichael. BSD-3-Clause и MIT.", null),
+        Triple("Ядра Neo Geo Pocket и WonderSwan", "Основаны на Mednafen (Beetle NeoPop, Beetle Cygne) — © Mednafen team. GNU GPL версии 2.", "GPL-2.0.txt"),
+        Triple("Ядра Atari 2600 и 7800", "Основаны на Stella (© Stella team) и ProSystem (© Greg Stanton). GNU GPL версии 2.", "GPL-2.0.txt"),
         Triple("Фронтенд libretro", "LibretroDroid — Copyright © Filippo Scognamiglio. GNU GPL версии 3.", "GPL-3.0.txt"),
         Triple("Значки Solar", "© 480 Design. Creative Commons Attribution 4.0 (CC BY 4.0).", "LICENSE-solar.txt"),
         Triple("Значки Phosphor", "© Phosphor Icons. MIT License.", "LICENSE-phosphor.txt"),
@@ -423,7 +425,7 @@ private fun LegalDialog(onClose: () -> Unit) {
                     parts.forEach { (t, d, file) ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f).padding(end = 12.dp)) { Text(t, style = T.label); Text(d, style = T.small) }
-                            KButton("Текст", small = true) { open = file }
+                            if (file != null) KButton("Текст", small = true) { open = file }
                         }
                     }
                 }

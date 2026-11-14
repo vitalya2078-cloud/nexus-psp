@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- состояние сети: «Нет интернета» в магазине; обычное разрешение, выдаётся без запроса -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -6,7 +6,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- скриншоты в галерею на Android 8–9 -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- проводник и поиск игр: Android 8–10 — чтение памяти; Android 11+ — «Доступ ко всем файлам» (по желанию, игрок включает сам) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
     <application
+        android:requestLegacyExternalStorage="true"
         android:largeHeap="true"
         android:allowBackup="true"
         android:label="KAPSULA"

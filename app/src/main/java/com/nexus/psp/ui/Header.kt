@@ -69,16 +69,17 @@ fun Header() {
         }
         Row(Modifier.padding(start = 28.dp), horizontalArrangement = Arrangement.spacedBy(26.dp)) {
             TabLabel("Игры", Nav.tab == "games") { Nav.go("games") }
-            TabLabel("Магазин", Nav.tab == "store") { Nav.go("store") }
+            TabLabel("Моё", Nav.tab == "my") { Nav.go("my") }
         }
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (S.headClock) HeadStatus()
+            IconBtn(R.drawable.sl_pad) { Nav.open(Ov.Consoles) }
             IconBtn(R.drawable.sl_search) { Nav.open(Ov.Search) }
             DownloadsBtn()
             BellBtn()
             IconBtn(R.drawable.sl_grid) { Nav.open(Ov.Quick) }
-            com.nexus.psp.ui.kit.Avatar(38.dp, Modifier.padding(start = 4.dp).clip(CircleShape).press { Nav.open(Ov.Profile) })
+            com.nexus.psp.ui.kit.Avatar(38.dp, Modifier.padding(start = 4.dp).clip(CircleShape).press { Nav.closeAll(); Nav.go("my") })
         }
     }
 }

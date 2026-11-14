@@ -68,12 +68,12 @@ import com.nexus.psp.ui.kit.SolarIcon
 import com.nexus.psp.ui.kit.T
 import com.nexus.psp.ui.kit.press
 
-private val CONSOLE = mapOf("psp" to ("PlayStation Portable" to K.psp), "ps1" to ("PlayStation" to K.ps1), "ps2" to ("PlayStation 2" to K.ps2))
 
 /** Всё, что поверх картинки игры: заставка загрузки, меню паузы, ошибка, всплывающая подсказка. */
 @Composable
 fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
-    val (conName, conColor) = CONSOLE[a.platform] ?: CONSOLE.getValue("psp")
+    val pl = com.nexus.psp.data.PL[a.platform] ?: com.nexus.psp.data.PLATFORMS[0]
+    val conName = pl.full; val conColor = pl.color
     Box(Modifier.fillMaxSize()) {
         // заставка, пока ядро не нарисовало первый кадр
         AnimatedVisibility(ui.phase == "loading", enter = fadeIn(), exit = fadeOut(tween(500))) {
@@ -99,7 +99,7 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
         ui.picking?.let { key -> IconPicker(a, ui, key) }
         // счётчик кадров
         if (ui.showFps && ui.phase == "ready" && !ui.paused) Text(
-            "${ui.fps} FPS",
+            "${ui.fps} FPS" + ui.vkInfo,
             style = T.num.copy(fontSize = 12.sp, color = if (ui.fps >= 55) Color(0xFF9BD49B) else if (ui.fps >= 28) Color(0xFFE5C07B) else Color(0xFFD98A8A)),
             modifier = Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.displayCutout).padding(10.dp)
                 .clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = .55f)).padding(horizontal = 8.dp, vertical = 3.dp),
@@ -290,7 +290,7 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 16.dp)) {
                 key(ui.scopeGame) {
                     when (tab) {
-                        0 -> if (!a.isPsp) { FilterRow(a, ui); CoreRows(CoreOptions.PS1_QUALITY, a.coreStore) } else {
+                        0 -> if (!a.isPsp) { FilterRow(a, ui); if (a.platform == "ps1") CoreRows(CoreOptions.PS1_QUALITY, a.coreStore) } else {
                             CoreRows(CoreOptions.RENDER, a.coreStore); com.nexus.psp.ui.screens.VulkanNote()
                             Opt("Авто-качество", "Держать 60 кадров: при нехватке скорости разрешение снижается само, при запасе — возвращается") { Toggle(ui.autoRes) { a.setAutoRes(it) } }
                             FilterRow(a, ui); CoreQuality(a.coreStore)
@@ -300,7 +300,7 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
                                 Seg(listOf("×2", "×3", "×4"), (ui.fastLevel - 2).coerceIn(0, 2), small = true) { a.setFastLevel(it + 2) }
                             }
                             if (a.isPsp) CoreRows(CoreOptions.SPEED, a.coreStore)
-                            else CoreRows(CoreOptions.PS1_SYSTEM, a.coreStore) { c, v -> if (c.key == "kapsula_ps1_pad") a.setPs1Pad(v) }
+                            else if (a.platform == "ps1") CoreRows(CoreOptions.PS1_SYSTEM, a.coreStore) { c, v -> if (c.key == "kapsula_ps1_pad") a.setPs1Pad(v) }
                             Opt("Счётчик кадров", "Число кадров в секунду в углу экрана") { Toggle(ui.showFps) { a.setFps(it) } }
                         }
                         2 -> Controls(a, ui)

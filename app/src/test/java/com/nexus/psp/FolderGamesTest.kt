@@ -1,7 +1,6 @@
 package com.nexus.psp
 
 import androidx.test.core.app.ApplicationProvider
-import com.nexus.psp.data.StoreCatalog
 import com.nexus.psp.emulator.CoreFiles
 import com.nexus.psp.emulator.GameLibrary
 import org.json.JSONArray
@@ -14,17 +13,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 
-/** Магазин: каталог читается, игра-папка видна в библиотеке, сохранения разных игр не смешиваются. */
+/** Игры-папки (EBOOT.PBP с данными рядом): видны в библиотеке, сохранения у каждой свои, удаляются целиком. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
-class StoreTest {
-    @Test fun parsesCatalog() {
-        StoreCatalog.parse(SAMPLE)
-        assertEquals(2, StoreCatalog.games.size)
-        assertEquals("Экшен", StoreCatalog.cats["action"])
-        assertEquals("bg3/EBOOT.PBP", StoreCatalog.games[0].eboot)
-    }
-
+class FolderGamesTest {
     @Test fun folderGameInLibrary() {
         val c = ApplicationProvider.getApplicationContext<android.content.Context>()
         val root = CoreFiles.gamesDir(c); root.listFiles()?.forEach { it.deleteRecursively() }
@@ -42,9 +34,4 @@ class StoreTest {
         assertEquals(1, JSONArray(GameLibrary.list(c)).length())
     }
 
-    companion object {
-        val SAMPLE = """{"version":1,"categories":{"action":"Экшен","demo":"Демо-сцена"},"games":[
-            {"id":"bg3","name":"Battlegrounds 3","author":"wickles, xfacter","category":"action","plat":"psp","license":"GPL-3.0","source":"https://github.com/xfacter/battlegrounds3","desc":"Сражения на ховер-танках.","url":"https://example/bg3.zip","size":2789524,"unpacked":3797924,"sha256":"x","eboot":"bg3/EBOOT.PBP"},
-            {"id":"Yellow_Rose","name":"Yellow Rose of Texas","author":"Fit & Bandwagon","category":"demo","plat":"psp","license":"Демо-сцена","desc":"Демо 4 КБ.","url":"https://example/yr.zip","size":199642,"unpacked":300000,"sha256":"y","eboot":"Yellow_Rose/EBOOT.PBP"}]}"""
-    }
 }

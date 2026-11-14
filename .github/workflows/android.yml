@@ -43,9 +43,17 @@ jobs:
           mkdir -p app/src/main/jniLibs/arm64-v8a app/src/main/assets/ppsspp
           curl -fsSL --retry 4 -o core.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/ppsspp_libretro_android.so.zip
           unzip -p core.zip ppsspp_libretro_android.so > app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so
-          # PS1: PCSX-ReARMed (GPL-2.0)
-          curl -fsSL --retry 4 -o ps1.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/pcsx_rearmed_libretro_android.so.zip
-          unzip -p ps1.zip pcsx_rearmed_libretro_android.so > app/src/main/jniLibs/arm64-v8a/libpcsx_rearmed_libretro_android.so
+          # Остальные консоли (все ядра — GPL/AGPL/BSD, без «только некоммерческих»)
+          for c in pcsx_rearmed armsx2 clownmdemu gearsystem flycast yabasanshiro geargrafx geolith mednafen_ngp mednafen_wswan stella prosystem gearlynx; do
+            curl -fsSL --retry 4 -o core-$c.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/${c}_libretro_android.so.zip
+            unzip -p core-$c.zip ${c}_libretro_android.so > app/src/main/jniLibs/arm64-v8a/lib${c}_libretro_android.so
+          done
+          # PS2 (ARMSX2, GPL-3.0): служебные файлы эмулятора — из исходников ARMSX2
+          git clone -q --depth 1 --filter=blob:none --sparse https://github.com/ARMSX2/ARMSX2.git armsx2-src
+          (cd armsx2-src && git sparse-checkout set bin/resources)
+          mkdir -p app/src/main/assets/pcsx2
+          (cd armsx2-src/bin/resources && zip -qr -9 ../../../app/src/main/assets/pcsx2/resources.zip . -x "*.psd")
+          ls -la app/src/main/assets/pcsx2 app/src/main/jniLibs/arm64-v8a
           curl -fsSL --retry 4 -o app/src/main/assets/ppsspp/PPSSPP.zip https://buildbot.libretro.com/assets/system/PPSSPP.zip
           CORE_SHA=$(sha256sum app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so | cut -c1-16)
           echo "PPSSPP libretro · buildbot nightly $(date -u +%Y-%m-%d) · sha256 ${CORE_SHA}" | tee app/src/main/assets/ppsspp/CORE.txt

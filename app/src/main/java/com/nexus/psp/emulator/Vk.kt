@@ -13,6 +13,8 @@ object Vk {
     @JvmStatic external fun nSetWanted(on: Boolean)
     @JvmStatic external fun nActive(): Boolean
     @JvmStatic external fun nProbe(): Int
+    /** «ahb|gpu|1.4»: способ передачи кадра, где ждём готовности, мс процессора на кадр. */
+    @JvmStatic external fun nStats(): String?
 
     private fun load() = try { System.loadLibrary("libretrodroid"); true } catch (e: Throwable) { Log.w("KapsulaVK", "load", e); false }
 

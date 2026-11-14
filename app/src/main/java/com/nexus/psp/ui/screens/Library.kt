@@ -115,7 +115,7 @@ fun LibraryScreen() {
         }
         ChipRow(Modifier.padding(horizontal = 16.dp).padding(bottom = 10.dp)) {
             Chip("Все", S.con == "all", count = mine.size) { S.con = "all" }
-            PLATFORMS.forEach { p -> Chip(p.short, S.con == p.id, dot = p.color, count = mine.count { it.p == p.id }) { S.con = p.id } }
+            PLATFORMS.filter { p -> mine.any { it.p == p.id } }.forEach { p -> Chip(p.short, S.con == p.id, dot = p.color, count = mine.count { it.p == p.id }) { S.con = p.id } }
             Sep()
             listOf("Избранное", "Не запускались", "Есть сохранение").forEach { f -> Chip(f, S.lf == f) { S.lf = if (S.lf == f) "Все" else f } }
             Sep()
@@ -167,7 +167,7 @@ fun SearchScreen() {
                     ChipRow { rec.forEach { r -> Chip(r, icon = R.drawable.sl_clock) { q = r } }; Chip("Очистить") { S.recent = "" } }
                 }
                 Sub("Консоли")
-                ChipRow { PLATFORMS.forEach { p -> Chip(p.full, dot = p.color) { q = p.short } } }
+                ChipRow { PLATFORMS.filter { p -> AppState.byId.values.any { it.p == p.id } }.forEach { p -> Chip(p.short, dot = p.color) { q = p.short } } }
                 if (all.isEmpty()) StateCard("es-empty.png", "Искать пока не в чем", "Поиск работает по твоей библиотеке. Добавь первую игру.") {
                     KButton("Добавить игру", R.drawable.ph_plus, com.nexus.psp.ui.kit.BtnKind.Main, small = true) { Act.addFile() }
                 } else Text("Ищи по названию игры, имени файла или консоли.", style = T.small, modifier = Modifier.padding(top = 8.dp))

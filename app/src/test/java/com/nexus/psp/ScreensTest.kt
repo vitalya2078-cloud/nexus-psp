@@ -53,12 +53,11 @@ class ScreensTest {
 
     // чистая установка — пустые состояния
     @Test fun e01_games() = shot("e01-games-empty", false) { }
-    @Test fun e02_store() = shot("e02-store", false) { Nav.tab = "store" }
     @Test fun e03_library() = shot("e03-library-empty", false) { Nav.open(Ov.Library) }
     @Test fun e04_search() = shot("e04-search-empty", false) { Nav.open(Ov.Search) }
     @Test fun e05_downloads() = shot("e05-downloads-empty", false) { Nav.open(Ov.Downloads) }
     @Test fun e06_alerts() = shot("e06-alerts-empty", false) { Nav.open(Ov.Alerts) }
-    @Test fun e07_profile() = shot("e07-profile-empty", false) { Nav.open(Ov.Profile) }
+    @Test fun e07_profile() = shot("e07-profile-empty", false) { Nav.go("my") }
     @Test fun e08_onboarding() = shot("e08-onboarding", false) { AppState.S.onboarded = false }
 
     // со своими файлами
@@ -69,7 +68,7 @@ class ScreensTest {
     @Test fun g05_quick() = shot("g05-quick", true) { Nav.open(Ov.Quick) }
     @Test fun g06_settings_core() = shot("g06-settings-core", true) { Nav.settingsTab = "core"; Nav.open(Ov.Settings) }
     @Test fun g07_pad() = shot("g07-pad", true) { Nav.open(Ov.Pad) }
-    @Test fun g08_profile() = shot("g08-profile", true) { Nav.open(Ov.Profile) }
+    @Test fun g08_profile() = shot("g08-profile", true) { Nav.go("my") }
     @Test fun h01_settings_general() = shot("h01-settings-general", true) { Nav.settingsTab = "general"; Nav.open(Ov.Settings) }
     @Test fun h02_settings_ctl() = shot("h02-settings-ctl", true) { Nav.settingsTab = "ctl"; Nav.open(Ov.Settings) }
     @Test fun h03_settings_dl() = shot("h03-settings-dl", true) { Nav.settingsTab = "dl"; Nav.open(Ov.Settings) }
@@ -90,15 +89,15 @@ class ScreensTest {
         listOf(45, 80, 0, 120, 35, 60, 20).forEach { m -> AppState.history[f.format(c.time)] = m; c.add(java.util.Calendar.DAY_OF_MONTH, -1) }
         AppState.S.nick = "Виталий"; AppState.S.motto = "Пройду GTA на 100%"; AppState.S.avColor = 0; AppState.S.cardBg = 4
     }
-    @Test fun j01_profile_full() = shot("j01-profile", true) { played(); Nav.open(Ov.Profile) }
-    @Test fun j02_profile_game_bg() = shot("j02-profile-gamebg", true) { played(); AppState.S.cardBg = -1; AppState.S.avColor = 3; Nav.open(Ov.Profile) }
+    @Test fun j01_profile_full() = shot("j01-profile", true) { played(); Nav.go("my") }
+    @Test fun j02_profile_game_bg() = shot("j02-profile-gamebg", true) { played(); AppState.S.cardBg = -1; AppState.S.avColor = 3; Nav.go("my") }
     @Test fun j03_header_clock() = shot("j03-header", true) { played() }
     @Test fun j04_ach_register() = shot("j04-ach", true) { Nav.settingsTab = "ach"; Nav.open(Ov.Settings) }
     @Test fun j05_ach_logged() = shot("j05-ach-logged", true) { AppState.S.raUser = "KapsulaTest"; AppState.S.raToken = "x"; AppState.S.raScore = "1250"; Nav.settingsTab = "ach"; Nav.open(Ov.Settings) }
     @Test fun j06_bios() = shot("j06-bios", true) { Nav.settingsTab = "bios"; Nav.open(Ov.Settings) }
     @Test fun j07_about() = shot("j07-about", true) { java.io.File(ApplicationProvider.getApplicationContext<android.content.Context>().filesDir, "crash_main.txt").writeText("KAPSULA 0.25.0 · тест\n2026-11-14 · поток main\n\njava.lang.IllegalArgumentException: тест"); Nav.settingsTab = "about"; Nav.open(Ov.Settings) }
     @Test fun j08_editor() {
-        shot("j08-profile-editor", true) { played(); Nav.open(Ov.Profile); com.nexus.psp.ui.screens.ProfileUi.edit.value = true }
+        shot("j08-profile-editor", true) { played(); Nav.go("my"); com.nexus.psp.ui.screens.ProfileUi.edit.value = true }
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/shots/j08-profile-editor-dialog.png")
         com.nexus.psp.ui.screens.ProfileUi.edit.value = false
     }
@@ -113,10 +112,12 @@ class ScreensTest {
     @Test fun j10_ps1_library() { ps1Game(); shot("j10-ps1-library", true) { Nav.open(Ov.Library) } }
     @Test fun j11_ps1_game() { ps1Game(); shot("j11-ps1-game", true) { Nav.open(Ov.Game(AppState.byId.values.first { it.p == "ps1" }.id)) } }
     @Test fun j12_ps1_gset() { ps1Game(); shot("j12-ps1-gset", true) { val id = AppState.byId.values.first { it.p == "ps1" }.id; com.nexus.psp.data.GameConfig(ApplicationProvider.getApplicationContext(), id).edit { o -> o.put("own", true) }; Nav.open(Ov.GSet(id)) } }
-    /** Магазин с настоящим каталогом (значки из сети в тестах не грузятся — видны обложки KAPSULA). */
-    private fun store() { com.nexus.psp.data.StoreCatalog.parse(javaClass.getResource("/store-catalog.json")!!.readText()) }
-    @Test fun k02_store() = shot("k02-store", true) { store(); Nav.tab = "store" }
-    @Test fun k03_store_detail() { shot("k03-store-detail", true) { store(); Nav.tab = "store"; com.nexus.psp.ui.screens.StoreUi.open.value = "bg3" }
-        com.github.takahirom.roborazzi.captureScreenRoboImage("build/shots/k03-store-detail-dialog.png"); com.nexus.psp.ui.screens.StoreUi.open.value = null }
+    @Test fun m01_consoles() { ps1Game(); shot("m01-consoles", true) { Nav.open(Ov.Consoles) } }
+    @Test fun m02_console_ps1() { ps1Game(); shot("m02-console-ps1", true) { Nav.open(Ov.Console("ps1")) } }
+    @Test fun m03_console_empty() = shot("m03-console-neogeo", true) { Nav.open(Ov.Console("neogeo")) }
+    @Test fun m04_main_others() { ps1Game(); shot("m04-main-others", true) { } }
+    @Test fun m05_files_noaccess() = shot("m05-files", true) { Nav.open(Ov.Files("games")) }
+    @Test fun m06_scan_noaccess() = shot("m06-scan", true) { Nav.open(Ov.Scan) }
+    @Test fun m07_my_full() { shot("m07-my", true) { played(); Nav.go("my") } }
     @Test fun g09_quick_light() = shot("g09-quick-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Quick) }
 }
