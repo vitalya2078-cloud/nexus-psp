@@ -105,18 +105,21 @@ private fun manrope(w: Int) = Font(R.font.manrope, FontWeight(w), variationSetti
 
 val Manrope = FontFamily(manrope(400), manrope(500), manrope(600), manrope(700), manrope(800))
 
+/** Rubik — заголовки, вкладки и цифры (игровой характер); обычный текст — Manrope. */
+val Rubik = FontFamily(Font(R.font.rubik_semibold, FontWeight.SemiBold), Font(R.font.rubik_bold, FontWeight.Bold))
+
 /** Типографика; size() учитывает «Крупный текст». */
 object T {
     var big by mutableStateOf(false)
     private fun s(v: Float): TextUnit = (if (big) v * 1.12f else v).sp
-    val h1 get() = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.ExtraBold, fontSize = s(26f), lineHeight = s(30f), color = K.ink)
-    val h2 get() = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.ExtraBold, fontSize = s(20f), color = K.ink)
-    val h3 get() = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.ExtraBold, fontSize = s(16f), color = K.ink)
+    val h1 get() = TextStyle(fontFamily = Rubik, fontWeight = FontWeight.Bold, fontSize = s(26f), lineHeight = s(30f), color = K.ink)
+    val h2 get() = TextStyle(fontFamily = Rubik, fontWeight = FontWeight.Bold, fontSize = s(20f), color = K.ink)
+    val h3 get() = TextStyle(fontFamily = Rubik, fontWeight = FontWeight.SemiBold, fontSize = s(16f), color = K.ink)
     val body get() = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Medium, fontSize = s(14f), lineHeight = s(21f), color = K.ink2)
     val label get() = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = s(13.5f), color = K.ink)
     val small get() = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = s(12f), color = K.ink3)
-    val caps get() = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.ExtraBold, fontSize = s(11f), letterSpacing = .8.sp, color = K.ink3)
-    val num get() = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.ExtraBold, fontSize = s(13f), color = K.ink)
+    val caps get() = TextStyle(fontFamily = Rubik, fontWeight = FontWeight.SemiBold, fontSize = s(11f), letterSpacing = .8.sp, color = K.ink3)
+    val num get() = TextStyle(fontFamily = Rubik, fontWeight = FontWeight.Bold, fontSize = s(13f), color = K.ink)
 }
 
 @Composable

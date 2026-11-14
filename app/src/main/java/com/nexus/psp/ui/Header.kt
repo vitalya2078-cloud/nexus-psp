@@ -89,7 +89,7 @@ fun Header() {
 private fun TabLabel(text: String, on: Boolean, onClick: () -> Unit) {
     val line by animateFloatAsState(if (on) 1f else 0f, tween(220), label = "tab")
     Column(Modifier.tap(onClick), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text, style = T.label.copy(fontSize = 16.sp, color = if (on) K.ink else K.ink3))
+        Text(text, style = T.label.copy(fontFamily = com.nexus.psp.ui.kit.Rubik, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, fontSize = 16.sp, color = if (on) K.ink else K.ink3))
         Box(Modifier.padding(top = 5.dp).height(2.5.dp).width(28.dp).graphicsLayer { scaleX = line; alpha = line }.clip(RoundedCornerShape(2.dp)).background(K.acc))
     }
 }

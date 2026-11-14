@@ -381,6 +381,7 @@ private fun LegalDialog(onClose: () -> Unit) {
         Triple("Значки Solar", "© 480 Design. Creative Commons Attribution 4.0 (CC BY 4.0).", "LICENSE-solar.txt"),
         Triple("Значки Phosphor", "© Phosphor Icons. MIT License.", "LICENSE-phosphor.txt"),
         Triple("Шрифт Manrope", "© The Manrope Project Authors. SIL Open Font License 1.1.", "OFL-Manrope.txt"),
+        Triple("Шрифт Rubik", "© The Rubik Project Authors. SIL Open Font License 1.1.", "OFL-Rubik.txt"),
     )
     androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
