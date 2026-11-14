@@ -232,6 +232,18 @@ fun CoreRows(list: List<CoreOpt>, store: CoreStore = GlobalCore, onChange: (Core
     }
 }
 
+/** Почему Vulkan недоступен на этом телефоне (и «Повторить» после сбоя). Ничего не показывает, если всё в порядке. */
+@Composable
+fun VulkanNote() {
+    val ctx = LocalContext.current
+    var tick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val why = androidx.compose.runtime.remember(tick) { com.nexus.psp.emulator.Vk.reason(ctx) } ?: return
+    Row(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(why, style = T.small.copy(color = K.warn), modifier = Modifier.weight(1f))
+        if (com.nexus.psp.emulator.Vk.badFile(ctx).exists()) KButton("Повторить", small = true) { com.nexus.psp.emulator.Vk.retry(ctx); tick++ }
+    }
+}
+
 /** Блок «Качество» с пресетами — общий для экрана ядра и настроек игры. */
 @Composable
 fun CoreQuality(store: CoreStore = GlobalCore, onChange: (CoreOpt?, String) -> Unit = { _, _ -> }) {
@@ -294,6 +306,7 @@ private fun CoreSettings() {
     when (sec) {
         0 -> {
             val f = listOf("default" to "Обычный", "smooth" to "Сглаживание", "pixel" to "Пиксели", "lcd" to "ЖК", "crt" to "ЭЛТ")
+            CoreRows(CoreOptions.RENDER); VulkanNote()
             Opt("Авто-качество", "Держать 60 кадров: разрешение снижается само при нехватке скорости") { Toggle(S.autoRes) { S.autoRes = it } }
             Opt("Фильтр картинки", "Для всех игр; в игре можно поменять на лету: пауза → Настройки") {
                 Seg(f.map { it.second }, f.indexOfFirst { it.first == S.shader }.coerceAtLeast(0), small = true) { S.shader = f[it].first }

@@ -28,6 +28,10 @@ object CoreOptions {
         CoreOpt("ppsspp_smart_2d_texture_filtering", "Чёткая 2D-графика", "Убирает размытие в 2D-играх (платформеры, файтинги)", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("ppsspp_texture_deposterize", "Без полос на текстурах", "Сглаживает ступеньки цвета при улучшении текстур", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
     )
+    /** Графика: Vulkan — пробный режим (при сбое игра сама вернётся на OpenGL). */
+    val RENDER = listOf(
+        CoreOpt("ppsspp_backend", "Графика", "Vulkan обычно быстрее и плавнее. Пробный режим: при сбое игра сама вернётся на OpenGL", listOf("opengl", "vulkan"), listOf("OpenGL", "Vulkan"), "opengl", restart = true),
+    )
     val SPEED = listOf(
         CoreOpt("ppsspp_frameskip", "Пропуск кадров", "Помогает слабым телефонам, но картинка менее плавная", listOf("disabled", "1", "2", "3"), listOf("Выкл", "1", "2", "3"), "disabled"),
         CoreOpt("ppsspp_auto_frameskip", "Авто-пропуск кадров", "Пропускать кадры только когда игра не успевает", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
@@ -45,7 +49,6 @@ object CoreOptions {
         CoreOpt("ppsspp_cheats", "Читы", "Коды для игр (файл cheat.db)", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
     )
     val EXPERT = listOf(
-        CoreOpt("ppsspp_backend", "Графика", "Vulkan обычно быстрее, OpenGL — совместимее", listOf("auto", "vulkan", "opengl"), listOf("Авто", "Vulkan", "OpenGL"), "auto", restart = true),
         CoreOpt("ppsspp_cpu_core", "Процессор эмулятора", "Интерпретатор — только для поиска ошибок, очень медленно", listOf("JIT", "IR JIT", "Interpreter"), listOf("JIT", "IR JIT", "Интерпретатор"), "JIT", restart = true),
         CoreOpt("ppsspp_locked_cpu_speed", "Частота процессора PSP", "Разгон убирает тормоза в некоторых играх", listOf("disabled", "333MHz", "444MHz"), listOf("Как в игре", "333 МГц", "444 МГц"), "disabled", restart = true),
         CoreOpt("ppsspp_skip_buffer_effects", "Пропускать эффекты буфера", "Быстрее, но могут пропасть тени и размытие", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
@@ -57,7 +60,7 @@ object CoreOptions {
         CoreOpt("ppsspp_analog_is_circular", "Круглый ход стика", "Диагонали стика — как у настоящего стика PSP", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("ppsspp_analog_sensitivity", "Чувствительность стика", "Насколько резко персонаж или машина отзываются на стик", listOf("1.00", "1.10", "1.25", "1.50"), listOf("×1", "×1,1", "×1,25", "×1,5"), "1.00"),
     )
-    val ALL = QUALITY + SPEED + SYSTEM + EXPERT + INPUT
+    val ALL = QUALITY + RENDER + SPEED + SYSTEM + EXPERT + INPUT
     fun byKey(k: String) = ALL.firstOrNull { it.key == k }
 }
 

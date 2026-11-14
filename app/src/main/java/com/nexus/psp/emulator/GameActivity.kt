@@ -301,7 +301,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         }
         // счётчик кадров
         lifecycleScope.launch { while (true) { delay(1000); ui.fps = frames; frames = 0; autoResTick(ui.fps) } }
-        startAutoSave(); startBatteryWatch()
+        startAutoSave(); startBatteryWatch(); watchVulkan()
         lifecycleScope.launch {
             view.getGLRetroErrors().collect { code ->
                 fail(when (code) {
@@ -334,7 +334,31 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         if (gx.optBoolean("tex") && serial != null) v["ppsspp_texture_replacement"] = "enabled"
         // игра по сети
         gx.optJSONObject("net")?.let { n -> v.putAll(NetPlay.vars(n.optString("mode"), n.optString("ip"), NetPlay.mac(this))) }
+        // графика: Vulkan — только если телефон подходит и прошлый запуск на нём не упал
+        vkCrashed = v["ppsspp_backend"] == "vulkan" && Vk.tryFile(this).exists()
+        vkOn = Vk.prepare(this, v["ppsspp_backend"])
+        v["ppsspp_backend"] = if (vkOn) "vulkan" else "opengl"
         return v.map { Variable(it.key, it.value) }.toTypedArray()
+    }
+
+    // ---------- Vulkan (пробный режим) ----------
+    private var vkOn = false
+    private var vkCrashed = false
+    private var vkSeen = false
+    /** Следим первые секунды: нет картинки на Vulkan — помечаем сбой и перезапускаем на OpenGL. */
+    private fun watchVulkan() {
+        if (vkCrashed) toast("Прошлый запуск на Vulkan завершился сбоем — включён OpenGL")
+        if (!vkOn) return
+        lifecycleScope.launch {
+            var good = 0; var bad = 0
+            while (true) {
+                delay(500)
+                if (ui.paused) continue
+                val active = try { Vk.nActive() } catch (e: Throwable) { false }
+                if (active && ui.fps > 0) { vkSeen = true; if (++good >= 6) { Vk.confirm(this@GameActivity); return@launch } }
+                else if (++bad >= 16) { Vk.markBad(this@GameActivity); toast("Vulkan не заработал на этом телефоне — возвращаю OpenGL"); applyRestart(); return@launch }
+            }
+        }
     }
 
     // ---------- раскладки игры: несколько раскладок, роли кнопок, пресеты ----------
@@ -1268,6 +1292,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     override fun onDestroy() {
         if (raStarted) try { RA.nUnload() } catch (e: Throwable) { }
+        // обычный выход после того, как Vulkan показал картинку, — не сбой
+        if (vkOn && vkSeen && isFinishing) Vk.confirm(this)
         if (tilt) getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(tiltListener)
         super.onDestroy()
         // ядро libretro не рассчитано на повторную загрузку в том же процессе

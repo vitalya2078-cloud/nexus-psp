@@ -101,3 +101,57 @@ edit('cpp/CMakeLists.txt', 'add_library(libretrodroid SHARED\n',
      'include_directories(rcheevos/include rcheevos/src)\n\n'
      'add_library(libretrodroid SHARED\n        kapsula_ra.cpp\n        ${RCHEEVOS_SOURCES}\n')
 print('patched')
+
+# ---- Vulkan (kapsula_vk.cpp): ядро рисует через Vulkan, кадр уходит в GL-кадр LibretroDroid ----
+shutil.copy(os.path.join(here, 'kapsula_vk.cpp'), os.path.join(root, 'cpp', 'kapsula_vk.cpp'))
+
+VK_DECL = ('// KAPSULA: Vulkan\n'
+           'extern "C" bool kapsula_vk_wanted();\n'
+           'extern "C" bool kapsula_vk_active();\n'
+           'extern "C" bool kapsula_vk_environment(unsigned cmd, void* data, bool* result);\n'
+           'extern "C" bool kapsula_vk_set_hw_render(struct retro_hw_render_callback* cb);\n'
+           'extern "C" int kapsula_vk_surface_created();\n'
+           'extern "C" bool kapsula_vk_present(unsigned w, unsigned h, unsigned dstFbo, bool flip);\n'
+           'extern "C" void kapsula_vk_shutdown();\n')
+
+edit('cpp/environment.cpp', 'bool Environment::environment_handle_set_hw_render(',
+     VK_DECL + '\nbool Environment::environment_handle_set_hw_render(')
+edit('cpp/environment.cpp',
+     'bool Environment::handle_callback_environment(unsigned cmd, void *data) {\n    switch (cmd) {',
+     'bool Environment::handle_callback_environment(unsigned cmd, void *data) {\n'
+     '    { bool vkResult = false; if (kapsula_vk_environment(cmd, data, &vkResult)) return vkResult; }\n'
+     '    switch (cmd) {')
+edit('cpp/environment.cpp',
+     '            *((unsigned*) data) = retro_hw_context_type::RETRO_HW_CONTEXT_OPENGLES3;',
+     '            *((unsigned*) data) = kapsula_vk_wanted() ? retro_hw_context_type::RETRO_HW_CONTEXT_VULKAN : retro_hw_context_type::RETRO_HW_CONTEXT_OPENGLES3;')
+edit('cpp/environment.cpp',
+     'struct retro_hw_render_callback* hw_render_callback) {\n    useHWAcceleration = true;',
+     'struct retro_hw_render_callback* hw_render_callback) {\n'
+     '    // Vulkan берём, только если игрок его выбрал; иначе ядро остаётся на OpenGL\n'
+     '    if (hw_render_callback->context_type == RETRO_HW_CONTEXT_VULKAN && !(kapsula_vk_wanted() && kapsula_vk_set_hw_render(hw_render_callback))) return false;\n'
+     '    useHWAcceleration = true;')
+
+edit('cpp/libretrodroid.cpp', 'extern void (*kapsula_frame_hook)();\n',
+     'extern void (*kapsula_frame_hook)();\n' + VK_DECL)
+edit('cpp/libretrodroid.cpp',
+     '    video = std::unique_ptr<Video>(newVideo);\n\n    if (Environment::getInstance().getHwContextReset() != nullptr) {',
+     '    video = std::unique_ptr<Video>(newVideo);\n\n'
+     '    // KAPSULA: Vulkan создаётся один раз и сам передаёт ядру context_reset; 2 — не запустился (картинки не будет, приложение вернёт OpenGL)\n'
+     '    int vkState = kapsula_vk_surface_created();\n'
+     '    if (vkState == 0 && Environment::getInstance().getHwContextReset() != nullptr) {')
+edit('cpp/libretrodroid.cpp',
+     '    if (video) {\n        video->onNewFrame(data, width, height, pitch);\n\n        if (video->rendersInVideoCallback()) {',
+     '    if (video && kapsula_vk_active() && data == RETRO_HW_FRAME_BUFFER_VALID) {\n'
+     '        video->onNewFrame(data, width, height, pitch);\n'
+     '        kapsula_vk_present(width, height, (unsigned) video->getCurrentFramebuffer(), Environment::getInstance().isBottomLeftOrigin());\n'
+     '        video->renderFrame();\n'
+     '        return;\n'
+     '    }\n'
+     '    if (video) {\n        video->onNewFrame(data, width, height, pitch);\n\n        if (video->rendersInVideoCallback()) {')
+edit('cpp/libretrodroid.cpp', '    core->retro_deinit();\n',
+     '    core->retro_deinit();\n    kapsula_vk_shutdown();\n')
+
+edit('cpp/CMakeLists.txt', 'add_library(libretrodroid SHARED\n        kapsula_ra.cpp\n',
+     'add_library(libretrodroid SHARED\n        kapsula_ra.cpp\n        kapsula_vk.cpp\n')
+edit('cpp/CMakeLists.txt', '                      GLESv3\n)', '                      GLESv3\n                      vulkan\n                      nativewindow\n)')
+print('vulkan patched')
