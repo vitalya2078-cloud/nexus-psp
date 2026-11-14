@@ -1,0 +1,26 @@
+name: Telegram channel
+
+# Пост уходит, когда в telegram/outbox/ появляется или меняется JSON-файл.
+on:
+  push:
+    branches: [ "main", "ccr-30f02f17-ph3ie4" ]
+    paths: [ "telegram/outbox/**" ]
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Send new posts
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then echo "Нет секретов TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID"; exit 1; fi
+          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then range="$BEFORE $GITHUB_SHA"; else range="$GITHUB_SHA~1 $GITHUB_SHA"; fi
+          files=$(git diff --name-only --diff-filter=AM $range -- telegram/outbox/)
+          echo "$files"
+          [ -n "$files" ] && python3 telegram/send.py $files || echo "Нечего отправлять"
