@@ -35,6 +35,13 @@ android {
         getByName("debug") {
             signingConfig = signingConfigs.getByName("nexusStable")
         }
+        // выпускная сборка: сжатый код, без средств отладки; тот же ключ — ставится поверх прежних версий
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("nexusStable")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
     }
 
     // иллюстрации и значки кнопок из ui/img (общие с веб-прототипом) упаковываются в assets/img

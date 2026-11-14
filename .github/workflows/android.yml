@@ -53,20 +53,20 @@ jobs:
           base64 --decode nexus-debug.keystore.b64 > nexus-debug.keystore
 
       - name: Build APK
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: nexus-psp-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: kapsula-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
       - name: Publish APK as direct download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk kapsula.apk
+          cp app/build/outputs/apk/release/app-release.apk kapsula.apk
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest kapsula.apk --prerelease --target "$GITHUB_SHA" \
             --title "KAPSULA — последняя сборка" \
