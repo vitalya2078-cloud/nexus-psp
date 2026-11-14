@@ -117,9 +117,10 @@ private fun Carousel(list: List<Game>) {
     Column(Modifier.fillMaxSize()) {
         // воздух между рядом фильтров и обложками
         BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(top = 16.dp, bottom = 4.dp)) {
-            val h = maxHeight * .94f
-            val w = h * .75f
-            val side = (maxWidth - w) / 2
+            // обложка 3:4 по высоте, но не шире 80% окна: при сворачивании Android на миг меряет окно вертикальным,
+            // и обложка шире экрана давала отрицательный отступ — приложение падало
+            val w = minOf(maxHeight * .94f * .75f, maxWidth * .8f)
+            val side = ((maxWidth - w) / 2).coerceAtLeast(0.dp)
             LazyRow(
                 state = state, flingBehavior = rememberSnapFlingBehavior(state),
                 contentPadding = PaddingValues(horizontal = side), horizontalArrangement = Arrangement.spacedBy(14.dp),

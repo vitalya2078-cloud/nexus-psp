@@ -23,8 +23,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 33
-        versionName = "0.25.1"
+        versionCode = 34
+        versionName = "0.26.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a") // ядро PPSSPP собрано только под 64-бит ARM
@@ -79,6 +79,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.core:core-splashscreen:1.0.1")
+    // страницы сайтов поверх приложения (регистрация в сообществе достижений)
+    implementation("androidx.browser:browser:1.8.0")
     // libretro-фронтенд (GPL-3.0): вывод картинки, звук, ввод, сохранения; ядро PPSSPP подключается как .so
     implementation(project(":libretrodroid"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

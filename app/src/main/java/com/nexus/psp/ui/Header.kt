@@ -73,14 +73,12 @@ fun Header() {
         }
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (S.headClock) HeadStatus()
             IconBtn(R.drawable.sl_search) { Nav.open(Ov.Search) }
             DownloadsBtn()
             BellBtn()
             IconBtn(R.drawable.sl_grid) { Nav.open(Ov.Quick) }
-            Box(
-                Modifier.padding(start = 4.dp).size(38.dp).clip(CircleShape).background(K.ink).press { Nav.open(Ov.Profile) },
-                contentAlignment = Alignment.Center,
-            ) { Text("N", style = T.label.copy(color = K.bg, fontWeight = FontWeight.ExtraBold)) }
+            com.nexus.psp.ui.kit.Avatar(38.dp, Modifier.padding(start = 4.dp).clip(CircleShape).press { Nav.open(Ov.Profile) })
         }
     }
 }
@@ -187,3 +185,64 @@ private fun DownloadsBtn() {
 }
 
 private fun mutableIntStateOf(v: Int) = androidx.compose.runtime.mutableIntStateOf(v)
+
+
+/**
+ * Часы и заряд — тихо, в одну строку перед значками шапки (системная строка в играх и на главном экране скрыта).
+ * Заряд: зелёный — заряжается, красный — 15% и меньше.
+ */
+@Composable
+private fun HeadStatus() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var now by remember { androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) { now = System.currentTimeMillis(); kotlinx.coroutines.delay(60_000 - now % 60_000 + 50) }
+    }
+    var level by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    var charging by remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        fun read(i: android.content.Intent?) {
+            i ?: return
+            val l = i.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1); val sc = i.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100)
+            if (l >= 0 && sc > 0) level = l * 100 / sc
+            val st = i.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1)
+            charging = st == android.os.BatteryManager.BATTERY_STATUS_CHARGING || st == android.os.BatteryManager.BATTERY_STATUS_FULL
+        }
+        val r = object : android.content.BroadcastReceiver() { override fun onReceive(c: android.content.Context?, i: android.content.Intent?) = read(i) }
+        read(try { ctx.registerReceiver(r, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)) } catch (e: Exception) { null })
+        onDispose { try { ctx.unregisterReceiver(r) } catch (e: Exception) { } }
+    }
+    val time = remember(now) { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(now)) }
+    Row(Modifier.padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(time, style = T.label.copy(fontSize = 14.sp, color = K.ink2, fontWeight = FontWeight.SemiBold))
+        if (level >= 0) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            val col = when { charging -> K.ok; level <= 15 -> K.bad; else -> K.ink2 }
+            BatteryGlyph(level / 100f, col, charging)
+            Text("$level%", style = T.small.copy(fontSize = 12.sp, color = K.ink2))
+        }
+        Box(Modifier.size(1.dp, 18.dp).background(K.line))
+    }
+}
+
+/** Значок батареи: корпус, носик и заливка по заряду; при зарядке — молния. */
+@Composable
+private fun BatteryGlyph(f: Float, col: Color, charging: Boolean) {
+    val ink = K.ink2
+    Canvas(Modifier.size(22.dp, 12.dp)) {
+        val sw = 1.3.dp.toPx(); val nose = 2.dp.toPx()
+        val body = Size(size.width - nose - sw, size.height - sw)
+        drawRoundRect(ink.copy(alpha = .7f), Offset(sw / 2, sw / 2), body, androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()), style = Stroke(sw))
+        drawRoundRect(ink.copy(alpha = .7f), Offset(size.width - nose, size.height * .32f), Size(nose, size.height * .36f), androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()))
+        val pad = sw + 1.2.dp.toPx()
+        val w = (body.width - 2 * pad + sw) * f.coerceIn(0.04f, 1f)
+        drawRoundRect(col, Offset(pad, pad), Size(w, size.height - 2 * pad), androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx()))
+        if (charging) {
+            val p = androidx.compose.ui.graphics.Path().apply {
+                val cx = body.width / 2 + sw / 2; val h = size.height
+                moveTo(cx + 1.5.dp.toPx(), h * .12f); lineTo(cx - 2.5.dp.toPx(), h * .56f); lineTo(cx, h * .56f)
+                lineTo(cx - 1.5.dp.toPx(), h * .88f); lineTo(cx + 2.5.dp.toPx(), h * .44f); lineTo(cx, h * .44f); close()
+            }
+            drawPath(p, Color(0xFF0E0F13))
+        }
+    }
+}

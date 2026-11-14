@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KAPSULA: зачёркнутый глаз в стиле Solar (линия 1.5) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M3.27 15.29C2.42 14.19 2 13.64 2 12C2 10.36 2.42 9.81 3.27 8.71C4.97 6.5 7.82 4 12 4C16.18 4 19.03 6.5 20.73 8.71C21.58 9.81 22 10.36 22 12C22 13.64 21.58 14.19 20.73 15.29C19.03 17.5 16.18 20 12 20C7.82 20 4.97 17.5 3.27 15.29Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.5" />
+    <path android:pathData="M4 4L20 20" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.5" android:strokeLineCap="round" />
+</vector>

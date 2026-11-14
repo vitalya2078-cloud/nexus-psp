@@ -62,14 +62,14 @@ import kotlinx.coroutines.delay
 
 /** Поле поиска в стиле KAPSULA. */
 @Composable
-fun SearchField(value: String, hint: String, modifier: Modifier = Modifier, autoFocus: Boolean = false, onDone: () -> Unit = {}, onChange: (String) -> Unit) {
+fun SearchField(value: String, hint: String, modifier: Modifier = Modifier, autoFocus: Boolean = false, icon: Int = R.drawable.sl_search, onDone: () -> Unit = {}, onChange: (String) -> Unit) {
     val fr = remember { FocusRequester() }
     if (autoFocus) LaunchedEffect(Unit) { delay(120); fr.requestFocus() }
     Row(
         modifier.height(42.dp).clip(RoundedCornerShape(21.dp)).background(K.s2).padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SolarIcon(R.drawable.sl_search, 18.dp, K.ink3)
+        SolarIcon(icon, 18.dp, K.ink3)
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) Text(hint, style = T.label.copy(color = K.ink3, fontSize = 14.sp))
             BasicTextField(

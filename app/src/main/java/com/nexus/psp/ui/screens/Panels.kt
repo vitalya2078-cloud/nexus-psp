@@ -61,7 +61,7 @@ import com.nexus.psp.ui.kit.tap
 import kotlinx.coroutines.delay
 
 @Composable
-private fun Item(gid: String?, title: String, sub: String, unread: Boolean = false, icon: Int? = null, onClick: (() -> Unit)? = null, trailing: @Composable () -> Unit = {}) {
+internal fun Item(gid: String?, title: String, sub: String, unread: Boolean = false, icon: Int? = null, onClick: (() -> Unit)? = null, trailing: @Composable () -> Unit = {}) {
     val g = gid?.let { AppState.byId[it] }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (unread) K.acc.copy(alpha = .08f) else Color.Transparent)
@@ -188,95 +188,4 @@ private fun QTile(t: Tile, modifier: Modifier) {
     }
 }
 
-/** Профиль игрока (п. 10) — отдельный экран: слева игрок и цифры, справа достижения, неделя, избранное. */
-@Composable
-fun ProfileScreen() {
-    val ctx = LocalContext.current
-    val play = AppState.lib.values.sumOf { it.play }
-    val svs = AppState.lib.values.sumOf { it.saves }
-    val xp = play * 2 + svs * 30
-    com.nexus.psp.ui.Full {
-        com.nexus.psp.ui.OvHead("Профиль")
-        Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            // ---- игрок ----
-            Column(Modifier.width(300.dp).androidx_verticalScroll(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(K.s1).padding(18.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Box(Modifier.size(76.dp).clip(CircleShape).background(K.ink), contentAlignment = Alignment.Center) { Text("N", style = T.h1.copy(color = K.bg)) }
-                    Text("Игрок", style = T.h2)
-                    Text("Уровень ${xp / 1000 + 1} · ${xp % 1000} / 1000 XP", style = T.small)
-                    Bar((xp % 1000) / 1000f, modifier = Modifier.padding(top = 4.dp))
-                }
-                // цифры — ровной сеткой 2×2
-                val stats = listOf(
-                    (if (play > 0) hrs(play) else "—") to "наиграно", "${AppState.lib.size}" to "в библиотеке",
-                    "$svs" to "сохранений", "${AppState.favs.size}" to "в избранном",
-                )
-                stats.chunked(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { (n, l) ->
-                            Column(Modifier.weight(1f).height(68.dp).clip(RoundedCornerShape(14.dp)).background(K.s1).padding(horizontal = 14.dp), verticalArrangement = Arrangement.Center) {
-                                Text(n, style = T.h3, maxLines = 1); Text(l, style = T.small, maxLines = 1)
-                            }
-                        }
-                    }
-                }
-            }
-            // ---- достижения, неделя, избранное ----
-            Column(Modifier.weight(1f).androidx_verticalScroll().padding(bottom = 20.dp)) {
-                if (play == 0) StateCard("ach-first.png", "Сыграй первую игру", "Здесь появится твоя статистика: время в играх, сохранения и история по дням.") {
-                    KButton(if (AppState.byId.isEmpty()) "Добавить игру" else "Играть", if (AppState.byId.isEmpty()) R.drawable.ph_plus else R.drawable.sb_play, BtnKind.Main, small = true) {
-                        val first = AppState.myList().firstOrNull()
-                        if (first == null) Act.addFile() else Act.play(ctx, first.id)
-                    }
-                }
-                Sub("Достижения")
-                val consoles = AppState.byId.values.filter { (AppState.lib[it.id]?.play ?: 0) > 0 }.map { it.p }.toSet().size
-                val ach = listOf(
-                    Triple("ach-first.png", "Первый запуск", minOf(1f, play.toFloat())),
-                    Triple("ach-marathon.png", "10 часов в игре", (AppState.lib.values.maxOfOrNull { it.play } ?: 0) / 600f),
-                    Triple("ach-saves.png", "10 сохранений", svs / 10f),
-                    Triple("ach-consoles.png", "Три консоли", consoles / 3f),
-                    Triple("ach-trophy.png", "100 часов", play / 6000f),
-                    Triple("ach-fav.png", "5 в избранном", AppState.favs.size / 5f),
-                )
-                ach.chunked(3).forEach { row ->
-                    Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { (img, t, p) ->
-                            val got = p >= 1f
-                            Column(Modifier.weight(1f).height(124.dp).clip(RoundedCornerShape(14.dp)).background(K.s1).padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
-                                AssetImage(img, Modifier.size(52.dp), gray = !got)
-                                Text(t, style = T.small.copy(color = if (got) K.ink else K.ink3, fontSize = 11.5.sp), maxLines = 1)
-                                Bar(p.coerceIn(0f, 1f), color = if (got) K.ok else K.acc, height = 3.dp)
-                            }
-                        }
-                    }
-                }
-                val week = AppState.week()
-                Sub("Последние 7 дней")
-                if (week.none { it.second > 0 }) Text("Пока нет сыгранных дней — здесь появится время в играх по дням.", style = T.small)
-                else {
-                    val mx = week.maxOf { it.second }.coerceAtLeast(1)
-                    week.forEach { (d, m) ->
-                        Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(d, style = T.label, modifier = Modifier.width(80.dp))
-                            Box(Modifier.width((maxOf(4f, m.toFloat() / mx * 260f)).dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(if (m > 0) K.acc else K.s3))
-                            Text(if (m > 0) hrs(m) else "—", style = T.small)
-                        }
-                    }
-                }
-                if (AppState.favs.isNotEmpty()) {
-                    Sub("Избранное")
-                    AppState.favs.keys.mapNotNull { AppState.byId[it] }.forEach { g -> Item(g.id, g.t, g.plat.short + " · " + size(g.size), onClick = { Nav.open(Ov.Game(g.id)) }) }
-                }
-                Sub("Облако")
-                Opt("Продолжить на другом устройстве", "Сохранения и библиотека в аккаунте (в планах)") { Toggle(S.cloud) { S.cloud = it } }
-            }
-        }
-    }
-}
 
-@Composable
-private fun Modifier.androidx_verticalScroll(): Modifier = this.then(Modifier.verticalScroll(rememberScrollState()))

@@ -106,6 +106,15 @@ class Settings(private val sp: SharedPreferences) {
     var autoRes by b("autoRes", false)
     var autoSave by s("autoSave", "0")
     var batterySaver by b("batterySaver", true)
+    /** Профиль: ник, девиз, аватар (letter / photo / ra), цвет аватара, фон карточки (номер оформления или -1 — обложка любимой игры), любимая игра (пусто — по часам). */
+    var nick by s("nick", "")
+    var motto by s("motto", "")
+    var avMode by s("avMode", "letter")
+    var avColor by i("avColor", 7)
+    var cardBg by i("cardBg", 0)
+    var favGame by s("favGame", "")
+    /** Часы и заряд в шапке главного экрана. */
+    var headClock by b("headClock", true)
 }
 
 object AppState {
@@ -361,6 +370,15 @@ object AppState {
 
     // ---------- история ----------
     private fun day(d: Date) = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(d)
+
+    /** Сколько дней подряд была игра (сегодня или со вчера, если сегодня ещё не играли). */
+    fun streak(): Int {
+        val c = Calendar.getInstance()
+        if ((history[day(c.time)] ?: 0) == 0) c.add(Calendar.DAY_OF_MONTH, -1)
+        var n = 0
+        while ((history[day(c.time)] ?: 0) > 0 && n < 3650) { n++; c.add(Calendar.DAY_OF_MONTH, -1) }
+        return n
+    }
 
     /** Последние 7 дней: подпись и минуты (сегодня первым). */
     fun week(): List<Pair<String, Int>> {

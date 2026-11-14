@@ -5,6 +5,7 @@ import android.app.ActivityManager
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,11 +75,12 @@ fun SettingsScreen() {
     Full {
         OvHead("Настройки")
         Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            Column(Modifier.width(200.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            // меню прокручивается: на невысоких экранах последний пункт не уходит за край
+            Column(Modifier.width(200.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 nav.forEach { (id, t, ic) ->
                     val on = tab == id
                     Row(
-                        Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.s2 else androidx.compose.ui.graphics.Color.Transparent).tap { Nav.settingsTab = id }.padding(horizontal = 14.dp),
+                        Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.s2 else androidx.compose.ui.graphics.Color.Transparent).tap { Nav.settingsTab = id }.padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         SolarIcon(ic, 20.dp, if (on) K.acc else K.ink2)
@@ -109,6 +111,7 @@ private fun General() {
     Opt("Язык", null) { Seg(listOf("RU", "EN"), if (S.lang == "EN") 1 else 0) { S.lang = if (it == 1) "EN" else "RU"; if (it == 1) AppState.say("Английский перевод появится позже") } }
     Opt("Вибрация", "Отклик при выборе и важных действиях") { Toggle(S.vib) { S.vib = it } }
     Opt("Звуки интерфейса", "Тихий щелчок в карусели") { Toggle(S.sound) { S.sound = it } }
+    Opt("Часы и заряд в шапке", "Время и батарея на главном экране — системная строка там скрыта") { Toggle(S.headClock) { S.headClock = it } }
     Opt("Автосохранение", "Каждые N минут игра сохраняется сама — в слот «Место выхода»") {
         val m = listOf("0", "5", "10", "15")
         Seg(listOf("Выкл", "5 мин", "10 мин", "15 мин"), m.indexOf(S.autoSave).coerceAtLeast(0), small = true) { S.autoSave = m[it] }
@@ -148,14 +151,14 @@ private fun Controls() {
 
 @Composable
 private fun Bios() {
-    StateCard("ic-bios.png", "BIOS — прошивка консоли.", "Для PS1 и PS2 понадобится файл BIOS с твоей приставки — KAPSULA проверит его по контрольной сумме. PSP работает без BIOS.")
-    PLATFORMS.forEach { p ->
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AssetImage(p.conImg, Modifier.width(76.dp).height(44.dp))
-            Box(Modifier.weight(1f)) {
-                Opt("BIOS ${p.full}", if (!p.bios) "Не требуется" else "Понадобится, когда подключим ${p.short}") {
-                    if (!p.bios) Pill("не нужен", icon = R.drawable.ph_check, color = K.ok) else Pill("скоро")
-                }
+    Text("BIOS — прошивка консоли. PSP работает без него; для PS1 и PS2 понадобится файл с твоей приставки — KAPSULA проверит его по контрольной сумме.", style = T.small, modifier = Modifier.padding(bottom = 10.dp))
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(K.s1)) {
+        PLATFORMS.forEachIndexed { i, p ->
+            if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(1.dp).background(K.line))
+            Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SolarIcon(R.drawable.sl_chip, 20.dp, if (p.bios) K.ink3 else K.ok)
+                Text(p.full, style = T.label.copy(fontSize = 14.sp), modifier = Modifier.weight(1f))
+                if (!p.bios) Pill("не нужен", icon = R.drawable.ph_check, color = K.ok) else Pill("скоро")
             }
         }
     }
@@ -189,8 +192,11 @@ private fun About() {
     var crash by remember { mutableStateOf(com.nexus.psp.data.CrashLog.last(ctx)) }
     crash?.let { f ->
         val head = remember(f) { try { f.readLines().take(3).joinToString(" · ") { it.trim() }.take(140) } catch (e: Exception) { "" } }
+        var full by remember { mutableStateOf(false) }
+        if (full) CrashDialog(f) { full = false }
         Opt("Последняя ошибка", head) {
             androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                KButton("Открыть", small = true) { full = true }
                 KButton("Скопировать", small = true) {
                     val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
                     cm?.setPrimaryClip(android.content.ClipData.newPlainText("KAPSULA", try { f.readText() } catch (e: Exception) { "" }))
@@ -327,6 +333,30 @@ private fun CoreSettings() {
 
 
 /** Правовая информация: компоненты с открытым исходным кодом, авторы, лицензии (полные тексты — из assets/licenses). */
+/** Полный текст последней ошибки — прокрутка и «Скопировать». */
+@Composable
+private fun CrashDialog(f: java.io.File, onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    val txt = remember(f) { try { f.readText() } catch (e: Exception) { "" } }
+    androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(Modifier.fillMaxWidth(.86f).fillMaxHeight(.9f).clip(RoundedCornerShape(22.dp)).background(K.s1).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Последняя ошибка", style = T.h3, modifier = Modifier.weight(1f))
+                KButton("Скопировать", small = true) {
+                    ctx.getSystemService(android.content.ClipboardManager::class.java)?.setPrimaryClip(android.content.ClipData.newPlainText("KAPSULA", txt))
+                    AppState.say("Текст ошибки скопирован")
+                }
+                KButton(icon = R.drawable.ph_x, small = true) { onClose() }
+            }
+            Text("Пришли этот текст разработчику — по нему видно, где и почему произошла ошибка.", style = T.small)
+            Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(K.s2).padding(12.dp)) {
+                Text(txt, style = T.small.copy(fontSize = 11.sp, lineHeight = 15.sp, color = K.ink2, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(Modifier.horizontalScroll(rememberScrollState())))
+            }
+        }
+    }
+}
+
 @Composable
 private fun LegalDialog(onClose: () -> Unit) {
     val ctx = LocalContext.current
@@ -371,45 +401,126 @@ private fun LegalDialog(onClose: () -> Unit) {
 /** RetroAchievements: вход (токен хранится на телефоне, пароль — нет), включение достижений в играх. */
 @Composable
 private fun Achievements() {
+    val ctx = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var user by remember { mutableStateOf(S.raUser) }
     var pass by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
-    Text("Достижения из открытого сообщества RetroAchievements: награды за игровые события, очки и прогресс. Для многих игр PSP уже есть наборы.", style = T.small, modifier = Modifier.padding(bottom = 8.dp))
-    if (S.raToken.isNotEmpty()) {
-        Opt("Аккаунт", "${S.raUser} · ${S.raScore} очков") { KButton("Выйти", small = true) { S.raToken = ""; S.raScore = "0"; AppState.say("Вы вышли из RetroAchievements") } }
+    var mode by remember { mutableStateOf(0) } // 0 — вход, 1 — регистрация
+    val logged = S.raToken.isNotEmpty()
+
+    // шапка раздела: кубок и три выгоды
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+            .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(androidx.compose.ui.graphics.Color(0xFF3A2E14), K.s1)))
+            .border(1.dp, androidx.compose.ui.graphics.Color(0xFFD9B36C).copy(alpha = .35f), RoundedCornerShape(20.dp)).padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        AssetImage("ach-trophy.png", Modifier.size(72.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Достижения в играх", style = T.h3)
+            listOf(
+                R.drawable.sl_star to "Награды за игровые события — как на современных консолях",
+                R.drawable.sl_trophy to "Очки и общий рейтинг игроков",
+                R.drawable.sl_cloud to "Прогресс хранится в профиле, а не на телефоне",
+            ).forEach { (ic, t) ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SolarIcon(ic, 16.dp, androidx.compose.ui.graphics.Color(0xFFD9B36C)); Text(t, style = T.small.copy(color = K.ink2))
+                }
+            }
+        }
+    }
+    androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
+
+    if (logged) {
+        // карточка профиля
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.s1).padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            com.nexus.psp.ui.kit.NetImage(com.nexus.psp.ui.kit.Look.raPic(S.raUser), Modifier.size(56.dp).clip(androidx.compose.foundation.shape.CircleShape).background(K.s2), androidx.compose.ui.layout.ContentScale.Crop)
+            Column(Modifier.weight(1f)) {
+                Text(S.raUser, style = T.h3)
+                Text("${S.raScore} очков · мягкий режим: ускорение, сохранения и читы разрешены", style = T.small)
+            }
+            KButton("Выйти", small = true) { S.raToken = ""; S.raScore = "0"; if (S.avMode == "ra") S.avMode = "letter"; AppState.say("Вы вышли из аккаунта достижений") }
+        }
         Opt("Достижения в играх", "Всплывают во время игры; список — в паузе, кнопка «Достижения»") { Toggle(S.raOn) { S.raOn = it } }
-        Opt("Режим", "Мягкий: ускорение, сохранения и читы разрешены") { }
-    } else {
-        Opt("Вход", "Аккаунт на retroachievements.org — бесплатно. Пароль не сохраняется: KAPSULA хранит только ключ входа") { }
+        Opt("Аватар профиля", "Взять картинку из аккаунта достижений для профиля KAPSULA") {
+            Toggle(S.avMode == "ra") { S.avMode = if (it) "ra" else "letter" }
+        }
+        return
+    }
+
+    Seg(listOf("Вход", "Регистрация"), mode, small = true) { mode = it; err = null }
+    androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
+    if (mode == 1) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.s1).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Аккаунт создаётся на сайте сообщества RetroAchievements — бесплатно, за минуту.", style = T.label.copy(fontSize = 14.sp))
+            listOf("Откроется страница регистрации — прямо поверх приложения", "Придумай имя и пароль, укажи почту и подтверди её письмом", "Вернись сюда и войди — имя уже будет подставлено").forEachIndexed { i, t ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.size(22.dp).clip(androidx.compose.foundation.shape.CircleShape).background(K.s3), contentAlignment = Alignment.Center) { Text("${i + 1}", style = T.small.copy(fontSize = 11.sp, color = K.ink)) }
+                    Text(t, style = T.small.copy(color = K.ink2))
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                KButton("Создать аккаунт", icon = R.drawable.sl_user, kind = com.nexus.psp.ui.kit.BtnKind.Main, small = true) { openWeb(ctx, "https://retroachievements.org/createaccount.php"); mode = 0 }
+                KButton("Уже есть аккаунт", small = true) { mode = 0 }
+            }
+        }
+        return
+    }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.s1).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            SearchField(user, "Имя пользователя", Modifier.weight(1f)) { user = it }
-            PasswordField(pass, "Пароль", Modifier.weight(1f)) { pass = it }
+            SearchField(user, "Имя пользователя", Modifier.weight(1f), icon = R.drawable.sl_user) { user = it; err = null }
+            PasswordField(pass, "Пароль", Modifier.weight(1f)) { pass = it; err = null }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Пароль не сохраняется: KAPSULA хранит только ключ входа.", style = T.small.copy(fontSize = 11.sp), modifier = Modifier.weight(1f))
             KButton(if (busy) "Вход…" else "Войти", kind = com.nexus.psp.ui.kit.BtnKind.Main, small = true, enabled = !busy && user.isNotBlank() && pass.isNotEmpty()) {
                 busy = true; err = null
                 scope.launch {
                     val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.emulator.RA.login(user.trim(), pass) }
                     busy = false
                     r.onSuccess { (token, score) -> S.raUser = user.trim(); S.raToken = token; S.raScore = score.toString(); pass = ""; AppState.say("Вход выполнен: ${user.trim()}", R.drawable.ph_check) }
-                    r.onFailure { err = it.message }
+                    r.onFailure { e -> err = e.message.orEmpty().ifEmpty { "Не удалось войти" } }
                 }
             }
         }
-        err?.let { Text(it, style = T.small.copy(color = K.bad), modifier = Modifier.padding(top = 6.dp)) }
+        err?.let { Text(it, style = T.small.copy(color = K.bad)) }
+        Text("Нет аккаунта? Регистрация", style = T.small.copy(color = K.acc), modifier = Modifier.clip(RoundedCornerShape(6.dp)).press { mode = 1 }.padding(vertical = 4.dp))
     }
 }
 
-/** Поле пароля: символы скрыты. */
+/** Страница сайта поверх приложения (встроенная вкладка браузера); нет браузера с вкладками — обычный браузер. */
+fun openWeb(ctx: Context, url: String) {
+    try {
+        androidx.browser.customtabs.CustomTabsIntent.Builder().setShowTitle(true)
+            .setDefaultColorSchemeParams(androidx.browser.customtabs.CustomTabColorSchemeParams.Builder().setToolbarColor(0xFF0E0F13.toInt()).build())
+            .build().launchUrl(ctx, android.net.Uri.parse(url))
+    } catch (e: Exception) {
+        try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (x: Exception) { AppState.say("Не нашлось браузера, чтобы открыть страницу") }
+    }
+}
+
+/** Поле пароля: символы скрыты, «глаз» показывает их. */
 @Composable
 private fun PasswordField(value: String, hint: String, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
-    Box(modifier.height(44.dp).clip(RoundedCornerShape(22.dp)).background(K.s2).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-        if (value.isEmpty()) Text(hint, style = T.label.copy(color = K.ink3, fontSize = 14.sp))
-        androidx.compose.foundation.text.BasicTextField(
-            value, onChange, singleLine = true, textStyle = T.label.copy(fontSize = 14.sp),
-            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
-            cursorBrush = androidx.compose.ui.graphics.SolidColor(K.acc), modifier = Modifier.fillMaxWidth(),
-        )
+    var show by remember { mutableStateOf(false) }
+    Row(modifier.height(42.dp).clip(RoundedCornerShape(21.dp)).background(K.s2).padding(start = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        SolarIcon(R.drawable.sl_keyhole, 18.dp, K.ink3)
+        Box(Modifier.weight(1f)) {
+            if (value.isEmpty()) Text(hint, style = T.label.copy(color = K.ink3, fontSize = 14.sp))
+            androidx.compose.foundation.text.BasicTextField(
+                value, onChange, singleLine = true, textStyle = T.label.copy(fontSize = 14.sp),
+                visualTransformation = if (show) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(K.acc), modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Box(Modifier.size(34.dp).clip(androidx.compose.foundation.shape.CircleShape).press { show = !show }, contentAlignment = Alignment.Center) {
+            SolarIcon(if (show) R.drawable.sl_eye_off else R.drawable.sl_eye, 18.dp, K.ink3)
+        }
     }
 }
