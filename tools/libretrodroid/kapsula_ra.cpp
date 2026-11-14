@@ -1,6 +1,7 @@
 // KAPSULA: достижения RetroAchievements через rcheevos (rc_client). GPL-3.0 (часть сборки LibretroDroid KAPSULA).
 // Память читается прямо из ядра после каждого кадра; HTTP-запросы выполняет Kotlin (com.nexus.psp.emulator.RA).
 #include <jni.h>
+#include <atomic>
 #include <map>
 #include <mutex>
 #include <string>
@@ -83,7 +84,12 @@ static void game_cb(int result, const char* error, rc_client_t* client, void*) {
     if (result == RC_OK) kapsula_frame_hook = frame;
 }
 
+/** Кадры игры (retro_run) — для счётчика FPS: считает кадры эмуляции, а не обновления экрана. */
+static std::atomic<unsigned long long> g_frames{0};
+extern "C" void kapsula_frames_inc() { g_frames.fetch_add(1, std::memory_order_relaxed); }
+
 extern "C" {
+JNIEXPORT jlong JNICALL Java_com_nexus_psp_emulator_RA_nFrames(JNIEnv*, jclass) { return (jlong) g_frames.load(std::memory_order_relaxed); }
 
 JNIEXPORT void JNICALL Java_com_nexus_psp_emulator_RA_nInit(JNIEnv* e, jclass, jobject bridge) {
     e->GetJavaVM(&g_vm);

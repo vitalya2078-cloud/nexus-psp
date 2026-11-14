@@ -5,41 +5,39 @@ import android.os.Debug
 import java.io.File
 
 /**
- * Журнал рывков: кадры, которые пришли позже 25 мс (при 60 к/с норма — 16,7 мс).
+ * Журнал плавности: каждую секунду — сколько кадров посчитала игра (норма 60).
  * Пишется только при включённом счётчике кадров и уходит в «Отправить отчёт об ошибке» — игроку ничего не показываем.
- * Для каждого рывка: когда, сколько длился, была ли в этот момент сборка мусора и проверка памяти для автосмены раскладок.
+ * Для просевших секунд: была ли сборка мусора и проверка памяти для автосмены раскладок.
  */
 class Jank {
     private val t0 = System.nanoTime()
-    private var last = 0L
     private var gc = gcCount()
-    private var frames = 0L
-    private val spikes = ArrayList<String>()
-    private val at = ArrayList<Long>()
+    private var secs = 0
+    private var sum = 0L
+    private val low = ArrayList<String>()
+    private val lowAt = ArrayList<Int>()
 
     private fun gcCount() = try { Debug.getRuntimeStat("art.gc.gc-count")?.toLongOrNull() ?: 0L } catch (e: Throwable) { 0L }
 
-    fun frame(autoAt: Long) {
-        val now = System.nanoTime(); frames++
-        val dt = now - last; last = now
-        if (dt !in 25_000_000L..1_000_000_000L || frames < 120) return
+    fun second(fps: Int, autoAt: Long) {
+        secs++; sum += fps
         val g = gcCount(); val gcHit = g != gc; gc = g
-        val auto = autoAt != 0L && now - autoAt < 150_000_000L
-        if (spikes.size < 300) {
-            spikes += "%.1f с: %d мс%s%s".format((now - t0) / 1e9, dt / 1_000_000, if (gcHit) " · сборка мусора" else "", if (auto) " · автосмена раскладки" else "")
-            at += now
+        if (secs < 3 || fps >= 58 || fps <= 0) return
+        val auto = autoAt != 0L && System.nanoTime() - autoAt < 1_000_000_000L
+        if (low.size < 300) {
+            low += "%d с: %d к/с%s%s".format((System.nanoTime() - t0) / 1_000_000_000L, fps, if (gcHit) " · сборка мусора" else "", if (auto) " · автосмена раскладки" else "")
+            lowAt += secs
         }
     }
 
     fun save(c: Context, head: String) {
-        if (spikes.isEmpty()) { File(c.filesDir, "jank.txt").delete(); return }
-        val gaps = at.zipWithNext { a, b -> (b - a) / 1e9 }.sorted()
+        if (secs < 5) return
+        val gaps = lowAt.zipWithNext { a, b -> b - a }.filter { it > 1 }.sorted()
         val med = gaps.getOrNull(gaps.size / 2)
-        val secs = (System.nanoTime() - t0) / 1e9
         val txt = buildString {
             appendLine("Плавность: $head")
-            appendLine("Игра шла %.0f с, кадров %d, рывков %d%s".format(secs, frames, spikes.size, med?.let { " · обычно раз в %.1f с".format(it) } ?: ""))
-            spikes.take(120).forEach { appendLine(it) }
+            appendLine("Игра шла $secs с, в среднем ${sum / secs} к/с, просело секунд: ${low.size}${med?.let { " · обычно раз в $it с" } ?: ""}")
+            low.take(150).forEach { appendLine(it) }
         }
         try { File(c.filesDir, "jank.txt").writeText(txt) } catch (e: Exception) { }
     }

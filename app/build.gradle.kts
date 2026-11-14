@@ -23,8 +23,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 43
-        versionName = "0.33.1"
+        versionCode = 44
+        versionName = "0.34.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a") // ядро PPSSPP собрано только под 64-бит ARM

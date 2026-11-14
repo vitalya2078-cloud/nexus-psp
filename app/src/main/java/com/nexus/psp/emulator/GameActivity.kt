@@ -181,6 +181,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     /** Журнал рывков (только при включённом счётчике кадров) — уходит в «Отправить отчёт об ошибке». */
     private var jank: Jank? = null
     @Volatile private var autoAt = 0L
+    private var lastCore = -1L
+    private var displayWatch: android.hardware.display.DisplayManager.DisplayListener? = null
     private var hz60 = false
     @Volatile private var glTid = 0
 
@@ -306,6 +308,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         val view = GLRetroView(this, data)
         retro = view
         view.queueEvent { glTid = Process.myTid() }
+        if (hz60) view.holder.addCallback(object : android.view.SurfaceHolder.Callback {
+            override fun surfaceCreated(h: android.view.SurfaceHolder) { perf.askSurface(h.surface) }
+            override fun surfaceChanged(h: android.view.SurfaceHolder, f: Int, w: Int, hh: Int) {}
+            override fun surfaceDestroyed(h: android.view.SurfaceHolder) {}
+        })
+        displayWatch = perf.watchRefresh { hz -> if (ui.phase == "ready") retro?.queueEvent { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(hz) } }
         root.addView(view, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         lifecycle.addObserver(view)
         // при возврате в приложение LibretroDroid сам снимает ядро с паузы — если открыто меню паузы, возвращаем паузу
@@ -317,12 +325,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 if (it is GLRetroView.GLRetroEvents.FrameRendered) {
                     frames++
                     perf.frame()
-                    if (jank != null && ui.phase == "ready" && !ui.paused && !ui.fast) jank?.frame(autoAt)
                     if (ui.phase == "loading") {
                         ui.phase = "ready"; updateControlsVisibility()
                         // через пару секунд игры — какие потоки самые занятые, их и держим на больших ядрах
                         lifecycleScope.launch(Dispatchers.IO) { delay(4000); perf.startHints(glTid) }
                         ui.builtin?.let { toast("Кнопки уже под «$it». Поменять — пауза → «Кнопки»") }
+                        perf.refreshRate().let { hz -> retro?.queueEvent { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(hz) } }
                         if (ui.guideOpen) { setCorePaused(true); guidePausedCore = true }
                         maybeAskGenre()
                         if (isPsp) { startAutoPoll(); startRA() } else if (platform == "ps1") applyPs1Pad()
@@ -341,7 +349,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         // счётчик кадров
         lifecycleScope.launch {
             while (true) {
-                delay(1000); ui.fps = frames; frames = 0; if (isPsp) autoResTick(ui.fps)
+                delay(1000)
+                // FPS — кадры, которые посчитала игра (на экране 90/120 Гц обновлений экрана больше, чем кадров игры)
+                val core = try { RA.nFrames() } catch (e: Throwable) { -1L }
+                val f = if (core >= 0 && lastCore >= 0) (core - lastCore).toInt() else frames
+                lastCore = core; ui.fps = f; frames = 0; if (isPsp) autoResTick(ui.fps)
+                if (ui.phase == "ready" && !ui.paused && !ui.fast) jank?.second(f, autoAt)
                 // диагностика Vulkan — только в журнал (для разработчика), игроку не показываем
                 if (vkOn && frames == 0 && ui.fps > 0) try { Vk.nStats()?.let { Log.i(TAG, "vulkan $it fps=${ui.fps}") } } catch (e: Throwable) { }
             }
@@ -1326,8 +1339,24 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             retro?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, x, 0f)
             return
         }
-        retro?.sendKeyEvent(if (down) KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP, code)
+        // Одну кнопку консоли могут держать несколько экранных (бег держит ×, прыжок жмёт × ещё раз).
+        // Игра видит нажатие только по фронту, поэтому: уже зажата — отпустить и через ~2 кадра нажать снова.
+        // L/R не перенажимаются: это «режим» (бег держит R — удар с R не должен его сбрасывать).
+        val n = held[code] ?: 0
+        if (down) {
+            held[code] = n + 1
+            if (n == 0) retro?.sendKeyEvent(KeyEvent.ACTION_DOWN, code)
+            else if (code !in MOD_CODES) {
+                retro?.sendKeyEvent(KeyEvent.ACTION_UP, code)
+                keyHandler.postDelayed({ if ((held[code] ?: 0) > 0) retro?.sendKeyEvent(KeyEvent.ACTION_DOWN, code) }, 40)
+            }
+        } else {
+            if (n <= 1) { held.remove(code); retro?.sendKeyEvent(KeyEvent.ACTION_UP, code) } else held[code] = n - 1
+        }
     }
+    private val held = HashMap<Int, Int>()
+    private val keyHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val MOD_CODES = setOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2)
 
     override fun stick(right: Boolean, x: Float, y: Float) {
         // PS1 с обычным джойстиком: левый стик работает как крестовина
@@ -1458,7 +1487,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     override fun onDestroy() {
         if (raStarted) try { RA.nUnload() } catch (e: Throwable) { }
         perf.close()
-        jank?.save(this, "${title} · ${platform} · ${if (vkOn) "Vulkan" else "OpenGL"} · экран ${perf.refreshRate()} Гц · ${vars.optString("ppsspp_internal_resolution")}")
+        jank?.save(this, "${title} · ${platform} · ${if (vkOn) "Vulkan" else "OpenGL"} · экран ${perf.refreshRate()} Гц (умеет ${perf.modes()}) · ${vars.optString("ppsspp_internal_resolution")}")
+        displayWatch?.let { try { getSystemService(android.hardware.display.DisplayManager::class.java).unregisterDisplayListener(it) } catch (e: Throwable) { } }
         // обычный выход после того, как Vulkan показал картинку, — не сбой
         if (vkOn && vkSeen && isFinishing) Vk.confirm(this)
         if (tilt) getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(tiltListener)

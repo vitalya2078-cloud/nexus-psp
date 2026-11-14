@@ -50,7 +50,7 @@ object GamePresets {
         P("Marvel vs. Capcom / Capcom Classics", listOf("marvelsuperheroes"), "fight"),
         // слэшеры и приключения
         P("God of War", listOf("godofwar"), "slasher", lays = one("g_gow", "Бой")),
-        P("Assassin's Creed: Bloodlines", listOf("assassinscreed"), "slasher", lays = listOf(LaySpec("city", "Город", "g_ac_city"), LaySpec("fight", "Бой", "g_ac_fight"))),
+        P("Assassin's Creed: Bloodlines", listOf("assassinscreed"), "slasher", lays = one("g_ac")),
         P("Prince of Persia", listOf("princeofpersia"), "slasher"),
         P("Tomb Raider", listOf("tombraider"), "slasher"),
         P("Kingdom Hearts: Birth by Sleep", listOf("kingdomhearts"), "slasher", lays = one("g_khbbs")),

@@ -51,28 +51,27 @@ class GameLayoutsTest {
 
     @Test fun presetsFoundByTitle() {
         val ac = GamePresets.find("Assassin's Creed - Bloodlines (USA)")
-        assertNotNull(ac); assertEquals("g_ac_city", ac!!.second.getJSONArray("layouts").getJSONObject(0).getString("base"))
+        assertNotNull(ac); assertEquals("g_ac", ac!!.second.getJSONArray("layouts").getJSONObject(0).getString("base"))
         assertEquals("g_mh", GamePresets.find("Monster Hunter Freedom Unite")!!.second.getJSONArray("layouts").getJSONObject(0).getString("base"))
         assertEquals("g_loco", GamePresets.find("LocoRoco 2")!!.second.getJSONArray("layouts").getJSONObject(0).getString("base"))
     }
 
     @Test fun allGameBasesBuild() {
-        for (b in listOf("g_ac_city", "g_ac_fight", "g_mh", "g_loco", "g_patapon", "g_khbbs", "g_dissidia", "g_wipeout", "g_megaman", "g_tekken", "g_gow", "g_musou")) {
+        for (b in listOf("g_ac", "g_mh", "g_loco", "g_patapon", "g_khbbs", "g_dissidia", "g_wipeout", "g_megaman", "g_tekken", "g_gow", "g_musou")) {
             val l = Templates.build(b, "psp")
             assertTrue(b, l.size >= 5); assertTrue("$b: ⋯", l.any { it.act == "more" })
         }
     }
 
     @Test fun acShotsAndDrawer() {
-        val v = view(); v.layName = "city"; v.setLayout(Templates.build("g_ac_city", "psp")); shot("g_ac_city", v)
+        val v = view(); v.layName = "main"; v.setLayout(Templates.build("g_ac", "psp")); shot("g_ac", v)
         // с подписями — для картинок магазина
-        val vc = view(); vc.captions = true; vc.layName = "city"; vc.setLayout(Templates.build("g_ac_city", "psp")); shot("g_ac_city_caps", vc)
+        val vc = view(); vc.captions = true; vc.layName = "main"; vc.setLayout(Templates.build("g_ac", "psp")); shot("g_ac_caps", vc)
         // открыть «⋯»
         val more = v.current().first { it.act == "more" }
         val cx = w / 2f - 46f * 2; val cy = h - 14f * 2 - 40f
         touch(v, MotionEvent.ACTION_DOWN, cx, cy, 0); touch(v, MotionEvent.ACTION_UP, cx, cy, 50)
-        shot("g_ac_city_more", v)
-        val f = view(); f.layName = "fight"; f.setLayout(Templates.build("g_ac_fight", "psp")); shot("g_ac_fight", f)
+        shot("g_ac_more", v)
         for (b in listOf("g_mh", "g_loco", "g_patapon", "g_tekken")) { val x = view(); x.layName = b; x.setLayout(Templates.build(b, "psp")); shot(b, x) }
         assertNotNull(more)
     }
@@ -84,18 +83,16 @@ class GameLayoutsTest {
         assertEquals("down", drive.first { it.id == "horn" }.key)
     }
 
-    @Test fun parkourToggleHoldsR() {
-        val v = view(); v.layName = "city"; v.setLayout(Templates.build("g_ac_city", "psp")); keys.clear()
-        // «Паркур» на месте левой кнопки дуги: r196 b84, 56 — в пикселях xhdpi ×2
-        val cx = w - (196f + 28f) * 2; val cy = h - (84f + 28f) * 2
-        touch(v, MotionEvent.ACTION_DOWN, cx, cy, 0); touch(v, MotionEvent.ACTION_UP, cx, cy, 40)
-        assertEquals(listOf(KeyEvent.KEYCODE_BUTTON_R1 to true), keys.toList())
-        touch(v, MotionEvent.ACTION_DOWN, cx, cy, 500); touch(v, MotionEvent.ACTION_UP, cx, cy, 540)
-        assertEquals(KeyEvent.KEYCODE_BUTTON_R1 to false, keys.last())
+    @Test fun acOneLayoutWithRBuiltIn() {
+        val l = Templates.build("g_ac", "psp")
+        assertTrue(l.none { it.to != null || it.act?.startsWith("latch:") == true })
+        assertEquals(listOf("r1", "fb"), l.first { it.id == "run" }.keys)
+        assertEquals(listOf("r1", "fl"), l.first { it.id == "kill" }.keys)
+        assertEquals(listOf("r1", "fb"), l.first { it.id == "jump" }.keys)
     }
 
     @Test fun cameraSwipePressesLPlusFace() {
-        val v = view(); v.layName = "city"; v.setLayout(Templates.build("g_ac_city", "psp"))
+        val v = view(); v.layName = "main"; v.setLayout(Templates.build("g_ac", "psp"))
         keys.clear()
         // пустое место правой половины, свайп вверх
         val x = w * .62f; val y = h * .45f

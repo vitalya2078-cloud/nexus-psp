@@ -21,6 +21,8 @@ object RA {
     @JvmStatic external fun nList(): String?
     @JvmStatic external fun nReset()
     @JvmStatic external fun nUnload()
+    /** Сколько кадров посчитала игра с начала (для счётчика FPS). */
+    @JvmStatic external fun nFrames(): Long
 
     fun ensureLoaded() { try { System.loadLibrary("libretrodroid") } catch (e: Throwable) { Log.w("KapsulaRA", "load", e) } }
 

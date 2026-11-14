@@ -14,7 +14,7 @@ import com.nexus.psp.emulator.Templates.stick
  *
  * Откуда схемы (кнопки консоли под каждым действием):
  *  - Assassin's Creed: Bloodlines — схема серии: △ голова (в Bloodlines — захват цели), ○ свободная рука, □ оружие,
- *    × ноги; R — «открытый» режим (бег, паркур, убийство) — в KAPSULA это переключатель «Паркур»;
+ *    × ноги; R — «открытый» режим (бег, паркур, убийство): в KAPSULA R входит в нужные кнопки сама;
  *    L + кнопки действий — камера (L нажимается первой), L — камеру назад.
  *  - Monster Hunter Freedom / Unite — △ и ○ атаки, × перекат, □ предмет, R блок/рывок, крестовина — камера, L — камера назад.
  *  - LocoRoco — L/R наклон мира, L+R прыжок, ○ разделить/собрать.
@@ -44,29 +44,20 @@ object GameLayouts {
 
     fun build(base: String): List<Btn>? = when (base) {
         // ---------- Assassin's Creed: Bloodlines ----------
-        // «Паркур» — переключатель открытого режима (R держится сам): пока включён, × — бег, прыжки и лазание,
-        // □ — убийство, ○ — схватить. Ничего не нужно держать вторым пальцем.
-        "g_ac_city" -> listOf(
+        // Одна раскладка для погони и боя: в Assassin's Creed одни и те же сочетания работают и там, и там —
+        // игра сама понимает по ситуации (R+× — бег/паркур или уклон, R+□ — убийство или контратака, R+○ — схватить или бросок).
+        // Кнопки можно жать вместе: держишь «Бег» и жмёшь «Прыжок» или «Убить» другим пальцем.
+        "g_ac" -> listOf(
             stick(),
-            b("legs", "jump", 74f, P_MAIN, key = "fb", color = GREEN, cap = "Бег / прыжок"),
-            b("hit", "knife", 56f, P_RIGHT, key = "fl", color = ROSE, cap = "Удар / убить"),
-            Btn("hp", "sprint", 56f, P_LEFT, AMBER, act = "latch:r1", cap = "Паркур"),
-            b("hand", "grab", 56f, P_TOP, key = "fr", color = BLUE, cap = "Рука"),
+            b("run", "sprint", 74f, P_MAIN, keys = listOf("r1", "fb"), color = GREEN, cap = "Бег / уклон"),
+            b("hit", "sword", 56f, P_RIGHT, key = "fl", color = ROSE, cap = "Удар"),
+            b("jump", "jump", 56f, P_LEFT, keys = listOf("r1", "fb"), color = BLUE, cap = "Прыжок"),
+            b("kill", "knife", 56f, P_TOP, keys = listOf("r1", "fl"), color = AMBER, cap = "Убить / контра"),
+            b("grab", "throw", 48f, "r40 b204", keys = listOf("r1", "fr"), cap = "Схватить / бросок"),
+            b("push", "grab", 48f, "r200 b168", key = "fr", cap = "Толкнуть"),
+            b("block", "block", 46f, "r76 t72", key = "r1", cap = "Блок"),
             b("lock", "lock", 46f, "r20 t72", key = "ft", cap = "Цель"),
-            b("fight", "block", 46f, "r76 t72", to = "fight", cap = "Бой"),
             mapBtn(), menu(), more(), pause(),
-            ControlLayout.camZone("u=l1+ft,d=l1+fb,l=l1+fl,r=l1+fr;tap=l1"),
-        )
-        "g_ac_fight" -> listOf(
-            stick(),
-            b("hit", "sword", 74f, P_MAIN, key = "fl", color = ROSE, cap = "Удар"),
-            b("block", "block", 56f, P_RIGHT, key = "r1", color = BLUE, cap = "Блок"),
-            b("counter", "special", 56f, P_TOP, keys = listOf("r1", "fl"), color = AMBER, cap = "Контратака"),
-            b("dodge", "roll", 56f, P_LEFT, keys = listOf("r1", "fb"), color = GREEN, cap = "Уклон"),
-            b("lock", "lock", 46f, "r20 t72", key = "ft", cap = "Цель"),
-            b("city", "sprint", 46f, "r76 t72", to = "city", cap = "Город"),
-            b("throw", "throw", 44f, "c0 t0", keys = listOf("r1", "fr"), cap = "Бросок", more = true),
-            menu(), more(), pause(),
             ControlLayout.camZone("u=l1+ft,d=l1+fb,l=l1+fl,r=l1+fr;tap=l1"),
         )
         // ---------- Monster Hunter ----------
