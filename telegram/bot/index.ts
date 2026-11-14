@@ -86,7 +86,8 @@ async function onCallback(q: any) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method !== "POST") return new Response("ok");
+  // GET — проверка настройки: только есть/нет, без значений
+  if (req.method !== "POST") return Response.json({ token: !!TOKEN, channel: !!CHANNEL, owner: !!OWNER, emoji: Object.keys(EMOJI).length });
   if (!TOKEN || req.headers.get("X-Telegram-Bot-Api-Secret-Token") !== await hookSecret()) return new Response("forbidden", { status: 403 });
   try {
     const u = await req.json();
