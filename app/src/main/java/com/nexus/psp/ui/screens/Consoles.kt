@@ -57,10 +57,10 @@ private fun gamesText(n: Int) = if (n == 0) "Пока нет игр" else "$n " 
 fun ConsolesScreen() {
     Full {
         OvHead("Консоли")
-        LazyVerticalGrid(GridCells.Adaptive(190.dp), Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyVerticalGrid(GridCells.Fixed(2), Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PLATFORMS.groupBy { it.family }.forEach { (fam, list) ->
-                item(span = { GridItemSpan(maxLineSpan) }) { Text(fam.uppercase(), style = T.caps, modifier = Modifier.padding(top = 8.dp)) }
+                item(span = { GridItemSpan(maxLineSpan) }) { Text(fam.uppercase(), style = T.caps, modifier = Modifier.padding(top = 6.dp)) }
                 items(list, key = { it.id }) { p -> ConsoleCard(p) }
             }
         }
@@ -70,18 +70,18 @@ fun ConsolesScreen() {
 @Composable
 private fun ConsoleCard(p: Platform) {
     val n = games(p.id)
-    Column(
-        Modifier.clip(RoundedCornerShape(20.dp)).background(Brush.verticalGradient(listOf(p.color.copy(alpha = .16f), K.s1)))
-            .border(1.dp, if (n > 0) p.color.copy(alpha = .45f) else K.line, RoundedCornerShape(20.dp)).press { Nav.open(Ov.Console(p.id)) }.padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    Row(
+        Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(Brush.horizontalGradient(listOf(p.color.copy(alpha = .16f), K.s1)))
+            .border(1.dp, if (n > 0) p.color.copy(alpha = .45f) else K.line, RoundedCornerShape(16.dp)).press { Nav.open(Ov.Console(p.id)) }.padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.fillMaxWidth().height(104.dp), contentAlignment = Alignment.Center) { AssetImage(p.conImg, Modifier.fillMaxSize()) }
-        Text(p.short, style = T.label.copy(fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(gamesText(n), style = T.small, modifier = Modifier.weight(1f), maxLines = 1)
-            if (p.exp) Pill("тест", color = K.warn, bg = K.warn.copy(alpha = .14f))
-            else if (p.biosLevel == 2) Pill("BIOS", color = K.ink3)
+        AssetImage(p.conImg, Modifier.width(64.dp).height(44.dp))
+        Column(Modifier.weight(1f)) {
+            Text(p.short, style = T.label.copy(fontSize = 14.5.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(gamesText(n), style = T.small, maxLines = 1)
         }
+        if (p.exp) Pill("тест", color = K.warn, bg = K.warn.copy(alpha = .14f))
+        else if (p.biosLevel == 2) Pill("BIOS", color = K.ink3)
     }
 }
 

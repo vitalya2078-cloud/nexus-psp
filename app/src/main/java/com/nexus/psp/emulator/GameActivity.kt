@@ -132,6 +132,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var autoRes by mutableStateOf(false)
         /** Диагностика Vulkan для счётчика кадров: способ передачи кадра и время на него. */
         var vkInfo by mutableStateOf("")
+        /** Смена раскладки: короткая капсула сверху (имя и база раскладки). */
+        var layPill by mutableStateOf<Pair<String, String>?>(null)
         // искатель значений
         var searchOpen by mutableStateOf(false)
         var searchBusy by mutableStateOf(false)
@@ -257,7 +259,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         startedAt = System.currentTimeMillis()
         lifecycleScope.launch {
             val ok = withContext(Dispatchers.IO) { CoreFiles.ensureSystem(this@GameActivity) }
-            if (!ok) { fail("Не удалось подготовить системные файлы эмулятора"); return@launch }
+            if (!ok) { fail("Не получилось подготовить эмулятор. Перезапусти KAPSULA"); return@launch }
             ui.hasState = withContext(Dispatchers.IO) { stateFile(0).exists() }
             refreshSlots()
             startCore()
@@ -266,11 +268,11 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     private fun startCore() {
         val path = boot.optString("path")
-        if (path.isEmpty() || !File(path).exists()) { fail("Файл игры не найден: возможно, его удалили"); return }
+        if (path.isEmpty() || !File(path).exists()) { fail("Файл игры пропал. Похоже, его удалили или переместили"); return }
         val pl = com.nexus.psp.data.PL[platform]
         // без нужного BIOS ядро не запустится — говорим сразу и понятно
         if (BiosFiles.missing(this, platform)) { fail("Для ${pl?.short ?: platform} нужен BIOS со своей приставки. ${pl?.biosHint ?: ""}. Добавь его: Настройки → BIOS."); return }
-        if (platform == "ps2" && !CoreFiles.ensurePs2Resources(this)) { fail("Не удалось подготовить файлы эмулятора PS2"); return }
+        if (platform == "ps2" && !CoreFiles.ensurePs2Resources(this)) { fail("Не получилось подготовить эмулятор PS2. Перезапусти KAPSULA"); return }
         val data = GLRetroViewData(this).apply {
             coreFilePath = pl?.coreLib ?: CORE_PSP
             gameFilePath = path
@@ -297,7 +299,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                     frames++
                     if (ui.phase == "loading") {
                         ui.phase = "ready"; updateControlsVisibility()
-                        ui.builtin?.let { toast("Кнопки настроены под «$it» · изменить: пауза → «Кнопки»") }
+                        ui.builtin?.let { toast("Кнопки уже под «$it». Поменять — пауза → «Кнопки»") }
                         maybeAskGenre()
                         if (isPsp) { startAutoPoll(); startRA() } else if (platform == "ps1") applyPs1Pad()
                         // включённые читы этой игры — сразу после запуска
@@ -307,7 +309,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                         }
                         // «Продолжить с этого места» или возврат после незаметного перезапуска
                         val slot = boot.optInt("loadSlot", -1)
-                        if (slot >= 0) { boot.remove("loadSlot"); lifecycleScope.launch { delay(300); loadSlot(slot, backup = slot == 4, quiet = slot == 8 || slot == 4); if (slot == 4) toast("Продолжаем с места выхода · начать сначала — «Отменить загрузку» в паузе") } }
+                        if (slot >= 0) { boot.remove("loadSlot"); lifecycleScope.launch { delay(300); loadSlot(slot, backup = slot == 4, quiet = slot == 8 || slot == 4); if (slot == 4) toast("Продолжаем, где остановился. Начать заново — пауза → «Отменить загрузку»") } }
                     }
                 }
             }
@@ -316,19 +318,18 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         lifecycleScope.launch {
             while (true) {
                 delay(1000); ui.fps = frames; frames = 0; if (isPsp) autoResTick(ui.fps)
-                if (vkOn) ui.vkInfo = try {
-                    Vk.nStats()?.split('|')?.let { p -> " · Vulkan " + (if (p[0] == "ahb") "буфер" else "память") + (if (p[1] == "gpu") "" else " · ждёт ЦП") + " · " + p[2].replace('.', ',') + " мс" } ?: ""
-                } catch (e: Throwable) { "" }
+                // диагностика Vulkan — только в журнал (для разработчика), игроку не показываем
+                if (vkOn && frames == 0 && ui.fps > 0) try { Vk.nStats()?.let { Log.i(TAG, "vulkan $it fps=${ui.fps}") } } catch (e: Throwable) { }
             }
         }
         startAutoSave(); if (isPsp) { startBatteryWatch(); watchVulkan() } else startSramSaver()
         lifecycleScope.launch {
             view.getGLRetroErrors().collect { code ->
                 fail(when (code) {
-                    GLRetroView.ERROR_LOAD_LIBRARY -> "Не удалось загрузить ядро эмулятора"
-                    GLRetroView.ERROR_LOAD_GAME -> "Ядро не смогло открыть этот файл"
-                    GLRetroView.ERROR_GL_NOT_COMPATIBLE -> "Графика телефона не поддерживается ядром"
-                    else -> "Ошибка ядра ($code)"
+                    GLRetroView.ERROR_LOAD_LIBRARY -> "Эмулятор не запустился. Перезапусти KAPSULA"
+                    GLRetroView.ERROR_LOAD_GAME -> "Этот файл не открылся. Возможно, он повреждён"
+                    GLRetroView.ERROR_GL_NOT_COMPATIBLE -> "Видеокарта телефона не тянет эту игру. Попробуй OpenGL в настройках"
+                    else -> "Игра вылетела. Попробуй запустить ещё раз"
                 })
             }
         }
@@ -360,6 +361,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         vkCrashed = v["ppsspp_backend"] == "vulkan" && Vk.tryFile(this).exists()
         vkOn = Vk.prepare(this, v["ppsspp_backend"])
         v["ppsspp_backend"] = if (vkOn) "vulkan" else "opengl"
+        // Vulkan раскрывается, когда видеокарта рисует один кадр, пока готовится следующий
+        if (vkOn && v["ppsspp_inflight_frames"] != "No buffer") v["ppsspp_inflight_frames"] = "Up to 2"
         return v.map { Variable(it.key, it.value) }.toTypedArray()
     }
 
@@ -369,7 +372,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private var vkSeen = false
     /** Следим первые секунды: нет картинки на Vulkan — помечаем сбой и перезапускаем на OpenGL. */
     private fun watchVulkan() {
-        if (vkCrashed) toast("Прошлый запуск на Vulkan завершился сбоем — включён OpenGL")
+        if (vkCrashed) toast("В прошлый раз Vulkan сбоил — играем на OpenGL")
         if (!vkOn) return
         lifecycleScope.launch {
             var good = 0; var bad = 0
@@ -378,7 +381,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 if (ui.paused) continue
                 val active = try { Vk.nActive() } catch (e: Throwable) { false }
                 if (active && ui.fps > 0) { vkSeen = true; if (++good >= 6) { Vk.confirm(this@GameActivity); return@launch } }
-                else if (++bad >= 16) { Vk.markBad(this@GameActivity); toast("Vulkan не заработал на этом телефоне — возвращаю OpenGL"); applyRestart(); return@launch }
+                else if (++bad >= 16) { Vk.markBad(this@GameActivity); toast("Vulkan тут не завёлся — переключаю на OpenGL"); applyRestart(); return@launch }
             }
         }
     }
@@ -414,11 +417,15 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         return base + swap + extrasFor("${sp.id}:$platform")
     }
 
+    private var layPillJob: kotlinx.coroutines.Job? = null
     private fun switchLayout(to: String) {
         val sp = specOf(to) ?: return
         if (sp.id == layName) return
         applyLayout(sp.id)
-        toast("Раскладка: ${sp.name}")
+        if (boot.optJSONObject("s")?.optBoolean("layHint", true) != false) {
+            ui.layPill = sp.name to sp.base
+            layPillJob?.cancel(); layPillJob = lifecycleScope.launch { delay(1200); ui.layPill = null }
+        }
         controls.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
     }
 
@@ -522,7 +529,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun selectLayout(id: String) { applyLayout(id); ui.tick++ }
 
     fun addLayout(base: String, name: String) {
-        if (lays.size >= 4) { toast("Не больше 4 раскладок"); return }
+        if (lays.size >= 4) { toast("Больше четырёх раскладок не влезет"); return }
         var id = base; var n = 2
         while (lays.any { it.id == id }) id = base + n++
         lays.add(LaySpec(id, name, base)); persistCtl(); applyLayout(id); ui.tick++
@@ -664,7 +671,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         if (ok && frame != null) withContext(Dispatchers.IO) { saveJpeg(frame, thumbFile(slot), 320) }
         if (ok && slot in 0..3) savesMade++
         refreshSlots()
-        if (!quiet) toast(if (!ok) "Не удалось сохранить" else if (slot == 0) "Сохранено в быстрый слот" else "Сохранено в слот $slot")
+        if (!quiet) toast(if (!ok) "Не сохранилось, попробуй ещё раз" else if (slot == 0) "Сохранились! Быстрый слот" else "Сохранились! Слот $slot")
     }
 
     /** Загрузить слот; перед этим — резервный снимок «до загрузки» (слот 9), чтобы можно было отменить. */
@@ -724,7 +731,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             toast("Разреши доступ к фото и нажми «Скриншот» ещё раз"); return@launch
         }
         val b = pauseFrame ?: captureFrame()
-        if (b == null) { toast("Не удалось снять кадр"); return@launch }
+        if (b == null) { toast("Кадр не поймался, попробуй ещё раз"); return@launch }
         val ok = withContext(Dispatchers.IO) {
             try {
                 val name = "KAPSULA_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date()) + ".png"
@@ -739,7 +746,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 contentResolver.openOutputStream(uri)?.use { b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) } != null
             } catch (e: Exception) { Log.w(TAG, "shot", e); false }
         }
-        toast(if (ok) "Скриншот сохранён в галерею (KAPSULA)" else "Не удалось сохранить скриншот")
+        toast(if (ok) "Щёлк! Скриншот в галерее, папка KAPSULA" else "Скриншот не получился, попробуй ещё раз")
     }
 
     // ---------- настройки поверх игры ----------
@@ -813,7 +820,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
      * просим главный экран запустить игру заново с новыми настройками и сразу загружаем это место.
      */
     fun applyRestart() = lifecycleScope.launch {
-        toast("Перезапускаю игру с новыми настройками…")
+        toast("Перезапускаю с новыми настройками…")
         val b = try { running { retro?.serializeState() } } catch (e: Exception) { null }
         if (b != null && b.isNotEmpty()) withContext(Dispatchers.IO) { stateFile(8).writeBytes(b) }
         val nb = JSONObject(boot.toString()).put("vars", JSONObject(vars.toString()))
@@ -851,7 +858,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun setTilt(on: Boolean) {
         val sm = getSystemService(android.hardware.SensorManager::class.java)
         val acc = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
-        if (on && acc == null) { toast("В телефоне нет датчика наклона"); return }
+        if (on && acc == null) { toast("В этом телефоне нет датчика наклона — руль наклоном не выйдет"); return }
         tilt = on; ui.tilt = on; controls.setToggle("tilt", on)
         if (on) { tiltZero = Float.NaN; sm?.registerListener(tiltListener, acc, android.hardware.SensorManager.SENSOR_DELAY_GAME) }
         else { sm?.unregisterListener(tiltListener); stick(false, 0f, 0f) }
@@ -861,7 +868,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     // ---------- авто-качество: держать 60 кадров, меняя разрешение на лету ----------
     private val resSteps = listOf("480x272", "960x544", "1440x816", "1920x1088")
     private var resLow = 0; private var resHigh = 0; private var resCooldown = 0
-    fun setAutoRes(on: Boolean) { ui.autoRes = on; resLow = 0; resHigh = 0; persist { it.put("autoRes", on) }; if (on) toast("Авто-качество: KAPSULA будет держать 60 кадров") }
+    fun setAutoRes(on: Boolean) { ui.autoRes = on; resLow = 0; resHigh = 0; persist { it.put("autoRes", on) }; if (on) toast("Авто-качество включено: держим 60 кадров") }
 
     private fun autoResTick(fps: Int) {
         if (!ui.autoRes || ui.phase != "ready" || ui.paused || ui.fast || fps <= 0) { resLow = 0; resHigh = 0; return }
@@ -903,7 +910,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                     val preset = CoreOptions.PRESETS["battery"] ?: emptyMap()
                     savedForBattery = preset.keys.associateWith { vars.optString(it, "") }
                     preset.forEach { (k, v) -> retro?.updateVariables(Variable(k, v)) }
-                    toast("Заряд $level% — включена экономия батареи до зарядки")
+                    toast("Батарея $level% — включаю экономный режим до зарядки")
                 } else if (savedForBattery != null && (charging || level > 20)) {
                     savedForBattery!!.forEach { (k, v) -> if (v.isNotEmpty()) retro?.updateVariables(Variable(k, v)) }
                     savedForBattery = null; toast("Экономия батареи выключена")
@@ -971,7 +978,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     fun addOwnCheat(name: String, code: String) {
         val lines = code.lines().map { it.trim() }.filter { it.isNotEmpty() }.map { if (it.startsWith("_L")) it else "_L $it" }
-        if (name.isBlank() || lines.isEmpty()) { toast("Нужны название и строки кода"); return }
+        if (name.isBlank() || lines.isEmpty()) { toast("Впиши название и сам код"); return }
         val a = gx.optJSONArray("cheatsOwn") ?: org.json.JSONArray().also { gx.put("cheatsOwn", it) }
         a.put(JSONObject().put("name", name.trim()).put("code", lines.joinToString("+")))
         saveGx(); loadCheats(); toast("Код добавлен")
@@ -989,14 +996,14 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun closeSearch() { ui.searchOpen = false; updateControlsVisibility() }
     fun setSearchSize(n: Int) { if (search.cands == null) { search.size = n; ui.searchSize = n } }
     fun searchRun(mode: String, value: Int?) {
-        if (!AutoSwitch.ramReady()) { toast("Память игры ещё не готова"); return }
+        if (!AutoSwitch.ramReady()) { toast("Игра ещё грузится, подожди пару секунд"); return }
         if ((mode == "first" || mode == "eq") && value == null) { toast("Введи число"); return }
         ui.searchBusy = true
         lifecycleScope.launch {
             val n = withContext(Dispatchers.Default) { if (mode == "first") search.first(value!!) else search.next(mode, value ?: 0) }
             ui.searchCount = n; ui.searchRows = withContext(Dispatchers.Default) { if (n in 1..30) search.current() else emptyList() }
             ui.searchBusy = false
-            if (search.overflow) toast("Совпадений очень много — продолжай уточнять")
+            if (search.overflow) toast("Совпадений слишком много — поменяй число в игре и уточни")
         }
     }
     fun searchReset() { search.reset(); ui.searchCount = -1; ui.searchRows = emptyList() }
@@ -1059,7 +1066,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             )
             try {
                 RA.ensureLoaded(); RA.nInit(bridge); RA.nLoginToken(ra.optString("user"), ra.optString("token"))
-            } catch (e: Throwable) { Log.w(TAG, "ra", e); ui.raState = "fail"; ui.raMsg = "Достижения недоступны в этой сборке" }
+            } catch (e: Throwable) { Log.w(TAG, "ra", e); ui.raState = "fail"; ui.raMsg = "Награды в этой версии не работают" }
         }
     }
 
@@ -1089,7 +1096,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     /** Обучение: игрок отмечает, в какой раскладке он сейчас; нужно 2+ отметки каждой из 2+ раскладок. */
     fun startLearning() {
         if (lays.size < 2) { toast("Сначала нужно 2 раскладки — например «Пешком» и «Транспорт»"); return }
-        if (!AutoSwitch.ramReady()) { toast("Память игры ещё не готова — подожди пару секунд после запуска"); return }
+        if (!AutoSwitch.ramReady()) { toast("Игра ещё грузится, подожди пару секунд"); return }
         learner = AutoSwitch.Learner(); ui.learnMarks = emptyMap(); ui.learning = true
         ui.presets = false; ui.settings = false; ui.editing = false; controls.editMode = false
         setPaused(false); updateControlsVisibility()
@@ -1103,7 +1110,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         lifecycleScope.launch {
             val ok = withContext(Dispatchers.Default) { try { l.mark(lay) } catch (e: Throwable) { Log.w(TAG, "learn", e); false } }
             ui.learnBusy = false
-            if (!ok) { toast("Не удалось прочитать память игры"); return@launch }
+            if (!ok) { toast("Не получилось заглянуть в игру, попробуй ещё раз"); return@launch }
             ui.learnMarks = HashMap(l.marks)
             if (lay != layName) applyLayout(lay)
             toast("Отмечено: ${specOf(lay)?.name ?: lay} · ${l.marks[lay]}")
@@ -1258,7 +1265,14 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     // ---------- ControlsView.Listener ----------
+    private var steerL = false; private var steerR = false
     override fun key(code: Int, down: Boolean) {
+        if (code == ControlLayout.STEER_L || code == ControlLayout.STEER_R) {
+            if (code == ControlLayout.STEER_L) steerL = down else steerR = down
+            val x = (if (steerR) 1f else 0f) - (if (steerL) 1f else 0f)
+            retro?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, x, 0f)
+            return
+        }
         retro?.sendKeyEvent(if (down) KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP, code)
     }
 

@@ -85,14 +85,7 @@ import kotlinx.coroutines.launch
 fun GamesScreen() {
     // главная полка — PSP; игры других консолей живут на их полках («Консоли» в шапке)
     val list = AppState.lib.keys.mapNotNull { AppState.byId[it] }.filter { it.p == "psp" }.sortedByDescending { AppState.lib[it.id]?.t ?: 0 }
-    val others = AppState.byId.values.count { it.p != "psp" }
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("PSP", style = T.h3)
-            Text(if (list.isEmpty()) "" else "${list.size}", style = T.small, modifier = Modifier.weight(1f))
-            if (others > 0) KButton("Другие консоли · $others", R.drawable.sl_pad, small = true) { Nav.open(Ov.Consoles) }
-            KButton("Вся библиотека", R.drawable.sl_grid, small = true) { Nav.open(Ov.Library) }
-        }
         if (list.isEmpty()) { EmptyShelf(); return@Column }
         Carousel(list)
     }

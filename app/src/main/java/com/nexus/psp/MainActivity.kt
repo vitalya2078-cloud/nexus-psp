@@ -72,7 +72,7 @@ class MainActivity : ComponentActivity() {
         if (uri == null) return@registerForActivityResult
         lifecycleScope.launch {
             val bytes = withContext(Dispatchers.IO) { try { contentResolver.openInputStream(uri)?.use { it.readBytes() } } catch (e: Exception) { null } }
-            if (bytes != null) AppState.setUserCover(id, bytes) else AppState.say("Не удалось открыть картинку")
+            if (bytes != null) AppState.setUserCover(id, bytes) else AppState.say("Картинка не открылась")
         }
     }
 

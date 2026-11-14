@@ -135,8 +135,9 @@ fun FilesScreen(mode: String) {
                         LazyColumn(Modifier.weight(1f).padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             items(shown, key = { it.key }) { n ->
                                 // консоль файла читается в фоне: у обычных файлов — по содержимому
-                                val plat by produceState<String?>(null, n.key) { if (!bios && !n.isDir) value = withContext(Dispatchers.IO) { Storage.platformOf(n) } }
-                                val fits = n.isDir || (if (bios) true else n.ext in com.nexus.psp.emulator.GameLibrary.EXT)
+                                val plat by produceState<String?>(null, n.key) { if (!bios && !n.isDir) value = withContext(Dispatchers.IO) { Storage.platformOf(ctx, n) } }
+                                // игра — только если содержимое похоже на игру (консоль определилась)
+                                val fits = n.isDir || bios || plat != null
                                 val on = sel.any { it.key == n.key }
                                 Row(Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.acc.copy(alpha = .14f) else androidx.compose.ui.graphics.Color.Transparent)
                                     .press {
@@ -218,7 +219,7 @@ fun ScanScreen() {
                         checked++
                         if (k.name.lowercase() in parts) continue
                         Storage.maybeBios(k)?.let { p -> bioses.add(BiosHit(k, p)) }
-                        val plat = Storage.platformOf(k) ?: continue
+                        val plat = Storage.platformOf(ctx, k) ?: continue
                         // мелкие BIN без CUE — скорее всего не игры (кроме картриджей)
                         if (k.ext == "bin" && k.size < 8 * 1024 && plat == "a26") continue
                         val inLib = k.name.lowercase() in known

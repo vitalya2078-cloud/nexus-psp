@@ -39,7 +39,11 @@ object ControlLayout {
     val DIR = mapOf('u' to KeyEvent.KEYCODE_DPAD_UP, 'd' to KeyEvent.KEYCODE_DPAD_DOWN, 'l' to KeyEvent.KEYCODE_DPAD_LEFT, 'r' to KeyEvent.KEYCODE_DPAD_RIGHT)
 
     /** Код кнопки консоли по имени: ft/fr/fb/fl, l1…r2, select, start, up/down/left/right. */
+    /** Руль кнопками: держишь — левый стик до упора влево/вправо (машина поворачивает как от стика). */
+    const val STEER_L = -201; const val STEER_R = -202
+
     fun code(name: String): Int? = KEY[name] ?: when (name) {
+        "steer_l" -> STEER_L; "steer_r" -> STEER_R
         "up" -> KeyEvent.KEYCODE_DPAD_UP; "down" -> KeyEvent.KEYCODE_DPAD_DOWN
         "left" -> KeyEvent.KEYCODE_DPAD_LEFT; "right" -> KeyEvent.KEYCODE_DPAD_RIGHT
         else -> null

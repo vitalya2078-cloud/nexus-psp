@@ -23,8 +23,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 37
-        versionName = "0.29.0"
+        versionCode = 38
+        versionName = "0.30.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a") // ядро PPSSPP собрано только под 64-бит ARM
@@ -49,6 +49,11 @@ android {
         getByName("main") {
             assets.srcDir(layout.buildDirectory.dir("generated/uiAssets"))
         }
+    }
+
+    // ядра в APK сжаты: скачивать вдвое меньше; Android распаковывает их один раз при установке, скорость игр та же
+    packaging {
+        jniLibs { useLegacyPackaging = true }
     }
 
     buildFeatures {

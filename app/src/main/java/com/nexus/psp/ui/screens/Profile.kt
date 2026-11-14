@@ -179,7 +179,7 @@ internal fun ProfileEditor(onClose: () -> Unit) {
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) scope.launch {
             val ok = withContext(Dispatchers.IO) { saveAvatar(ctx, uri) }
-            if (ok) S.avMode = "photo" else AppState.say("Не удалось открыть фото")
+            if (ok) S.avMode = "photo" else AppState.say("Фото не открылось")
         }
     }
     androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
@@ -273,7 +273,7 @@ private fun saveAvatar(ctx: Context, uri: android.net.Uri): Boolean = try {
 /** Карточка профиля картинкой 1200×630 — для мессенджеров и соцсетей. */
 internal suspend fun shareProfile(ctx: Context, st: Stats) {
     val f = withContext(Dispatchers.IO) { try { drawShareCard(ctx, st) } catch (e: Exception) { null } }
-    if (f == null) { AppState.say("Не удалось подготовить карточку"); return }
+    if (f == null) { AppState.say("Карточка не собралась, попробуй ещё раз"); return }
     val uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".share", f)
     val send = Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri)
         .putExtra(Intent.EXTRA_TEXT, "Мой профиль в KAPSULA — эмуляторе PSP").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

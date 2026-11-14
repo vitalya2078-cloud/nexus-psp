@@ -95,8 +95,14 @@ object Storage {
     }
 
     /** Консоль файла: у обычных файлов — по содержимому, у документов папок — по расширению. */
-    fun platformOf(n: FNode): String? {
+    fun platformOf(c: Context, n: FNode): String? {
         if (n.isDir || n.ext !in GameLibrary.EXT) return null
+        // содержимое должно быть похоже на игру: README.md, описания и случайные .bin не проходят
+        val head = when (n) {
+            is FNode.F -> Disc.head(n.file)
+            is FNode.D -> try { c.contentResolver.openInputStream(n.uri)?.use { i -> val b = ByteArray(Disc.HEAD); var o = 0; while (o < b.size) { val r = i.read(b, o, b.size - o); if (r < 0) break; o += r }; b.copyOf(o) } } catch (e: Exception) { null } ?: return null
+        }
+        if (!Disc.plausible(n.ext, n.size, head)) return null
         return if (n is FNode.F) Disc.platform(n.file) else when (n.ext) {
             "cue", "m3u", "bin", "img" -> "ps1"; "iso", "chd", "pbp", "cso" -> "psp"
             else -> PLATFORMS.firstOrNull { n.ext in it.exts }?.id

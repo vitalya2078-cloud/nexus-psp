@@ -42,10 +42,10 @@ object CoreOptions {
         CoreOpt("ppsspp_io_timing_method", "Загрузки", "«Как на UMD» чинит редкие игры, которым мешают слишком быстрые загрузки", listOf("Fast", "Simulate UMD delays"), listOf("Быстро", "Как на UMD"), "Fast", restart = true),
     )
     val SYSTEM = listOf(
-        CoreOpt("ppsspp_language", "Язык игры", "Если игра поддерживает несколько языков", listOf("Automatic", "Russian", "English", "Japanese"), listOf("Авто", "Русский", "English", "日本語"), "Automatic", restart = true),
+        CoreOpt("ppsspp_language", "Язык игры", "Сработает, если в игре есть такой язык", listOf("Automatic", "Russian", "English", "Japanese"), listOf("Авто", "Русский", "English", "日本語"), "Automatic", restart = true),
         CoreOpt("ppsspp_button_preference", "Кнопка «OK» в меню игры", "В японских играх подтверждение — правой кнопкой", listOf("Cross", "Circle"), listOf("Нижняя", "Правая"), "Cross"),
         CoreOpt("ppsspp_psp_model", "Модель PSP", "Новая модель — больше памяти, быстрее загрузки", listOf("psp_1000", "psp_2000_3000"), listOf("PSP-1000", "PSP-2000/3000"), "psp_2000_3000", restart = true),
-        CoreOpt("ppsspp_memstick_inserted", "Карта памяти", "Без неё игра не сможет сохраняться", listOf("enabled", "disabled"), listOf("Вставлена", "Нет"), "enabled"),
+        CoreOpt("ppsspp_memstick_inserted", "Карта памяти", "Без неё игра не сохранится", listOf("enabled", "disabled"), listOf("Вставлена", "Нет"), "enabled"),
         CoreOpt("ppsspp_cheats", "Читы", "Коды для игр (файл cheat.db)", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
     )
     val EXPERT = listOf(

@@ -89,9 +89,8 @@ fun NetImage(url: String, modifier: Modifier, scale: ContentScale = ContentScale
         if (value != null) return@produceState
         value = withContext(Dispatchers.IO) {
             try {
-                val f = File(ctx.cacheDir, "net/" + url.hashCode().toUInt().toString(16) + ".img")
-                if (!f.exists()) { f.parentFile?.mkdirs(); java.net.URL(url).openStream().use { i -> f.outputStream().use { i.copyTo(it) } } }
-                android.graphics.BitmapFactory.decodeFile(f.path)?.asImageBitmap()?.also { netCache.put(url, it) }
+                val f = com.nexus.psp.data.Net.cached(ctx, url, "net2") ?: return@withContext null
+                android.graphics.BitmapFactory.decodeFile(f.path)?.asImageBitmap()?.also { netCache.put(url, it) } ?: run { f.delete(); null }
             } catch (e: Exception) { null }
         }
     }

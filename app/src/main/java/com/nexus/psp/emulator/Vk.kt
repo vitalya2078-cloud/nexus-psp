@@ -34,12 +34,12 @@ object Vk {
 
     /** Понятная причина, почему Vulkan выключен (null — доступен). */
     fun reason(c: Context): String? = when {
-        badFile(c).exists() -> "Vulkan дал сбой на этом телефоне — игры идут на OpenGL"
+        badFile(c).exists() -> "Vulkan у тебя сбоил, поэтому играем на OpenGL"
         else -> when (probe(c)) {
             0 -> null
-            1, 5 -> "Видеокарта поддерживает только старый Vulkan 1.0"
-            4 -> "Видеокарта не умеет передавать кадр между Vulkan и OpenGL"
-            else -> "На этом телефоне Vulkan недоступен"
+            1, 5 -> "На этом телефоне Vulkan не заработает"
+            4 -> "На этом телефоне Vulkan не заработает"
+            else -> "На этом телефоне Vulkan не заработает"
         }
     }
 

@@ -97,7 +97,7 @@ fun SettingsScreen() {
                         Text("Для всех игр PS1. Игре можно задать свои — в её карточке или в паузе.", style = T.small, modifier = Modifier.padding(bottom = 6.dp))
                         Sub("Картинка"); CoreRows(CoreOptions.PS1_QUALITY)
                         Sub("Система"); CoreRows(CoreOptions.PS1_SYSTEM)
-                        Text("Изменения применяются при следующем запуске игры.", style = T.small, modifier = Modifier.padding(top = 10.dp))
+                        Text("Заработает со следующего запуска игры.", style = T.small, modifier = Modifier.padding(top = 10.dp))
                     }
                     "ctl" -> Controls()
                     "ach" -> Achievements()
@@ -130,21 +130,22 @@ private fun General() {
 @Composable
 private fun Downloads() {
     val ctx = LocalContext.current
-    Opt("Папка с играми", com.nexus.psp.emulator.CoreFiles.gamesDir(ctx).absolutePath.replace("/storage/emulated/0/", "")) { Text("своя папка — позже", style = T.small) }
+    Opt("Папка с играми", sub = com.nexus.psp.emulator.CoreFiles.gamesDir(ctx).absolutePath.replace("/storage/emulated/0/", "")) { Text("своя папка — позже", style = T.small) }
     Opt("Добавить игру", "Файл ISO, CSO, CHD или PBP — скопируется в папку KAPSULA") { KButton("Выбрать файл", R.drawable.ph_plus, small = true) { com.nexus.psp.ui.Act.addFile() } }
     Opt("Найти игры на телефоне", "Выбери папку — KAPSULA найдёт все образы в ней и вложенных папках") { KButton("Выбрать папку", R.drawable.sl_search, small = true) { com.nexus.psp.ui.Act.findGames() } }
     Opt("Обложки из интернета", "По серийному номеру диска, из открытой базы обложек. Сохраняются на телефоне") { Toggle(S.covers) { S.covers = it; if (it) AppState.byId.keys.forEach { id -> AppState.fetchMeta(id) } } }
     Opt("Обложки только по Wi-Fi", "Одна обложка — до 1 МБ") { Toggle(S.coversWifi) { S.coversWifi = it } }
     Opt("Обновить обложки", "Поискать заново для всех игр") { KButton("Обновить", small = true) { AppState.byId.keys.forEach { id -> AppState.fetchMeta(id, force = true) } } }
-    Opt("Память", "Игры KAPSULA ${com.nexus.psp.data.size(AppState.usedMb())} · свободно ${com.nexus.psp.data.size(AppState.freeMb())}") { }
+    Opt("Память", sub = "Игры KAPSULA ${com.nexus.psp.data.size(AppState.usedMb())} · свободно ${com.nexus.psp.data.size(AppState.freeMb())}") { }
 }
 
 @Composable
 private fun Controls() {
-    Opt("Экранный геймпад", mapOf("touch" to "KAPSULA Touch", "classic" to "Классика", "pad" to "Геймпад")[S.ctlMode] + " · раскладка, размер, прозрачность") {
+    Opt("Экранный геймпад", sub = mapOf("touch" to "KAPSULA Touch", "classic" to "Классика", "pad" to "Геймпад")[S.ctlMode] + " · раскладка, размер, прозрачность") {
         KButton("Настроить", kind = com.nexus.psp.ui.kit.BtnKind.Main, small = true) { Nav.open(Ov.Pad) }
     }
     Opt("Скрывать кнопки", "Когда подключён геймпад") { Toggle(S.hide) { S.hide = it } }
+    Opt("Показывать смену раскладки", "Маленькая плашка с названием раскладки, когда переключаешь её в игре") { Toggle(S.layHint) { S.layHint = it } }
     CoreRows(CoreOptions.INPUT)
     Opt("Ускорение", "Во сколько раз быстрее при включённом ускорении") {
         Seg(listOf("×2", "×3", "×4"), ((S.fastLevel.toIntOrNull() ?: 2) - 2).coerceIn(0, 2), small = true) { S.fastLevel = (it + 2).toString() }
@@ -152,7 +153,7 @@ private fun Controls() {
     Opt("Чувствительность руля наклоном", "Руль наклоном включается в игре: пауза → Настройки → Управление") {
         com.nexus.psp.ui.kit.Range(S.tiltSens.toIntOrNull() ?: 100, 50, 200, fill = false) { S.tiltSens = it.toString() }
     }
-    Opt("Физический геймпад", "Кнопки передаются в ядро напрямую; «Mode» — меню паузы") { Text("автоматически", style = T.small) }
+    Opt("Физический геймпад", "Подключи по Bluetooth или проводу — заработает сразу. Кнопка «Mode» открывает паузу") { Text("автоматически", style = T.small) }
 }
 
 @Composable
@@ -201,11 +202,9 @@ private fun A11y() {
 private fun About() {
     val ctx = LocalContext.current
     val ver = try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { "" }
-    Opt("KAPSULA", "Версия $ver · нативный интерфейс") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
-    Opt("Эмулятор PSP", "Ядро KAPSULA") { }
-    Opt("PS1", "Работает: свой файл BIOS по желанию") { }
-    Opt("PS2", "В планах") { }
-    Opt("Конфиденциальность", "Данные хранятся только на телефоне") { }
+    Opt("KAPSULA", sub = "Версия $ver") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
+    Opt("Эмуляторы", sub = "PSP, PS1, PS2, Sega, NEC, SNK, Bandai, Atari") { }
+    Opt("Конфиденциальность", sub = "Всё твоё остаётся на телефоне и никуда не уходит") { }
     // авторы и тексты лицензий открытых компонентов — по условиям этих лицензий; на виду только нейтральная строка
     var legal by remember { mutableStateOf(false) }
     // незаметная серая ссылка внизу раздела
@@ -214,23 +213,21 @@ private fun About() {
         modifier = Modifier.padding(top = 20.dp, bottom = 8.dp).clip(RoundedCornerShape(6.dp)).press { legal = true }.padding(horizontal = 2.dp, vertical = 4.dp),
     )
     if (legal) LegalDialog { legal = false }
-    // последняя ошибка (если приложение или игра падали) — чтобы прислать разработчику
+    // после вылета — неприметная ссылка «Отправить отчёт об ошибке»: окно «Поделиться» с готовым текстом
     var crash by remember { mutableStateOf(com.nexus.psp.data.CrashLog.last(ctx)) }
     crash?.let { f ->
-        val head = remember(f) { try { f.readLines().take(3).joinToString(" · ") { it.trim() }.take(140) } catch (e: Exception) { "" } }
-        var full by remember { mutableStateOf(false) }
-        if (full) CrashDialog(f) { full = false }
-        Opt("Последняя ошибка", head) {
-            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                KButton("Открыть", small = true) { full = true }
-                KButton("Скопировать", small = true) {
-                    val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
-                    cm?.setPrimaryClip(android.content.ClipData.newPlainText("KAPSULA", try { f.readText() } catch (e: Exception) { "" }))
-                    AppState.say("Текст ошибки скопирован")
-                }
-                KButton("Очистить", small = true) { com.nexus.psp.data.CrashLog.clear(ctx); crash = null }
-            }
-        }
+        Text(
+            "Отправить отчёт об ошибке", style = T.small.copy(fontSize = 11.sp, color = K.ink3),
+            modifier = Modifier.padding(bottom = 8.dp).clip(RoundedCornerShape(6.dp)).press {
+                val txt = try { f.readText() } catch (e: Exception) { "" }
+                try {
+                    ctx.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
+                        .putExtra(android.content.Intent.EXTRA_SUBJECT, "KAPSULA — отчёт об ошибке").putExtra(android.content.Intent.EXTRA_TEXT, txt), "Отправить отчёт")
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    com.nexus.psp.data.CrashLog.clear(ctx); crash = null
+                } catch (e: Exception) { AppState.say("Не нашлось, чем отправить") }
+            }.padding(horizontal = 2.dp, vertical = 4.dp),
+        )
     }
 }
 
@@ -354,35 +351,11 @@ private fun CoreSettings() {
             CoreRows(CoreOptions.EXPERT)
         }
     }
-    Text("Изменения применяются при следующем запуске игры.", style = T.small, modifier = Modifier.padding(top = 10.dp))
+    Text("Заработает со следующего запуска игры.", style = T.small, modifier = Modifier.padding(top = 10.dp))
 }
 
 
 /** Правовая информация: компоненты с открытым исходным кодом, авторы, лицензии (полные тексты — из assets/licenses). */
-/** Полный текст последней ошибки — прокрутка и «Скопировать». */
-@Composable
-private fun CrashDialog(f: java.io.File, onClose: () -> Unit) {
-    val ctx = LocalContext.current
-    val txt = remember(f) { try { f.readText() } catch (e: Exception) { "" } }
-    androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(Modifier.fillMaxWidth(.86f).fillMaxHeight(.9f).clip(RoundedCornerShape(22.dp)).background(K.s1).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Последняя ошибка", style = T.h3, modifier = Modifier.weight(1f))
-                KButton("Скопировать", small = true) {
-                    ctx.getSystemService(android.content.ClipboardManager::class.java)?.setPrimaryClip(android.content.ClipData.newPlainText("KAPSULA", txt))
-                    AppState.say("Текст ошибки скопирован")
-                }
-                KButton(icon = R.drawable.ph_x, small = true) { onClose() }
-            }
-            Text("Пришли этот текст разработчику — по нему видно, где и почему произошла ошибка.", style = T.small)
-            Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(K.s2).padding(12.dp)) {
-                Text(txt, style = T.small.copy(fontSize = 11.sp, lineHeight = 15.sp, color = K.ink2, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(Modifier.horizontalScroll(rememberScrollState())))
-            }
-        }
-    }
-}
-
 @Composable
 private fun LegalDialog(onClose: () -> Unit) {
     val ctx = LocalContext.current
@@ -521,7 +494,7 @@ private fun Achievements() {
                     val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.emulator.RA.login(user.trim(), pass) }
                     busy = false
                     r.onSuccess { (token, score) -> S.raUser = user.trim(); S.raToken = token; S.raScore = score.toString(); pass = ""; AppState.say("Вход выполнен: ${user.trim()}", R.drawable.ph_check) }
-                    r.onFailure { e -> err = e.message.orEmpty().ifEmpty { "Не удалось войти" } }
+                    r.onFailure { e -> err = e.message.orEmpty().ifEmpty { "Не получилось войти" } }
                 }
             }
         }

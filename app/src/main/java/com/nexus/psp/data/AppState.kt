@@ -115,6 +115,8 @@ class Settings(private val sp: SharedPreferences) {
     var favGame by s("favGame", "")
     /** Часы и заряд в шапке главного экрана. */
     var headClock by b("headClock", true)
+    /** Показывать капсулу при смене раскладки в игре. */
+    var layHint by b("layHint", true)
 }
 
 object AppState {
@@ -245,7 +247,7 @@ object AppState {
         scope.launch {
             val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Covers.setUserCover(app, id, bytes) }
             meta[id] = Covers.load(app, id)
-            say(if (ok) "Обложка установлена" else "Не удалось открыть картинку", com.nexus.psp.R.drawable.ph_check)
+            say(if (ok) "Обложка установлена" else "Картинка не открылась", com.nexus.psp.R.drawable.ph_check)
         }
     }
 

@@ -92,7 +92,7 @@ object GameLibrary {
     fun importFile(c: Context, uri: Uri, onProgress: (Double) -> Unit): File {
         val (name0, total) = displayName(c, uri)
         val name = name0.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-        require(File(name).extension.lowercase() in EXT) { "Формат не поддерживается: нужен ISO, CSO, CHD, PBP, CUE + BIN или M3U" }
+        require(File(name).extension.lowercase() in EXT) { "Такой файл KAPSULA не откроет. Нужен образ игры: ISO, CSO, CHD, PBP или CUE с BIN" }
         val dir = CoreFiles.gamesDir(c)
         val out = File(dir, name)
         val part = File(dir, "$name.part")
@@ -107,7 +107,7 @@ object GameLibrary {
             }
         }
         if (out.exists()) out.delete()
-        check(part.renameTo(out)) { "Не удалось сохранить файл" }
+        check(part.renameTo(out)) { "Не сохранилось, попробуй ещё раз файл" }
         return out
     }
 

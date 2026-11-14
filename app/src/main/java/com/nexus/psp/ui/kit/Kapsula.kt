@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -313,19 +314,47 @@ fun KSlider(value: Int, min: Int, max: Int, modifier: Modifier = Modifier, onCha
 
 /** Строка настройки: название + пояснение слева, управление справа (как .opt). */
 @Composable
-fun Opt(title: String, desc: String? = null, badge: (@Composable () -> Unit)? = null, control: @Composable () -> Unit) {
+/**
+ * Пункт настроек. desc — пояснение «что это и зачем»: прячется под ⓘ рядом с названием, всплывает по нажатию.
+ * sub — короткий статус («Есть: scph5501.bin», «Версия 0.30»): виден всегда строкой под названием.
+ */
+fun Opt(title: String, desc: String? = null, badge: (@Composable () -> Unit)? = null, sub: String? = null, control: @Composable () -> Unit) {
     Column {
-        Row(Modifier.fillMaxWidth().heightIn(min = 58.dp).padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 54.dp).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(title, style = T.label.copy(fontSize = 14.sp))
+                    if (desc != null) HelpDot(title, desc)
                     badge?.invoke()
                 }
-                if (desc != null) Text(desc, style = T.small, modifier = Modifier.padding(top = 2.dp))
+                if (sub != null) Text(sub, style = T.small, modifier = Modifier.padding(top = 2.dp))
             }
             control()
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(K.line))
+    }
+}
+
+/** Значок ⓘ: нажал — рядом всплывает карточка с пояснением, закрывается крестиком или нажатием мимо. */
+@Composable
+fun HelpDot(title: String, text: String) {
+    var open by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    Box {
+        Box(Modifier.size(22.dp).clip(CircleShape).press { open = true }, contentAlignment = Alignment.Center) {
+            Box(Modifier.size(16.dp).clip(CircleShape).border(1.4.dp, K.ink3, CircleShape), contentAlignment = Alignment.Center) {
+                Text("?", style = T.small.copy(fontSize = 10.5.sp, color = K.ink3, fontWeight = FontWeight.ExtraBold))
+            }
+        }
+        if (open) androidx.compose.ui.window.Popup(alignment = Alignment.TopStart, offset = androidx.compose.ui.unit.IntOffset(0, 60), onDismissRequest = { open = false },
+            properties = androidx.compose.ui.window.PopupProperties(focusable = true)) {
+            Column(Modifier.widthIn(max = 340.dp).clip(RoundedCornerShape(16.dp)).background(K.s3).border(1.dp, K.line2, RoundedCornerShape(16.dp)).padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, style = T.label.copy(fontSize = 13.5.sp), modifier = Modifier.weight(1f).padding(top = 6.dp))
+                    Box(Modifier.size(32.dp).clip(CircleShape).press { open = false }, contentAlignment = Alignment.Center) { SolarIcon(com.nexus.psp.R.drawable.ph_x, 16.dp, K.ink2) }
+                }
+                Text(text, style = T.small.copy(fontSize = 12.5.sp, color = K.ink2, lineHeight = 17.sp), modifier = Modifier.padding(end = 8.dp))
+            }
+        }
     }
 }
 

@@ -99,12 +99,22 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
         ui.picking?.let { key -> IconPicker(a, ui, key) }
         // счётчик кадров
         if (ui.showFps && ui.phase == "ready" && !ui.paused) Text(
-            "${ui.fps} FPS" + ui.vkInfo,
+            "${ui.fps} FPS",
             style = T.num.copy(fontSize = 12.sp, color = if (ui.fps >= 55) Color(0xFF9BD49B) else if (ui.fps >= 28) Color(0xFFE5C07B) else Color(0xFFD98A8A)),
             modifier = Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.displayCutout).padding(10.dp)
                 .clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = .55f)).padding(horizontal = 8.dp, vertical = 3.dp),
         )
         if (ui.phase == "error") ErrorScreen(ui.error) { a.exitGame() }
+        // смена раскладки — маленькая тёмная капсула со значком, на секунду
+        AnimatedVisibility(ui.layPill != null, Modifier.align(Alignment.TopCenter).padding(top = 16.dp), enter = fadeIn(tween(150)), exit = fadeOut(tween(300))) {
+            val (name, base) = ui.layPill ?: ("" to "")
+            Row(Modifier.clip(RoundedCornerShape(18.dp)).background(Color.Black.copy(alpha = .55f)).padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val ic = when (base) { "drive", "race" -> R.drawable.ctl_wheel; "heli", "flight" -> R.drawable.ctl_heli; else -> R.drawable.ctl_sprint }
+                SolarIcon(ic, 16.dp, Color(0xFFF2F1EC))
+                Text(name, style = T.label.copy(fontSize = 13.sp, color = Color(0xFFF2F1EC)))
+            }
+        }
         AnimatedVisibility(ui.toast.isNotEmpty(), Modifier.align(Alignment.TopCenter).padding(top = 14.dp), enter = fadeIn(), exit = fadeOut()) {
             Text(
                 ui.toast,
@@ -280,8 +290,8 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
                 Seg(listOf("Только для этой игры", "Для всех игр"), if (ui.scopeGame) 0 else 1, small = true) { ui.scopeGame = it == 0 }
             }
             Text(
-                if (ui.scopeGame) "Изменения запомнятся для «${a.title}» и не тронут другие игры"
-                else "Изменения станут общими для всех игр, у которых нет своих настроек",
+                if (ui.scopeGame) "Только для «${a.title}», другие игры не тронет"
+                else "Поменяется во всех играх, где ты не настраивал своё",
                 style = T.small.copy(fontSize = 11.5.sp), modifier = Modifier.padding(top = 6.dp),
             )
             Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState())) {
@@ -313,7 +323,7 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 SolarIcon(R.drawable.sl_info, 18.dp, K.warn)
-                Text("Часть настроек заработает после перезапуска. Место в игре сохранится.", style = T.small.copy(fontSize = 12.sp, color = K.ink2), modifier = Modifier.weight(1f))
+                Text("Чтобы всё заработало, игру надо перезапустить. Продолжишь с того же места", style = T.small.copy(fontSize = 12.sp, color = K.ink2), modifier = Modifier.weight(1f))
                 KButton("Применить", kind = BtnKind.Main, small = true) { a.applyRestart() }
             }
         }
@@ -418,7 +428,7 @@ private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
                 others.forEach { l -> com.nexus.psp.ui.kit.Chip(l.name, l.id == tgt || l.base == tgt) { a.setBtnRole(key, (if (kind == 2) "hold:" else "switch:") + l.id) } }
             }
             if (!multi) Opt("Турбо", "Пока держишь — кнопка быстро нажимается сама") { Toggle(ui.pickingTurbo) { a.setTurbo(key, it) } }
-            if (ui.pickingIsExtra) Opt("Своя кнопка", ui.pickingExtra.ifEmpty { null }) { KButton("Удалить", icon = R.drawable.sl_trash, small = true, danger = true) { a.removeExtra(key) } }
+            if (ui.pickingIsExtra) Opt("Своя кнопка", sub = ui.pickingExtra.ifEmpty { null }) { KButton("Удалить", icon = R.drawable.sl_trash, small = true, danger = true) { a.removeExtra(key) } }
             else Opt("Скрыть кнопку", "В игре не видна; в редакторе — полупрозрачная, чтобы вернуть") { Toggle(a.btnHidden(key)) { a.setBtnHidden(key, it) } }
             Row(Modifier.padding(top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("ЗНАЧОК", style = T.caps, modifier = Modifier.weight(1f))
@@ -520,7 +530,7 @@ private fun CheatsPanel(a: GameActivity, ui: GameActivity.UiState) {
         }
         if (ui.cheats.size > 8) com.nexus.psp.ui.screens.SearchField(q, "Поиск по читам", Modifier.fillMaxWidth()) { q = it }
         ui.cheats.filter { q.isBlank() || it.name.contains(q, true) }.forEach { c ->
-            Opt(c.name, if (c.own) "Свой код" else null) {
+            Opt(c.name, sub = if (c.own) "Свой код" else null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (c.own) KButton(icon = R.drawable.sl_trash, small = true, danger = true) { a.removeOwnCheat(c.name) }
                     Toggle(c.name in ui.cheatsOn) { a.toggleCheat(c, it) }
@@ -548,7 +558,7 @@ private fun TexturesPanel(a: GameActivity, ui: GameActivity.UiState) {
         if (a.serial == null) StateNote("Не нашли код диска этой игры — текстуры не к чему привязать.")
         else {
             val inst = a.texInstalled()
-            Opt("Набор текстур", if (inst) "Установлен · ${a.texSize()} МБ" else "Не установлен") {
+            Opt("Набор текстур", sub = if (inst) "Установлен · ${a.texSize()} МБ" else "Не установлен") {
                 KButton(if (inst) "Заменить" else "Выбрать ZIP", icon = R.drawable.sl_folder, kind = BtnKind.Main, small = true) { a.pickTextures() }
             }
             if (inst) {
@@ -571,12 +581,12 @@ private fun NetPanel(a: GameActivity, ui: GameActivity.UiState) {
     var ip by remember { mutableStateOf(ui.netIp) }
     SidePanel("Игра по сети", { a.closeNet() }) {
         Text("Для игр с режимом «по сети» (ad-hoc): Monster Hunter, Tekken, Burnout и другие. Оба телефона — в одной Wi-Fi-сети, у обоих одна и та же игра.", style = T.small)
-        Opt("Сейчас", when (ui.netMode) { "host" -> "Комната создана на этом телефоне"; "join" -> "Подключение к ${ui.netIp}"; else -> "Сеть выключена" }) {
+        Opt("Сейчас", sub = when (ui.netMode) { "host" -> "Комната создана на этом телефоне"; "join" -> "Подключение к ${ui.netIp}"; else -> "Сеть выключена" }) {
             if (ui.netMode != "off") KButton("Выключить", small = true) { a.setNet("off") }
         }
         Text("СОЗДАТЬ КОМНАТУ", style = T.caps, modifier = Modifier.padding(top = 8.dp))
         val my = remember { a.myIp() }
-        Opt("Адрес этого телефона", my ?: "Нет подключения к Wi-Fi") {
+        Opt("Адрес этого телефона", sub = my ?: "Нет подключения к Wi-Fi") {
             KButton("Создать", icon = R.drawable.sl_wifi, kind = BtnKind.Main, small = true, enabled = my != null) { a.setNet("host") }
         }
         Text("Друг вводит этот адрес у себя в «Подключиться». Игра перезапустится и продолжит с того же места.", style = T.small.copy(fontSize = 11.sp))
@@ -763,7 +773,7 @@ private fun PresetsPanel(a: GameActivity, ui: GameActivity.UiState, ask: Boolean
                 }
                 if (ui.layouts.size < 2) Text("Нужно минимум 2 раскладки: примени жанр «Экшен» или добавь раскладку в редакторе.", style = T.small.copy(fontSize = 11.sp))
             }
-            if (!ask && a.hasBuiltin()) Opt("Для этой игры", "Готовая раскладка KAPSULA «${ui.builtin ?: a.title}»") { KButton("Применить", kind = BtnKind.Main, small = true) { a.applyBuiltin() } }
+            if (!ask && a.hasBuiltin()) Opt("Для этой игры", sub = "Готовая раскладка «${ui.builtin ?: a.title}»") { KButton("Применить", kind = BtnKind.Main, small = true) { a.applyBuiltin() } }
             Text("ЖАНРЫ", style = T.caps, modifier = Modifier.padding(top = 4.dp))
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Templates.GENRES.forEach { g ->
@@ -861,9 +871,8 @@ private fun NetImage(url: String, modifier: Modifier) {
         if (value != null) return@produceState
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                val f = java.io.File(ctx.cacheDir, "ra/" + url.substringAfterLast('/'))
-                if (!f.exists()) { f.parentFile?.mkdirs(); java.net.URL(url).openStream().use { i -> f.outputStream().use { i.copyTo(it) } } }
-                android.graphics.BitmapFactory.decodeFile(f.path)?.asImageBitmap()?.also { netCache.put(url, it) }
+                val f = com.nexus.psp.data.Net.cached(ctx, url, "ra2") ?: return@withContext null
+                android.graphics.BitmapFactory.decodeFile(f.path)?.asImageBitmap()?.also { netCache.put(url, it) } ?: run { f.delete(); null }
             } catch (e: Exception) { null }
         }
     }

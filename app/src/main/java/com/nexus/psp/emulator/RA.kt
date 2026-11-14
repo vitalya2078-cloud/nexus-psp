@@ -43,12 +43,12 @@ object RA {
     fun login(user: String, password: String): Result<Pair<String, Int>> {
         val (code, body) = request("https://retroachievements.org/dorequest.php",
             "r=login2&u=" + java.net.URLEncoder.encode(user, "UTF-8") + "&p=" + java.net.URLEncoder.encode(password, "UTF-8"))
-        if (body == null) return Result.failure(Exception(if (code == 0) "Нет связи с RetroAchievements" else "Ошибка сервера ($code)"))
+        if (body == null) return Result.failure(Exception(if (code == 0) "Нет связи с сервером наград — проверь интернет" else "Ошибка сервера ($code)"))
         return try {
             val o = org.json.JSONObject(body)
             if (o.optBoolean("Success")) Result.success(o.getString("Token") to o.optInt("Score"))
-            else Result.failure(Exception(if (o.optString("Code") == "invalid_credentials") "Неверное имя пользователя или пароль" else o.optString("Error").ifEmpty { "Не удалось войти" }))
-        } catch (e: Exception) { Result.failure(Exception("Непонятный ответ сервера")) }
+            else Result.failure(Exception(if (o.optString("Code") == "invalid_credentials") "Неверное имя пользователя или пароль" else o.optString("Error").ifEmpty { "Не получилось войти" }))
+        } catch (e: Exception) { Result.failure(Exception("Сервер наград ответил что-то странное, попробуй позже")) }
     }
 
     /** Мост для нативного кода: методы вызываются из rcheevos (сигнатуры заданы в kapsula_ra.cpp). */

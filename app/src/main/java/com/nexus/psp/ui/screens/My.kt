@@ -100,8 +100,6 @@ fun MyScreen() {
         Section("Награды")
         Badges(st)
         RaCard()
-        Section("По сети")
-        NetplayCard()
     }
     if (edit) ProfileEditor { edit = false }
     view?.let { m -> MomentViewer(m) { view = null } }
@@ -272,11 +270,4 @@ private fun MomentViewer(m: Moment, onClose: () -> Unit) {
             }
         }
     }
-}
-
-/** «По сети»: как сыграть с другом — по Wi-Fi рядом. */
-@Composable
-private fun NetplayCard() {
-    Empty("es-netplay.png", "Играй с другом по Wi-Fi",
-        "Подойдут PSP-игры с режимом «по сети» (ad-hoc): Monster Hunter, Tekken, Burnout и другие. В игре: пауза → «По сети» → один создаёт комнату, второй подключается. Телефоны в одной сети, игра одна и та же.")
 }

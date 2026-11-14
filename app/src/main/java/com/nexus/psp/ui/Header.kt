@@ -75,6 +75,7 @@ fun Header() {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (S.headClock) HeadStatus()
             IconBtn(R.drawable.sl_pad) { Nav.open(Ov.Consoles) }
+            IconBtn(R.drawable.sl_list) { Nav.open(Ov.Library) }
             IconBtn(R.drawable.sl_search) { Nav.open(Ov.Search) }
             DownloadsBtn()
             BellBtn()

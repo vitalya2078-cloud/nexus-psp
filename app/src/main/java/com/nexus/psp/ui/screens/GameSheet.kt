@@ -325,7 +325,7 @@ fun GameSettingsScreen(id: String) {
     com.nexus.psp.ui.Full {
         com.nexus.psp.ui.OvHead("${g.t} — настройки", back = true)
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            Opt("Свои настройки для этой игры", if (own) "Изменения ниже — только для «${g.t}»" else "Сейчас игра использует общие настройки ${g.plat.short}") {
+            Opt("Свои настройки для этой игры", sub = if (own) "Изменения ниже — только для «${g.t}»" else "Сейчас игра использует общие настройки ${g.plat.short}") {
                 Toggle(own) { on ->
                     own = on
                     if (on) cfg.edit { o -> o.put("own", true); if (!o.has("vars")) o.put("vars", com.nexus.psp.ui.screens.GlobalCore.vars()); if (!o.has("preset")) o.put("preset", AppState.S.corePreset) }

@@ -45,6 +45,55 @@ object Disc {
         }
     } catch (e: Exception) { "psp" }
 
+    /** Сколько байт начала файла нужно для проверки (метка тома ISO в сыром образе — на ~37 КБ). */
+    const val HEAD = 40 * 1024
+
+    /**
+     * Похоже ли содержимое на игру этого формата. Отсекает README.md, описания, случайные .bin/.iso/.img.
+     * head — первые HEAD байт файла (или меньше, если файл короче).
+     */
+    fun plausible(ext: String, size: Long, head: ByteArray): Boolean {
+        fun at(o: Int, s: String) = head.size >= o + s.length && String(head, o, s.length, Charsets.ISO_8859_1) == s
+        fun cd(): Boolean = at(0x8001, "CD001") || at(16 * 2352 + 24 + 1, "CD001") || at(16 * 2352 + 16 + 1, "CD001") || at(0, "SEGA SEGASATURN") || at(16, "SEGA SEGASATURN") || at(0, "SEGADISCSYSTEM") || at(16, "SEGADISCSYSTEM")
+        val textOk = ext in setOf("cue", "m3u", "gdi", "ccd")
+        if (size < 1024 && !textOk) return false
+        // текст (нет нулевых байт в начале, почти все символы печатные) — не игра
+        if (!textOk) {
+            val n = minOf(head.size, 4096)
+            if (n > 0 && (0 until n).none { head[it].toInt() == 0 } && (0 until n).count { val b = head[it].toInt() and 0xFF; b == 9 || b == 10 || b == 13 || b in 32..126 || b >= 0xC0 } > n * 0.95) return false
+        }
+        return when (ext) {
+            "iso", "img" -> cd() || at(0x8008, "PSP GAME")
+            "bin" -> cd() || at(0x100, "SEGA") || at(0x7FF0, "TMR SEGA") || at(0x3FF0, "TMR SEGA") || at(0x1FF0, "TMR SEGA") || size in setOf(2048L, 4096L, 8192L, 12288L, 16384L, 32768L)
+            "md", "gen" -> at(0x100, "SEGA") || size >= 128 * 1024
+            "smd" -> size % 512 == 0L && size >= 64 * 1024
+            "chd" -> at(0, "MComprHD")
+            "pbp" -> at(1, "PBP")
+            "cso" -> at(0, "CISO")
+            "zso" -> at(0, "ZISO")
+            "elf" -> at(1, "ELF")
+            "prx" -> at(1, "ELF") || at(0, "~PSP")
+            "cue" -> String(head, 0, minOf(head.size, 4096), Charsets.ISO_8859_1).let { it.contains("FILE", true) && it.contains("TRACK", true) }
+            "m3u" -> String(head, 0, minOf(head.size, 4096), Charsets.ISO_8859_1).lines().any { l -> l.trim().let { it.isNotEmpty() && !it.startsWith("#") && '.' in it } }
+            "gdi" -> String(head, 0, minOf(head.size, 256), Charsets.ISO_8859_1).trim().firstOrNull()?.isDigit() == true
+            "cdi" -> size > 1024 * 1024
+            "ccd", "mds" -> true
+            "sms", "gg", "sg" -> size >= 8 * 1024
+            "pce", "sgx" -> size >= 8 * 1024
+            "neo" -> at(0, "NEO")
+            "ngp", "ngc" -> at(0, "COPYRIGHT BY SNK") || at(0, "LICENSED BY SNK") || at(0, " LICENSED BY SNK")
+            "ws", "wsc", "pc2" -> size >= 64 * 1024
+            "a26" -> size in setOf(2048L, 4096L, 8192L, 12288L, 16384L, 32768L, 65536L)
+            "a78" -> at(1, "ATARI7800") || size >= 16 * 1024
+            "lnx" -> at(0, "LYNX")
+            "lyx" -> size >= 64 * 1024
+            else -> true
+        }
+    }
+
+    /** Начало файла для проверки. */
+    fun head(f: File): ByteArray = try { RandomAccessFile(f, "r").use { r -> ByteArray(minOf(HEAD.toLong(), r.length()).toInt()).also { r.readFully(it) } } } catch (e: Exception) { ByteArray(0) }
+
     /** Образ диска (ISO 2048 или сырой 2352): Saturn, Mega CD, PS1/PS2, PSP — по первым секторам. */
     private fun discPlatform(f: File): String {
         val raw = RawSource.open(f) ?: return "psp"
