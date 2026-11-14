@@ -65,6 +65,8 @@ class GameLayoutsTest {
 
     @Test fun acShotsAndDrawer() {
         val v = view(); v.layName = "city"; v.setLayout(Templates.build("g_ac_city", "psp")); shot("g_ac_city", v)
+        // с подписями — для картинок магазина
+        val vc = view(); vc.captions = true; vc.layName = "city"; vc.setLayout(Templates.build("g_ac_city", "psp")); shot("g_ac_city_caps", vc)
         // открыть «⋯»
         val more = v.current().first { it.act == "more" }
         val cx = w / 2f - 46f * 2; val cy = h - 14f * 2 - 40f
