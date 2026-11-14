@@ -5,11 +5,11 @@
 Токен и канал берутся из секретов TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID и в лог не попадают.
 
 Форматы файла:
-  {"setup": {"channel": {"title", "description", "photo"}, "bot": {"name", "short", "description"}}}
+  {"setup": {"channel": {"title", "description", "photo"}, "bot": {"name", "short", "description", "commands": {"start": "..."}, "webhook": "https://..."}}}
   {"text": "<b>HTML</b>", "photo": "telegram/img/x.png", "buttons": [[{"text", "url"}]], "pin": true, "silent": false}
 В текстах {CHANNEL} заменяется на ссылку t.me/<канал>.
 """
-import json, os, sys, uuid, urllib.request, urllib.error
+import hashlib, json, os, sys, uuid, urllib.request, urllib.error
 
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"].strip()
 CHAT = os.environ["TELEGRAM_CHAT_ID"].strip()
@@ -54,6 +54,11 @@ def setup(s):
     if "name" in bot: call("setMyName", {"name": bot["name"]})
     if "short" in bot: call("setMyShortDescription", {"short_description": sub(bot["short"])})
     if "description" in bot: call("setMyDescription", {"description": sub(bot["description"])})
+    if "commands" in bot: call("setMyCommands", {"commands": [{"command": c, "description": d} for c, d in bot["commands"].items()]})
+    if "webhook" in bot:
+        # тот же секрет считает функция бота (telegram/bot/index.ts)
+        secret = hashlib.sha256(("kapsula-hook:" + TOKEN).encode()).hexdigest()[:48]
+        call("setWebhook", {"url": bot["webhook"], "secret_token": secret, "allowed_updates": ["message", "callback_query"], "drop_pending_updates": True})
     return True
 
 
