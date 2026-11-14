@@ -13,7 +13,7 @@
     "start": "Главное меню",
     "help": "Как начать"
    },
-   "webhook": "https://PROJECT_REF.supabase.co/functions/v1/bot"
+   "webhook": "https://borubfgvjhntepnijxxo.supabase.co/functions/v1/bot"
   }
  }
 }
