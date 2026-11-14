@@ -120,6 +120,9 @@ object Covers {
         return load(c, g.id)
     }
 
+    /** Название из магазина — важнее названия из образа. */
+    fun presetTitle(c: Context, id: String, title: String) { val m = load(c, id); saveJson(c, id, m.serial, title, m.tried, m.color, m.extra) }
+
     /** Своя обложка из галереи (важнее найденной). */
     fun setUserCover(c: Context, id: String, bytes: ByteArray): Boolean {
         val f = File(dir(c, id), "cover_user.jpg")

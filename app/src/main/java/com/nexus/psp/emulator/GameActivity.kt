@@ -621,7 +621,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     // ---------- сохранения состояния (быстрый слот) ----------
     private fun stateFile(slot: Int): File {
-        val name = File(boot.optString("path")).nameWithoutExtension
+        val name = GameLibrary.key(boot.optString("path"))
         return File(CoreFiles.statesDir(this), "$name.state$slot")
     }
 
@@ -1320,7 +1320,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     // ---------- PS1 ----------
     /** Карта памяти PS1 — рядом с сохранениями, по имени файла игры. */
-    private fun sramFile() = File(CoreFiles.savesDir(this), File(boot.optString("path")).nameWithoutExtension + ".srm")
+    private fun sramFile() = File(CoreFiles.savesDir(this), GameLibrary.key(boot.optString("path")) + ".srm")
 
     /** Записать карту памяти PS1 на диск (если изменилась). Безопасно из любого потока. */
     private var sramLast: Int = 0

@@ -1,0 +1,24 @@
+name: Build KAPSULA store
+
+# Магазин: архивы игр, значки и каталог — в выпуск «store». Только игры, которые разрешено распространять (см. store/catalog.json).
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "ccr-30f02f17-ph3ie4" ]
+    paths: [ "store/**", "tools/store/**", ".github/workflows/store.yml" ]
+
+jobs:
+  store:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build catalog and mirror files
+        run: python3 tools/store/build.py out "https://github.com/${GITHUB_REPOSITORY}/releases/download/store"
+      - name: Publish to release «store»
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view store >/dev/null 2>&1 || gh release create store --target "$GITHUB_SHA" --title "KAPSULA — магазин" --notes "Файлы магазина KAPSULA: игры с открытой лицензией или разрешением автора. Авторы и лицензии — в catalog.json."
+          gh release upload store out/* --clobber

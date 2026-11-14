@@ -141,7 +141,7 @@ object AppState {
     /** Сведения об играх: серийный номер, название из базы, обложка, картинки из образа. */
     val meta = mutableStateMapOf<String, Meta>()
     var ask by mutableStateOf<Ask?>(null)
-    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
+    val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
     private val inWork = HashSet<String>()
 
     /** Спросить пользователя и дождаться ответа (индекс варианта, -1 — закрыл). */
@@ -323,7 +323,7 @@ object AppState {
     fun usedMb(): Int = byId.values.sumOf { it.size }
 
     // ---------- сохранения в игре ----------
-    fun stateFile(g: Game, slot: Int = 0) = File(CoreFiles.statesDir(app), File(g.path).nameWithoutExtension + ".state" + slot)
+    fun stateFile(g: Game, slot: Int = 0) = File(CoreFiles.statesDir(app), com.nexus.psp.emulator.GameLibrary.key(g.path) + ".state" + slot)
 
     // ---------- списки ----------
     fun inCon(g: Game) = S.con == "all" || g.p == S.con

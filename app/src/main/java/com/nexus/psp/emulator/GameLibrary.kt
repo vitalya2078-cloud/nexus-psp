@@ -19,8 +19,36 @@ object GameLibrary {
         else -> emptyList()
     }
 
+    /** Ключ игры для имён сохранений: имя файла, а у игр-папок (EBOOT.PBP) — имя папки игры. */
+    fun key(path: String): String {
+        val f = File(path)
+        if (!f.name.equals("EBOOT.PBP", true)) return f.nameWithoutExtension
+        var d = f.parentFile
+        while (d != null && !File(d, MARK).exists()) d = d.parentFile
+        // без отметки магазина — как раньше (сохранения прежних версий не теряются)
+        return if (d == null) f.nameWithoutExtension else "dir_" + d.name
+    }
+
+    /** Отметка папки игры из магазина: что запускать и как называется. */
+    const val MARK = ".kapsula.json"
+
+    /** Игры-папки (из магазина): папка с отметкой и EBOOT внутри. */
+    private fun dirGames(c: Context): List<JSONObject> =
+        CoreFiles.gamesDir(c).listFiles()?.filter { it.isDirectory && File(it, MARK).exists() }?.mapNotNull { dirInfo(it) } ?: emptyList()
+
+    /** Сведения об игре-папке для библиотеки (null — папка повреждена). */
+    fun dirInfo(d: File): JSONObject? = try {
+        val m = JSONObject(File(d, MARK).readText())
+        val eboot = File(d, m.getString("eboot"))
+        if (!eboot.exists()) null
+        else JSONObject().put("id", "s_" + d.name.lowercase()).put("name", m.optString("name", d.name)).put("file", d.name + ".pbp")
+            .put("path", eboot.absolutePath).put("size", d.walkTopDown().filter { it.isFile }.sumOf { it.length() } / (1024.0 * 1024.0))
+            .put("plat", m.optString("plat", "psp")).put("store", m.optString("store"))
+    } catch (e: Exception) { null }
+
     fun list(c: Context): String {
         val a = JSONArray()
+        dirGames(c).forEach { a.put(it) }
         val files = CoreFiles.gamesDir(c).listFiles()?.filter { it.isFile && it.extension.lowercase() in EXT && !it.name.endsWith(".part") } ?: emptyList()
         val hidden = files.flatMap { parts(it) }.map { it.name.lowercase() }.toSet()
         files.filter { it.name.lowercase() !in hidden }.sortedBy { it.name.lowercase() }.forEach { f -> a.put(info(f)) }
@@ -77,6 +105,11 @@ object GameLibrary {
     /** Удаляет игру вместе с её частями (дорожки CUE, диски M3U). */
     fun delete(c: Context, path: String): Boolean {
         val f = File(path)
+        // игра-папка из магазина — удаляется целиком
+        val root = CoreFiles.gamesDir(c).canonicalPath
+        var d = f.parentFile
+        while (d != null && d.parentFile?.canonicalPath != root) d = d.parentFile
+        if (d != null && d.canonicalPath != root && File(d, MARK).exists()) return d.deleteRecursively()
         if (f.parentFile?.canonicalPath != CoreFiles.gamesDir(c).canonicalPath) return false
         parts(f).forEach { p -> if (p.parentFile?.canonicalPath == f.parentFile?.canonicalPath) p.delete() }
         return f.delete()

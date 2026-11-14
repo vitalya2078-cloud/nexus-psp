@@ -113,5 +113,10 @@ class ScreensTest {
     @Test fun j10_ps1_library() { ps1Game(); shot("j10-ps1-library", true) { Nav.open(Ov.Library) } }
     @Test fun j11_ps1_game() { ps1Game(); shot("j11-ps1-game", true) { Nav.open(Ov.Game(AppState.byId.values.first { it.p == "ps1" }.id)) } }
     @Test fun j12_ps1_gset() { ps1Game(); shot("j12-ps1-gset", true) { val id = AppState.byId.values.first { it.p == "ps1" }.id; com.nexus.psp.data.GameConfig(ApplicationProvider.getApplicationContext(), id).edit { o -> o.put("own", true) }; Nav.open(Ov.GSet(id)) } }
+    /** Магазин с настоящим каталогом (значки из сети в тестах не грузятся — видны обложки KAPSULA). */
+    private fun store() { com.nexus.psp.data.StoreCatalog.parse(javaClass.getResource("/store-catalog.json")!!.readText()) }
+    @Test fun k02_store() = shot("k02-store", true) { store(); Nav.tab = "store" }
+    @Test fun k03_store_detail() { shot("k03-store-detail", true) { store(); Nav.tab = "store"; com.nexus.psp.ui.screens.StoreUi.open.value = "bg3" }
+        com.github.takahirom.roborazzi.captureScreenRoboImage("build/shots/k03-store-detail-dialog.png"); com.nexus.psp.ui.screens.StoreUi.open.value = null }
     @Test fun g09_quick_light() = shot("g09-quick-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Quick) }
 }
