@@ -117,6 +117,7 @@ class Settings(private val sp: SharedPreferences) {
     var headClock by b("headClock", true)
     /** Показывать капсулу при смене раскладки в игре. */
     var layHint by b("layHint", true)
+    var hz60 by b("hz60", true)
 }
 
 object AppState {

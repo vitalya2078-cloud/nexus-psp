@@ -214,17 +214,19 @@ private fun About() {
     )
     if (legal) LegalDialog { legal = false }
     // после вылета — неприметная ссылка «Отправить отчёт об ошибке»: окно «Поделиться» с готовым текстом
-    var crash by remember { mutableStateOf(com.nexus.psp.data.CrashLog.last(ctx)) }
-    crash?.let { f ->
+    // в отчёт идут и сбои загрузки картинок (значки достижений) — чтобы видеть причину, а не гадать
+    var crash by remember { mutableStateOf(com.nexus.psp.data.CrashLog.last(ctx)?.let { f -> try { f.readText() } catch (e: Exception) { "" } }
+        .let { c -> listOfNotNull(c?.takeIf { it.isNotBlank() }, com.nexus.psp.data.Net.failLog(ctx)?.let { "Загрузка картинок:\n$it" }).joinToString("\n\n").ifBlank { null }
+            ?.let { "KAPSULA ${com.nexus.psp.BuildConfig.VERSION_NAME} · ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}\n\n$it" } }) }
+    crash?.let { txt ->
         Text(
             "Отправить отчёт об ошибке", style = T.small.copy(fontSize = 11.sp, color = K.ink3),
             modifier = Modifier.padding(bottom = 8.dp).clip(RoundedCornerShape(6.dp)).press {
-                val txt = try { f.readText() } catch (e: Exception) { "" }
                 try {
                     ctx.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
                         .putExtra(android.content.Intent.EXTRA_SUBJECT, "KAPSULA — отчёт об ошибке").putExtra(android.content.Intent.EXTRA_TEXT, txt), "Отправить отчёт")
                         .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-                    com.nexus.psp.data.CrashLog.clear(ctx); crash = null
+                    com.nexus.psp.data.CrashLog.clear(ctx); com.nexus.psp.data.Net.clearFailLog(ctx); crash = null
                 } catch (e: Exception) { AppState.say("Не нашлось, чем отправить") }
             }.padding(horizontal = 2.dp, vertical = 4.dp),
         )
@@ -337,6 +339,7 @@ private fun CoreSettings() {
             val f = listOf("default" to "Обычный", "smooth" to "Сглаживание", "pixel" to "Пиксели", "lcd" to "ЖК", "crt" to "ЭЛТ")
             CoreRows(CoreOptions.RENDER); VulkanNote()
             Opt("Авто-качество", "Держать 60 кадров: разрешение снижается само при нехватке скорости") { Toggle(S.autoRes) { S.autoRes = it } }
+            Opt("Экран 60 Гц в игре", "Игры идут в 60 кадров. На экране 120 или 144 Гц картинка может периодически дёргаться — на время игры KAPSULA переключает экран на 60 Гц") { Toggle(S.hz60) { S.hz60 = it } }
             Opt("Фильтр картинки", "Для всех игр; в игре можно поменять на лету: пауза → Настройки") {
                 Seg(f.map { it.second }, f.indexOfFirst { it.first == S.shader }.coerceAtLeast(0), small = true) { S.shader = f[it].first }
             }

@@ -175,6 +175,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private var startedAt = 0L
     private var savesMade = 0
 
+    private val perf by lazy { Perf(this) }
+    private var hz60 = false
+    @Volatile private var glTid = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.nexus.psp.data.CrashLog.install(applicationContext, "game")
@@ -190,6 +194,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         hideSystemBars()
+        // экран 60 Гц на время игры: на 120/144 Гц движок теряет синхронизацию и игра периодически дёргается
+        hz60 = s.optBoolean("hz60", true) && perf.request60Hz()
         // системный скриншот не опрашивает окно игры для «длинного скриншота»
         if (Build.VERSION.SDK_INT >= 31) window.decorView.scrollCaptureHint = View.SCROLL_CAPTURE_HINT_EXCLUDE_DESCENDANTS
 
@@ -262,6 +268,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             if (!ok) { fail("Не получилось подготовить эмулятор. Перезапусти KAPSULA"); return@launch }
             ui.hasState = withContext(Dispatchers.IO) { stateFile(0).exists() }
             refreshSlots()
+            if (hz60) perf.await60Hz()
             startCore()
         }
     }
@@ -282,11 +289,13 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             savesDirectory = CoreFiles.savesDir(this@GameActivity).absolutePath
             variables = coreVariables()
             shader = shaderOf(boot.optJSONObject("s")?.optString("shader", "default") ?: "default")
-            preferLowLatencyAudio = true
+            // буфер звука подлиннее (~65 мс вместо ~35): короткие просадки не превращаются в заикание звука
+            preferLowLatencyAudio = false
             rumbleEventsEnabled = false
         }
         val view = GLRetroView(this, data)
         retro = view
+        view.queueEvent { glTid = Process.myTid() }
         root.addView(view, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         lifecycle.addObserver(view)
         // при возврате в приложение LibretroDroid сам снимает ядро с паузы — если открыто меню паузы, возвращаем паузу
@@ -297,8 +306,11 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             view.getGLRetroEvents().collect {
                 if (it is GLRetroView.GLRetroEvents.FrameRendered) {
                     frames++
+                    perf.frame()
                     if (ui.phase == "loading") {
                         ui.phase = "ready"; updateControlsVisibility()
+                        // через пару секунд игры — какие потоки самые занятые, их и держим на больших ядрах
+                        lifecycleScope.launch(Dispatchers.IO) { delay(4000); perf.startHints(glTid) }
                         ui.builtin?.let { toast("Кнопки уже под «$it». Поменять — пауза → «Кнопки»") }
                         maybeAskGenre()
                         if (isPsp) { startAutoPoll(); startRA() } else if (platform == "ps1") applyPs1Pad()
@@ -348,6 +360,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> if (k.startsWith("ppsspp_")) v[k] = o.optString(k) } }
         // читы включаются на лету (retro_cheat_set) — движок читов должен работать с запуска
         if (!v.containsKey("ppsspp_cheats")) v["ppsspp_cheats"] = "enabled"
+        // авто-пропуск кадров: пропускать не больше одного кадра подряд и только когда игра не успевает
+        if (v["ppsspp_auto_frameskip"] != "disabled" && v["ppsspp_frameskip"].let { it == null || it == "disabled" }) {
+            v["ppsspp_auto_frameskip"] = "enabled"; v["ppsspp_frameskip"] = "1"
+        }
         // игра в памяти — сама включается на телефонах с 6+ ГБ ОЗУ (если игрок не выбрал иначе)
         if (!v.containsKey("ppsspp_cache_iso")) {
             val mi = android.app.ActivityManager.MemoryInfo(); getSystemService(android.app.ActivityManager::class.java)?.getMemoryInfo(mi)
@@ -877,12 +893,18 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         val max = resSteps.indexOf(vars.optString("ppsspp_internal_resolution", "960x544")).coerceAtLeast(0)
         val cur = resSteps.indexOf(curRes ?: resSteps[max]).coerceAtLeast(0)
         if (fps < 54) { resLow++; resHigh = 0 } else if (fps >= 59) { resHigh++; resLow = 0 } else { resLow = 0; resHigh = 0 }
-        val to = when { resLow >= 3 && cur > 0 -> cur - 1; resHigh >= 20 && cur < max -> cur + 1; else -> return }
+        val cap = minOf(max, resCap)
+        val to = when { resLow >= 3 && cur > 0 -> cur - 1; resHigh >= 20 && cur < cap -> cur + 1; else -> return }
+        // подняли — и через полминуты снова не тянет: выше этого уровня в этой игре больше не поднимаемся (без качелей)
+        if (to < cur && System.currentTimeMillis() - resRaisedAt < 30_000) resCap = to
+        if (to > cur) resRaisedAt = System.currentTimeMillis()
         curRes = resSteps[to]; resLow = 0; resHigh = 0; resCooldown = 8
         retro?.updateVariables(Variable("ppsspp_internal_resolution", resSteps[to]))
         toast(if (to < cur) "Разрешение ×${to + 1} — для плавности" else "Разрешение ×${to + 1} — запас есть")
     }
     private var curRes: String? = null
+    private var resCap = Int.MAX_VALUE
+    private var resRaisedAt = 0L
 
     // ---------- автосохранение по таймеру (слот «Место выхода») ----------
     private var autoSaveMin = 0
@@ -1401,6 +1423,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     override fun onDestroy() {
         if (raStarted) try { RA.nUnload() } catch (e: Throwable) { }
+        perf.close()
         // обычный выход после того, как Vulkan показал картинку, — не сбой
         if (vkOn && vkSeen && isFinishing) Vk.confirm(this)
         if (tilt) getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(tiltListener)

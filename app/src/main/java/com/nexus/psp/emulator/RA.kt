@@ -11,7 +11,7 @@ import java.util.concurrent.Executors
  * Режим «мягкий» (softcore): ускорение, сохранения и читы не блокируются.
  */
 object RA {
-    const val UA = "KAPSULA/0.23 (Android) rcheevos/12.5"
+    const val UA = com.nexus.psp.data.Net.UA_RA
     private val io = Executors.newFixedThreadPool(2)
 
     @JvmStatic external fun nInit(bridge: Bridge)

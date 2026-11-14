@@ -13,7 +13,7 @@ data class CoreOpt(val key: String, val title: String, val desc: String, val val
 object CoreOptions {
     val PRESETS = mapOf(
         "quality" to mapOf("ppsspp_internal_resolution" to "1440x816", "ppsspp_texture_scaling_level" to "2x", "ppsspp_texture_scaling_type" to "xbrz", "ppsspp_texture_filtering" to "Auto max quality", "ppsspp_texture_anisotropic_filtering" to "16x", "ppsspp_auto_frameskip" to "disabled", "ppsspp_skip_gpu_readbacks" to "disabled"),
-        "balance" to mapOf("ppsspp_internal_resolution" to "960x544", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "8x", "ppsspp_auto_frameskip" to "disabled", "ppsspp_skip_gpu_readbacks" to "disabled"),
+        "balance" to mapOf("ppsspp_internal_resolution" to "960x544", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "8x", "ppsspp_auto_frameskip" to "enabled", "ppsspp_skip_gpu_readbacks" to "disabled"),
         "battery" to mapOf("ppsspp_internal_resolution" to "480x272", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "disabled", "ppsspp_auto_frameskip" to "enabled", "ppsspp_skip_gpu_readbacks" to "enabled"),
     )
     val PRESET_NAMES = mapOf("quality" to "Качество", "balance" to "Баланс", "battery" to "Батарея", "custom" to "Своё")
@@ -34,7 +34,7 @@ object CoreOptions {
     )
     val SPEED = listOf(
         CoreOpt("ppsspp_frameskip", "Пропуск кадров", "Помогает слабым телефонам, но картинка менее плавная", listOf("disabled", "1", "2", "3"), listOf("Выкл", "1", "2", "3"), "disabled"),
-        CoreOpt("ppsspp_auto_frameskip", "Авто-пропуск кадров", "Пропускать кадры только когда игра не успевает", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
+        CoreOpt("ppsspp_auto_frameskip", "Авто-пропуск кадров", "Пропускать кадры только когда игра не успевает", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "enabled"),
         CoreOpt("ppsspp_frame_duplication", "Плавные 60 кадров", "Дублировать кадры игр с 30 кадрами до 60 Гц", listOf("enabled", "disabled"), listOf("Вкл", "Выкл"), "enabled"),
         CoreOpt("ppsspp_inflight_frames", "Буфер команд", "Больше — выше скорость, но чуть больше задержка", listOf("No buffer", "Up to 1", "Up to 2"), listOf("Нет", "1", "2"), "Up to 1"),
         CoreOpt("ppsspp_skip_gpu_readbacks", "Ускорение для слабых", "Заметно быстрее на слабых телефонах; в редких играх ломает эффекты", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
