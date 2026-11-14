@@ -3,11 +3,13 @@ name: Build NEXUS PSP APK
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "ccr-30f02f17-ph3ie4" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,16 +34,43 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
+      - name: Prepare LibretroDroid sources (KAPSULA patch)
+        run: tools/libretrodroid/setup.sh
+
+      - name: Fetch PPSSPP libretro core and system files
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/jniLibs/arm64-v8a app/src/main/assets/ppsspp
+          curl -fsSL --retry 4 -o core.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/ppsspp_libretro_android.so.zip
+          unzip -p core.zip ppsspp_libretro_android.so > app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so
+          # PS1: PCSX-ReARMed (GPL-2.0)
+          curl -fsSL --retry 4 -o ps1.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/pcsx_rearmed_libretro_android.so.zip
+          unzip -p ps1.zip pcsx_rearmed_libretro_android.so > app/src/main/jniLibs/arm64-v8a/libpcsx_rearmed_libretro_android.so
+          curl -fsSL --retry 4 -o app/src/main/assets/ppsspp/PPSSPP.zip https://buildbot.libretro.com/assets/system/PPSSPP.zip
+          CORE_SHA=$(sha256sum app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so | cut -c1-16)
+          echo "PPSSPP libretro · buildbot nightly $(date -u +%Y-%m-%d) · sha256 ${CORE_SHA}" | tee app/src/main/assets/ppsspp/CORE.txt
+          ls -la app/src/main/jniLibs/arm64-v8a app/src/main/assets/ppsspp
+
       - name: Restore stable signing key
         run: |
           base64 --decode nexus-debug.keystore.b64 > nexus-debug.keystore
 
       - name: Build APK
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: nexus-psp-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: kapsula-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      - name: Publish APK as direct download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk kapsula.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest kapsula.apk --prerelease --target "$GITHUB_SHA" \
+            --title "KAPSULA — последняя сборка" \
+            --notes "Сборка ${GITHUB_SHA::7} из ветки ${GITHUB_REF_NAME}"

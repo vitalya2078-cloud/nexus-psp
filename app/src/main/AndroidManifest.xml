@@ -1,17 +1,45 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- состояние сети: «Нет интернета» в магазине; обычное разрешение, выдаётся без запроса -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- уведомления: «магазин открылся» и другие новости (Android 13+ спрашивает разрешение) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- скриншоты в галерею на Android 8–9 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <application
+        android:largeHeap="true"
         android:allowBackup="true"
-        android:label="NEXUS PSP"
-        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:label="KAPSULA"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:theme="@style/Theme.Kapsula"
         android:supportsRtl="true">
         <activity
             android:name=".MainActivity"
-            android:screenOrientation="landscape"
+            android:theme="@style/Theme.Kapsula.Starting"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Экран игры: отдельный процесс, чтобы ядро libretro полностью выгружалось после выхода -->
+        <activity
+            android:name=".emulator.GameActivity"
+            android:process=":game"
+            android:theme="@style/Theme.Kapsula"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|smallestScreenSize|uiMode"
+            android:exported="false" />
+        <!-- «Поделиться» карточкой профиля: картинка из кэша отдаётся другому приложению по временной ссылке -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/share_paths" />
+        </provider>
     </application>
 </manifest>
