@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [ "main", "ccr-30f02f17-ph3ie4" ]
-    paths-ignore: [ "telegram/**", ".github/workflows/telegram.yml", "plans/**" ]
+    paths-ignore: [ "telegram/**", ".github/workflows/telegram.yml", "plans/**", "promo/**" ]
 
 jobs:
   build:
