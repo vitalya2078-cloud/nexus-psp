@@ -190,7 +190,10 @@ object Cloud {
         var lastNews = sp.getLong("newsAfter", 0L)
         val news = r.optJSONArray("news") ?: org.json.JSONArray()
         android.os.Handler(android.os.Looper.getMainLooper()).post {
-            fresh.forEach { o -> AppState.alerts.add(0, Alert(o.optString("title"), o.optString("body"), true, if (Inbox.isFriend(o.optString("kind"))) FRIENDS else null)) }
+            fresh.forEach { o ->
+                val at = try { java.time.OffsetDateTime.parse(o.optString("at")).toInstant().toEpochMilli() } catch (e: Exception) { System.currentTimeMillis() }
+                AppState.alerts.add(0, Alert(o.optString("title"), o.optString("body"), true, if (Inbox.isFriend(o.optString("kind"))) FRIENDS else null, at))
+            }
             for (i in 0 until news.length()) news.getJSONObject(i).let { n -> if (n.optLong("id") > lastNews) { AppState.alerts.add(0, Alert(n.optString("text"), "Новости KAPSULA", true)); lastNews = n.optLong("id") } }
             fresh.lastOrNull()?.let { o ->
                 if (Inbox.isFriend(o.optString("kind"))) AppState.say(o.optString("title"), action = "Открыть") { openFriends() }

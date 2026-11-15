@@ -28,7 +28,30 @@ import kotlin.reflect.KProperty
 /** Запись библиотеки (свой файл на телефоне): время в игре, последний запуск, сохранения. */
 data class Lib(val play: Int = 0, val last: String = "Ещё не запускалась", val saves: Int = 0, val t: Long = System.currentTimeMillis())
 
-data class Alert(val t: String, val d: String, val u: Boolean, val g: String? = null)
+/** Уведомление колокольчика; at — когда пришло (мс), «5 минут назад» считается при показе. 0 — старое, без времени. */
+data class Alert(val t: String, val d: String, val u: Boolean, val g: String? = null, val at: Long = System.currentTimeMillis())
+
+/** «только что», «5 минут назад», «вчера», «на прошлой неделе», «месяц назад»… */
+fun ago(at: Long, now: Long = System.currentTimeMillis()): String {
+    if (at <= 0L) return "ранее"
+    fun pl(n: Long, one: String, few: String, many: String) = "$n " + when { n % 10 == 1L && n % 100 != 11L -> one; n % 10 in 2..4 && n % 100 !in 12..14 -> few; else -> many }
+    val s = ((now - at) / 1000).coerceAtLeast(0)
+    val zone = java.time.ZoneId.systemDefault()
+    val days = java.time.temporal.ChronoUnit.DAYS.between(java.time.Instant.ofEpochMilli(at).atZone(zone).toLocalDate(), java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate())
+    return when {
+        s < 60 -> "только что"
+        s < 3600 -> pl(s / 60, "минуту", "минуты", "минут") + " назад"
+        days == 0L -> pl(s / 3600, "час", "часа", "часов") + " назад"
+        days == 1L -> "вчера"
+        days < 7 -> pl(days, "день", "дня", "дней") + " назад"
+        days < 14 -> "на прошлой неделе"
+        days < 30 -> pl(days / 7, "неделю", "недели", "недель") + " назад"
+        days < 60 -> "месяц назад"
+        days < 365 -> pl(days / 30, "месяц", "месяца", "месяцев") + " назад"
+        days < 730 -> "год назад"
+        else -> pl(days / 365, "год", "года", "лет") + " назад"
+    }
+}
 
 data class Toast(val text: String, val icon: Int? = null, val action: String? = null, val onAction: (() -> Unit)? = null, val id: Long = System.nanoTime())
 
@@ -223,7 +246,7 @@ object AppState {
             o.optJSONObject("cols")?.let { cs -> cs.keys().forEach { n -> val a = cs.getJSONArray(n); cc[n] = (0 until a.length()).map { a.getString(it) } } }
             cols = cc
             o.optJSONObject("history")?.let { h -> h.keys().forEach { d -> history[d] = h.optInt(d) } }
-            if (!old) o.optJSONArray("alerts")?.let { a -> for (i in 0 until a.length()) { val e = a.getJSONObject(i); alerts.add(Alert(e.optString("t"), e.optString("d"), e.optBoolean("u"), e.optString("g").ifEmpty { null })) } }
+            if (!old) o.optJSONArray("alerts")?.let { a -> for (i in 0 until a.length()) { val e = a.getJSONObject(i); alerts.add(Alert(e.optString("t"), e.optString("d"), e.optBoolean("u"), e.optString("g").ifEmpty { null }, e.optLong("at", 0L))) } }
         } catch (e: Exception) { }
         if (old) {
             // 0.12 и раньше: стартовое демо — убираем коллекции-примеры (свои файлы останутся после loadReal)
@@ -236,7 +259,7 @@ object AppState {
         val l = JSONObject()
         lib.forEach { (id, e) -> l.put(id, JSONObject().put("play", e.play).put("last", e.last).put("saves", e.saves).put("t", e.t)) }
         val cs = JSONObject(); cols.forEach { (n, ids) -> cs.put(n, JSONArray(ids)) }
-        val al = JSONArray(); alerts.forEach { al.put(JSONObject().put("t", it.t).put("d", it.d).put("u", it.u).put("g", it.g ?: "")) }
+        val al = JSONArray(); alerts.forEach { al.put(JSONObject().put("t", it.t).put("d", it.d).put("u", it.u).put("g", it.g ?: "").put("at", it.at)) }
         val hs = JSONObject(); history.forEach { (d, m) -> hs.put(d, m) }
         sp.edit().putString("state", JSONObject().put("lib", l).put("favs", JSONArray(favs.keys.toList())).put("cols", cs).put("alerts", al).put("history", hs).toString())
             .putInt("dataV", DATA_V).apply()
@@ -356,7 +379,7 @@ object AppState {
         val g = realGame(info.getString("id"), info.getString("name"), info.getString("file"), info.getString("path"), info.getDouble("size"), info.optString("plat", "psp"))
         val isNew = lib[g.id] == null
         byId[g.id] = g; lib[g.id] = lib[g.id] ?: Lib()
-        if (isNew) alerts.add(0, Alert("«${g.t}» добавлена в библиотеку", "Только что", true, g.id))
+        if (isNew) alerts.add(0, Alert("«${g.t}» добавлена в библиотеку", "", true, g.id))
         save()
         fetchMeta(g.id)
         return g

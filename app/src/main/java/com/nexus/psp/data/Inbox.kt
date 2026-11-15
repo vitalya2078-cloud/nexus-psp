@@ -57,12 +57,12 @@ object Inbox {
     }
 
     /** Системное уведомление; тап — открыть KAPSULA (для друзей — сразу «Моё → Друзья»). */
-    fun notify(c: Context, id: Int, title: String, text: String, friends: Boolean) {
+    fun notify(c: Context, id: Int, title: String, text: String, friends: Boolean, open: String? = null) {
         val nm = c.getSystemService(NotificationManager::class.java) ?: return
         if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
         channels(c)
         val open = Intent(c, com.nexus.psp.MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            .putExtra(EXTRA_OPEN, if (friends) "friends" else "alerts")
+            .putExtra(EXTRA_OPEN, open ?: if (friends) "friends" else "alerts")
         val pi = PendingIntent.getActivity(c, id, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val b = if (Build.VERSION.SDK_INT >= 26) android.app.Notification.Builder(c, if (friends) CH_FRIENDS else CH_SYSTEM)
             else @Suppress("DEPRECATION") android.app.Notification.Builder(c)
@@ -84,6 +84,7 @@ object Inbox {
     /** Фон: всё новое — системными уведомлениями. */
     fun checkInBackground(c: Context) {
         if (foreground) return
+        Update.notifyInBackground(c)
         val sp = prefs(c)
         val after = maxOf(sp.getLong("notifAfter", 0L), sp.getLong("inboxAfter", 0L))
         val newsAfter = maxOf(sp.getLong("newsNotifAfter", 0L), sp.getLong("newsAfter", 0L))

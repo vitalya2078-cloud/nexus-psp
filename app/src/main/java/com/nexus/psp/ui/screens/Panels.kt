@@ -122,7 +122,9 @@ fun AlertsDrawer() {
     Drawer("Уведомления", actions = { if (AppState.alerts.any { it.u }) KButton("Прочитать все", small = true) { AppState.readAll() } }) {
         if (AppState.alerts.isEmpty()) Empty(R.drawable.sd_bell, "Пока тихо", "Сюда придут заявки в друзья, жетоны и подарки, новости и обновления KAPSULA.")
         AppState.alerts.forEach { a ->
-            Item(a.g, a.t, a.d, unread = a.u, icon = R.drawable.sl_bolt, onClick = { if (a.g == com.nexus.psp.data.Cloud.FRIENDS) com.nexus.psp.data.Cloud.openFriends() else if (a.g == com.nexus.psp.data.Update.G) com.nexus.psp.data.Update.download(ctx) else if (a.g != null && AppState.byId[a.g] != null) Nav.open(Ov.Game(a.g)) })
+            // подпись: описание (если есть) и когда пришло — время пересчитывается при каждом показе
+            val sub = listOfNotNull(a.d.takeIf { it.isNotBlank() && it != "Только что" }, com.nexus.psp.data.ago(a.at)).joinToString(" · ")
+            Item(a.g, a.t, sub, unread = a.u, icon = R.drawable.sl_bolt, onClick = { if (a.g == com.nexus.psp.data.Cloud.FRIENDS) com.nexus.psp.data.Cloud.openFriends() else if (a.g == com.nexus.psp.data.Update.G) com.nexus.psp.data.Update.download(ctx) else if (a.g != null && AppState.byId[a.g] != null) Nav.open(Ov.Game(a.g)) })
         }
     }
 }

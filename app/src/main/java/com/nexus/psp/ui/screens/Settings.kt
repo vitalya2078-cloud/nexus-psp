@@ -208,10 +208,10 @@ private fun About() {
     Opt("KAPSULA", sub = "Версия $ver") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
     val scopeU = androidx.compose.runtime.rememberCoroutineScope()
     var checking by remember { mutableStateOf(false) }
-    Opt("Обновления", "KAPSULA сама проверяет новую версию на GitHub раз в 12 часов") {
+    Opt("Обновления", "KAPSULA сама проверяет новую версию раз в 6 часов — на GitVerse (без VPN) и на GitHub") {
         KButton(if (checking) "Проверяю…" else "Проверить", small = true) {
             if (!checking) { checking = true; scopeU.launch {
-                val latest = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.data.Update.latest() }
+                val latest = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.data.Update.latest(ctx) }
                 checking = false
                 when {
                     latest == null -> AppState.say("Не получилось проверить. Нужен интернет")

@@ -163,7 +163,9 @@ private fun DownloadsBtn() {
         else remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     Box(
         Modifier.size(42.dp).clip(CircleShape).press {
-            if (mode == "done") { doneFlag = false; Nav.go("games") } else Nav.open(Ov.Downloads)
+            // готово (зелёное) — первое же нажатие гасит обводку и открывает загрузки
+            if (mode == "done") doneFlag = false
+            Nav.open(Ov.Downloads)
         },
         contentAlignment = Alignment.Center,
     ) {

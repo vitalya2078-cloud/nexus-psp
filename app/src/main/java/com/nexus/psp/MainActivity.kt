@@ -215,6 +215,7 @@ class MainActivity : ComponentActivity() {
         when (i?.getStringExtra(com.nexus.psp.data.Inbox.EXTRA_OPEN)) {
             "friends" -> com.nexus.psp.data.Cloud.openFriends()
             "alerts" -> { Nav.closeAll(); Nav.open(Ov.Alerts) }
+            "update" -> com.nexus.psp.data.Update.download(this)
             else -> return
         }
         i.removeExtra(com.nexus.psp.data.Inbox.EXTRA_OPEN)
@@ -240,6 +241,12 @@ class MainActivity : ComponentActivity() {
                 withContext(Dispatchers.IO) { com.nexus.psp.data.Cloud.pollNow(applicationContext) }
                 kotlinx.coroutines.delay(60_000)
             }
+        }
+        // новая версия: при открытии (не чаще раза в 6 часов) или уже найденная фоновой проверкой
+        lifecycleScope.launch {
+            val v = withContext(Dispatchers.IO) { com.nexus.psp.data.Update.check(applicationContext) }
+            if (v != null && com.nexus.psp.data.Update.announce(applicationContext, v))
+                AppState.say("Вышла KAPSULA $v", action = "Скачать") { com.nexus.psp.data.Update.download(this@MainActivity) }
         }
         // разрешение на уведомления (Android 13+) — один раз, после знакомства с приложением
         val cp = getSharedPreferences("kapsula_cloud", MODE_PRIVATE)

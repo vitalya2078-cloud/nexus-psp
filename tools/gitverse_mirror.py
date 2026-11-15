@@ -9,7 +9,8 @@
 VER (версия), APK (путь к APK), NOTES (текст выпуска, необязательно).
 API: https://gitverse.ru/docs/developers/public-api — Authorization: Bearer, Accept: application/vnd.gitverse.object+json;version=1
 """
-import json, os, subprocess, sys, urllib.request, urllib.error, uuid
+import json
+import time, os, subprocess, sys, urllib.request, urllib.error, uuid
 
 API = "https://api.gitverse.ru"
 KEEP = 5
@@ -26,27 +27,37 @@ def req(method, path, body=None, data=None, ctype=None):
     if body is not None:
         data = json.dumps(body).encode(); ctype = "application/json"
     if ctype: h["Content-Type"] = ctype
-    r = urllib.request.Request(API + path, data=data, headers=h, method=method)
-    try:
-        with urllib.request.urlopen(r, timeout=600) as resp:
-            raw = resp.read()
-            return resp.status, (json.loads(raw) if raw.strip() else None)
-    except urllib.error.HTTPError as e:
-        raw = e.read().decode(errors="replace")
-        return e.code, raw
+    # GitVerse иногда отвечает 502 / рвёт соединение — повторяем с паузой (10, 20, 40, 80 с)
+    for attempt in range(5):
+        r = urllib.request.Request(API + path, data=data, headers=h, method=method)
+        try:
+            with urllib.request.urlopen(r, timeout=600) as resp:
+                raw = resp.read()
+                return resp.status, (json.loads(raw) if raw.strip() else None)
+        except urllib.error.HTTPError as e:
+            raw = e.read().decode(errors="replace")
+            if e.code < 500 or attempt == 4: return e.code, raw
+            print(f"GitVerse ответил {e.code} — повтор через {10 * 2 ** attempt} с")
+        except (urllib.error.URLError, OSError) as e:
+            if attempt == 4: raise
+            print(f"GitVerse недоступен ({e}) — повтор через {10 * 2 ** attempt} с")
+        time.sleep(10 * 2 ** attempt)
 
 
 def push_code():
     """Код и тег версии — в GitVerse. Токен как пароль HTTPS; пробуем принятые варианты имени пользователя."""
     owner = REPO.split("/")[0]
-    for user in (owner, "oauth2", "token"):
-        url = f"https://{user}:{TOKEN}@gitverse.ru/{REPO}.git"
-        subprocess.run(["git", "tag", "-f", TAG], check=False)
-        r = subprocess.run(["git", "push", "--force", url, "HEAD:refs/heads/main", f"refs/tags/{TAG}"], capture_output=True, text=True)
-        if r.returncode == 0:
-            print(f"код отправлен в GitVerse (пользователь «{user}»), тег {TAG}")
-            return True
-        print(f"git push как «{user}» не прошёл: " + r.stderr.replace(TOKEN, "***")[-300:])
+    for attempt in range(4):
+        for user in (owner, "oauth2", "token"):
+            url = f"https://{user}:{TOKEN}@gitverse.ru/{REPO}.git"
+            subprocess.run(["git", "tag", "-f", TAG], check=False)
+            r = subprocess.run(["git", "push", "--force", url, "HEAD:refs/heads/main", f"refs/tags/{TAG}"], capture_output=True, text=True)
+            if r.returncode == 0:
+                print(f"код отправлен в GitVerse (пользователь «{user}»), тег {TAG}")
+                return True
+            print(f"git push как «{user}» не прошёл: " + r.stderr.replace(TOKEN, "***")[-300:])
+        if attempt < 3:
+            print(f"GitVerse недоступен — повтор отправки через {15 * 2 ** attempt} с"); time.sleep(15 * 2 ** attempt)
     return False
 
 
