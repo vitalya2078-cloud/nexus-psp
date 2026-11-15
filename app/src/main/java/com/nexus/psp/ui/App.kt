@@ -119,9 +119,25 @@ fun KapsulaApp() {
 
 @Composable
 private fun Overlays() {
-    // все открытые слои; видимый — последний (под ним остаются предыдущие для «Назад»)
-    val top = Nav.top ?: return
-    Box(Modifier.fillMaxSize()) {
+    /*
+     * Переход из окна в окно: прежнее остаётся на экране, пока новое не проявится (его собственная анимация — 0,2 с),
+     * и только потом исчезает — главный экран между ними больше не мелькает.
+     * Открытие с главного экрана и закрытие — без изменений: новое окно проявляется само, закрытое исчезает сразу.
+     */
+    androidx.compose.animation.AnimatedContent(
+        Nav.top,
+        transitionSpec = {
+            if (initialState != null && targetState != null)
+                (androidx.compose.animation.EnterTransition.None togetherWith fadeOut(tween(120, delayMillis = 240))) using null
+            else (androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None) using null
+        },
+        modifier = Modifier.fillMaxSize(),
+        label = "ov",
+    ) { top -> if (top != null) Box(Modifier.fillMaxSize()) { Overlay(top) } }
+}
+
+@Composable
+private fun Overlay(top: Ov) {
         when (top) {
             is Ov.Game -> GameSheet(top.id)
             is Ov.GSet -> GameSettingsScreen(top.id)
@@ -139,7 +155,6 @@ private fun Overlays() {
             is Ov.Console -> com.nexus.psp.ui.screens.ConsoleScreen(top.id)
             is Ov.Guide -> com.nexus.psp.ui.screens.GuideScreen(top.id, top.preset)
         }
-    }
 }
 
 @Composable

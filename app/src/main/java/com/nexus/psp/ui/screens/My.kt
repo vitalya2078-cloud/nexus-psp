@@ -113,7 +113,7 @@ private fun Section(t: String, action: (@Composable () -> Unit)? = null) {
 
 /** Баннер: фон (оформление или обложка любимой игры), аватар, имя, девиз, уровень, кнопки. */
 @Composable
-private fun Banner(st: Stats, onEdit: () -> Unit, onShare: () -> Unit) {
+internal fun Banner(st: Stats, onEdit: () -> Unit, onShare: (() -> Unit)?) {
     Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(24.dp))) {
         com.nexus.psp.ui.kit.BannerBg(Look.bannerId(), st.fav, Modifier.matchParentSize())
         Row(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -131,7 +131,8 @@ private fun Banner(st: Stats, onEdit: () -> Unit, onShare: () -> Unit) {
                     }
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
+            // в «Оформлении» баннер — только превью, без кнопок
+            if (onShare != null) Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
                 Box(Modifier.press(onClick = onEdit)) { TokensChip() }
                 KButton("Оформить", icon = R.drawable.sl_brush, small = true, onClick = onEdit)
                 KButton("Поделиться", small = true, onClick = onShare)

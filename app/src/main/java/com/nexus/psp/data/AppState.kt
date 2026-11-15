@@ -176,6 +176,7 @@ object AppState {
         sp = app.getSharedPreferences("kapsula", Context.MODE_PRIVATE)
         S = Settings(sp)
         Tokens.init(app)
+        Cloud.init(app)
         load()
         loadReal()
         applyLook()

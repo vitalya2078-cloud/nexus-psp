@@ -234,27 +234,24 @@ private fun ProfileTab() {
             if (ok) S.avMode = "photo" else AppState.say("Фото не открылось")
         }
     }
+    // превью — тот же широкий баннер, что на «Моё»: видно всю картинку и как профиль выглядит на самом деле
+    Banner(Stats(), onEdit = {}, onShare = null)
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val wide = maxWidth > 700.dp
-        val card = @Composable { PlayerCard(Stats(), Modifier.fillMaxWidth()) }
-        val fields = @Composable {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Caps("Имя и девиз", 2.dp)
-                SearchField(nick, "Имя игрока", Modifier.fillMaxWidth(), icon = R.drawable.sl_user) { nick = it.take(20); S.nick = nick.trim() }
-                SearchField(motto, "Девиз, например «Пройду всё на 100%»", Modifier.fillMaxWidth(), icon = R.drawable.sl_text) { motto = it.take(48); S.motto = motto.trim() }
-                Caps("Любимая игра")
-                val games = AppState.myList().take(12)
-                if (games.isEmpty()) Text("Добавь игры — и выбери ту, что будет на карточке.", style = T.small)
-                else Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    com.nexus.psp.ui.kit.Chip("Больше всего часов", S.favGame.isEmpty()) { S.favGame = "" }
-                    games.forEach { g -> com.nexus.psp.ui.kit.Chip(g.t, S.favGame == g.id) { S.favGame = g.id } }
-                }
+        val wide = maxWidth > 600.dp
+        val nickF = @Composable { m: Modifier -> SearchField(nick, "Имя игрока", m, icon = R.drawable.sl_user) { nick = it.take(20); S.nick = nick.trim() } }
+        val mottoF = @Composable { m: Modifier -> SearchField(motto, "Девиз, например «Пройду всё на 100%»", m, icon = R.drawable.sl_text) { motto = it.take(48); S.motto = motto.trim() } }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Caps("Имя и девиз")
+            if (wide) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { nickF(Modifier.weight(1f)); mottoF(Modifier.weight(1.6f)) }
+            else { nickF(Modifier.fillMaxWidth()); mottoF(Modifier.fillMaxWidth()) }
+            Caps("Любимая игра")
+            val games = AppState.myList().take(12)
+            if (games.isEmpty()) Text("Добавь игры — и выбери ту, что будет на карточке.", style = T.small)
+            else Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.nexus.psp.ui.kit.Chip("Больше всего часов", S.favGame.isEmpty()) { S.favGame = "" }
+                games.forEach { g -> com.nexus.psp.ui.kit.Chip(g.t, S.favGame == g.id) { S.favGame = g.id } }
             }
         }
-        if (wide) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Box(Modifier.width(280.dp)) { card() }
-            Box(Modifier.weight(1f)) { fields() }
-        } else Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { card(); fields() }
     }
     Caps("Оформление профиля")
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

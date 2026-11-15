@@ -88,18 +88,19 @@ object Cos {
     fun progress(what: String): Int {
         val lib = AppState.lib
         return when {
+            // наибольшее из наигранного на телефоне и записанного на сервере (новый телефон после восстановления)
             what == "level" -> com.nexus.psp.ui.kit.Look.level(xp())
-            what == "play" -> lib.values.sumOf { it.play }
-            what == "games" -> AppState.byId.size
+            what == "play" -> maxOf(lib.values.sumOf { it.play }, Cloud.stat("play"))
+            what == "games" -> maxOf(AppState.byId.size, Cloud.stat("games"))
             what == "consoles" -> playedConsoles().size
-            what == "streak" -> AppState.streak()
-            what == "saves" -> lib.values.sumOf { it.saves }
-            what.startsWith("con:") -> { val p = what.substringAfter(':'); lib.entries.filter { AppState.byId[it.key]?.p == p }.sumOf { it.value.play } }
+            what == "streak" -> maxOf(AppState.streak(), Cloud.stat("streak"))
+            what == "saves" -> maxOf(lib.values.sumOf { it.saves }, Cloud.stat("saves"))
+            what.startsWith("con:") -> { val p = what.substringAfter(':'); maxOf(lib.entries.filter { AppState.byId[it.key]?.p == p }.sumOf { it.value.play }, Cloud.consoleMinutes(p)) }
             else -> 0
         }
     }
-    fun xp() = AppState.lib.values.let { l -> l.sumOf { it.play } * 2 + l.sumOf { it.saves } * 30 }
-    fun playedConsoles() = AppState.lib.entries.filter { it.value.play > 0 }.mapNotNull { AppState.byId[it.key]?.p }.toSet()
+    fun xp() = AppState.lib.values.let { l -> maxOf(l.sumOf { it.play } * 2 + l.sumOf { it.saves } * 30, Cloud.stat("play") * 2 + Cloud.stat("saves") * 30) }
+    fun playedConsoles() = AppState.lib.entries.filter { it.value.play > 0 }.mapNotNull { AppState.byId[it.key]?.p }.toSet() + Cloud.consoles()
 
     /** Доступен ли предмет: бесплатный, куплен или выполнено условие. */
     fun has(it: Item) = it.free || it.id in Tokens.owned || (it.need != null && progress(it.need.what) >= it.need.n)
@@ -202,6 +203,19 @@ object Tokens {
         return out
     }
 
+    /**
+     * Состояние с сервера — главное: баланс, купленное. Счётчики «уже начислено» на телефоне подтягиваются к текущим цифрам,
+     * чтобы без сети те же минуты не начислились второй раз.
+     */
+    fun fromServer(bal: Int, own: Set<String>, visit: Int) {
+        if (!ready) return
+        balance = bal; owned = own
+        val lvl = com.nexus.psp.ui.kit.Look.level(Cos.xp())
+        sp.edit().putInt("balance", bal).putStringSet("owned", own).putBoolean("started", true)
+            .putInt("pMin", AppState.lib.values.sumOf { it.play }).putInt("lvl", lvl).putStringSet("cons", Cos.playedConsoles())
+            .putInt("games", AppState.byId.size).putString("vDay", today()).putInt("vStreak", visit).apply()
+    }
+
     /** Купить за жетоны. false — не хватает. */
     fun buy(item: Cos.Item): Boolean {
         if (!ready || item.price <= 0 || item.id in owned) return item.id in owned
@@ -209,6 +223,7 @@ object Tokens {
         balance -= item.price
         owned = owned + item.id
         sp.edit().putInt("balance", balance).putStringSet("owned", owned).apply()
+        Cloud.pendingBuy(item.id) // сервер спишет по своей цене при следующей синхронизации
         return true
     }
 }
