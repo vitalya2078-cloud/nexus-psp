@@ -39,8 +39,12 @@ object Cloud {
         private set
     var banned by mutableStateOf(false)
         private set
+    /** Оформление создателя: status (строка под именем), name (стиль имени: gold / rose / emerald / neon / ice). */
+    var creator by mutableStateOf(JSONObject())
+        private set
+
     /** Для снимков экранов в тестах. */
-    internal fun setForTest(id: String, admin: Boolean, ev: Triple<Double, String, Long>? = null) { shortId = id; isAdmin = admin; event = ev }
+    internal fun setForTest(id: String, admin: Boolean, ev: Triple<Double, String, Long>? = null, cr: JSONObject = JSONObject()) { shortId = id; isAdmin = admin; event = ev; creator = cr }
 
     /** Событие «×N жетонов» (null — нет): множитель, название, до какого времени (мс). */
     var event by mutableStateOf<Triple<Double, String, Long>?>(null)
@@ -52,6 +56,7 @@ object Cloud {
         server = sp.getString("server", null)?.let { try { JSONObject(it) } catch (e: Exception) { null } }
         lastOk = sp.getLong("lastOk", 0L)
         shortId = sp.getString("shortId", "") ?: ""; isAdmin = sp.getBoolean("admin", false); banned = sp.getBoolean("banned", false)
+        creator = try { JSONObject(sp.getString("creator", "{}")!!) } catch (e: Exception) { JSONObject() }
     }
     /** В автотестах (Robolectric) на настоящий сервер не ходим — иначе тесты создавали бы аккаунты. */
     private val offline get() = android.os.Build.FINGERPRINT == "robolectric"
@@ -72,6 +77,25 @@ object Cloud {
         val S = AppState.S
         put("nick", S.nick); put("motto", S.motto); put("avMode", S.avMode); put("avItem", S.avItem); put("avColor", S.avColor)
         put("frame", S.frame); put("banner", S.banner); put("titleSel", S.titleSel)
+        // витрина для чужих глаз: до 3 игр (избранные, иначе самые наигранные) и полученные награды
+        val st = com.nexus.psp.ui.screens.Stats()
+        val games = (AppState.favs.keys.mapNotNull { AppState.byId[it] } + st.recent).distinctBy { it.id }
+            .sortedByDescending { AppState.lib[it.id]?.play ?: 0 }.take(3)
+        put("show", JSONArray(games.map { JSONObject().put("t", it.t).put("p", it.p) }))
+        put("badges", JSONArray(com.nexus.psp.ui.screens.badgeList(st).filter { it.third >= 1f }.map { it.first.removeSuffix(".png") }))
+    }
+
+    /** Публичная карточка игрока по ID (null — нет связи или нет такого игрока; второе — причина). */
+    fun publicProfile(id: String): Pair<JSONObject?, String?> {
+        if (!ready) return null to "Нет связи с сервером"
+        val (st, r) = call(JSONObject().put("action", "profile").put("id", id.trim()))
+        return when {
+            st == 200 -> r?.optJSONObject("profile") to null
+            st == 404 -> null to "Игрока с таким ID нет"
+            st == 400 -> null to "ID — 6 букв и цифр, например 7Q4M2K"
+            st == 0 -> null to "Нет связи с сервером. Проверь интернет"
+            else -> null to "Сервер не ответил. Попробуй позже"
+        }
     }
 
     // ---------- покупки без сети ----------
@@ -104,7 +128,8 @@ object Cloud {
         }
         shortId = state.optString("short_id", shortId); isAdmin = state.optBoolean("is_admin", false)
         val wasBanned = banned; banned = state.optBoolean("banned", false)
-        sp.edit().putString("shortId", shortId).putBoolean("admin", isAdmin).putBoolean("banned", banned).apply()
+        creator = state.optJSONObject("creator") ?: JSONObject()
+        sp.edit().putString("shortId", shortId).putBoolean("admin", isAdmin).putBoolean("banned", banned).putString("creator", creator.toString()).apply()
         if (banned && !wasBanned) AppState.alerts.add(0, Alert("Аккаунт KAPSULA заблокирован", "Жетоны и покупки сейчас не работают. Игры — как обычно. Если это ошибка, напиши в поддержку и назови ID $shortId", true))
         extras(state)
         lastOk = System.currentTimeMillis(); sp.edit().putLong("lastOk", lastOk).apply()

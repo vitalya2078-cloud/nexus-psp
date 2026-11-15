@@ -455,7 +455,23 @@ private fun More() {
     var ver by remember { mutableStateOf("") }
     var log by remember { mutableStateOf(JSONArray()) }
     LaunchedEffect(Unit) { val r = req("log"); if (r.ok) log = r.arr() }
+    var status by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("gold") }
     Page {
+        Caps("Мой профиль")
+        Text("Видно всем, кто откроет твой профиль в KAPSULA: строка под именем и цвет имени (с бликом).", style = F.text)
+        Field(status, "Статус, например «Делаю KAPSULA»", Modifier.fillMaxWidth()) { status = it.take(60) }
+        Text("Цвет имени", style = F.small)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("gold" to "Золото", "rose" to "Роза", "emerald" to "Изумруд").forEach { (id, t) -> Chip(t, name == id) { name = id } }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("neon" to "Неон", "ice" to "Лёд").forEach { (id, t) -> Chip(t, name == id) { name = id } }
+        }
+        Btn("Сохранить профиль", Modifier.fillMaxWidth(), gold = true) {
+            scope.launch { if (req("creator_set", JSONObject().put("status", status.trim()).put("name", name)).ok) St.toast = "Сохранено. В KAPSULA обновится при следующем заходе" }
+        }
+        Text("Рамку «Пиксельная корона» и баннер «Зал славы» выбери в KAPSULA: Оформление → Профиль.", style = F.small)
         Caps("Обязательное обновление")
         Text("У кого версия ниже — KAPSULA попросит обновиться. Пусто — не просить.", style = F.text)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -481,5 +497,5 @@ private fun More() {
 private fun word(a: String) = when (a) {
     "setup" -> "Настройка админа"; "rebind" -> "Новый телефон"; "grant" -> "Жетоны"; "give_item" -> "Выдан предмет"; "reset_nick" -> "Сброс ника"
     "ban" -> "Блокировка"; "unban" -> "Разблокировка"; "set_price" -> "Цена"; "event_set" -> "Событие запущено"; "event_off" -> "Событие остановлено"
-    "news_add" -> "Новость"; "news_off" -> "Новость скрыта"; "min_version" -> "Минимальная версия"; else -> a
+    "news_add" -> "Новость"; "news_off" -> "Новость скрыта"; "min_version" -> "Минимальная версия"; "creator_set" -> "Мой профиль"; else -> a
 }

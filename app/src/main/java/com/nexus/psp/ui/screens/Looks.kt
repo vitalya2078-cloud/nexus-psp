@@ -302,7 +302,7 @@ private fun ProfileTab() {
         Cos.Kind.FR -> Grid(Cos.of(Cos.Kind.FR).filter { Cos.pass(it, f) }, 96.dp, selected = { S.frame == it.id }, preview = { it, m ->
             Box(m.aspectRatio(1f), contentAlignment = Alignment.Center) {
                 Avatar(64.dp)
-                if (it.id.isNotEmpty()) AssetImage(it.asset, Modifier.fillMaxSize())
+                if (it.id == "fr_creator") PixelCrownFrame(88.dp) else if (it.id.isNotEmpty()) AssetImage(it.asset, Modifier.fillMaxSize())
             }
         }) { S.frame = it.id }
         Cos.Kind.BN -> Grid(Cos.of(Cos.Kind.BN).filter { Cos.pass(it, f) }, 240.dp, selected = { Look.bannerId() == it.id }, preview = { it, m ->

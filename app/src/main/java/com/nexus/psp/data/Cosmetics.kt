@@ -58,11 +58,13 @@ object Cos {
         Item("fr_handheld", Kind.FR, "Портативная", need = con("psp", 5, "PSP")), Item("fr_8bit", Kind.FR, "8 бит", need = con("nes", 3, "Денди")),
         Item("fr_16bit", Kind.FR, "16 бит", need = con("md", 3, "Mega Drive")), Item("fr_neon", Kind.FR, "Аркада", need = con("neogeo", 2, "Neo Geo")),
         Item("fr_disc", Kind.FR, "Диск", need = con("ps1", 5, "PS1")), Item("fr_legend", Kind.FR, "Легенда", need = hours(100)),
+        Item("fr_creator", Kind.FR, "Пиксельная корона", need = Need("admin", 1, "Только у создателя")),
         Item("fr_pixel", Kind.FR, "Пиксели", 300), Item("fr_leaf", Kind.FR, "Листья", 300),
         Item("fr_laurel", Kind.FR, "Лавры", 500), Item("fr_flame", Kind.FR, "Пламя", 500), Item("fr_crown", Kind.FR, "Корона", 800),
         // ---------- баннеры профиля (g0…g5 — прежние градиенты, game — обложка любимой игры) ----------
         Item("g0", Kind.BN, "Ночь"), Item("g1", Kind.BN, "Закат"), Item("g2", Kind.BN, "Океан"), Item("g3", Kind.BN, "Лес"),
         Item("g4", Kind.BN, "Аврора"), Item("g5", Kind.BN, "Графит"), Item("game", Kind.BN, "Любимая игра"),
+        Item("bn_creator", Kind.BN, "Зал славы", need = Need("admin", 1, "Только у создателя")),
         Item("bn_city", Kind.BN, "Ночной город"), Item("bn_space", Kind.BN, "Космос"),
         Item("bn_arcade", Kind.BN, "Аркадный зал", 400), Item("bn_room", Kind.BN, "Уютная комната", 400),
         Item("bn_forest", Kind.BN, "Лес на закате", need = streak(14)), Item("bn_reef", Kind.BN, "Подводные руины", need = hours(50)),

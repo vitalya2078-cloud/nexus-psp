@@ -25,6 +25,8 @@ sealed interface Ov {
     data object Quick : Ov
     /** «Оформление»: tab — theme / wall / profile. */
     data class Look(val tab: String = "theme") : Ov
+    /** Профиль другого игрока по короткому ID. */
+    data class Player(val id: String) : Ov
     data object Settings : Ov
     data object Pad : Ov
     data object Consoles : Ov

@@ -114,8 +114,10 @@ class ScreensTest {
         Nav.go("my")
     }
     @Test fun j13_profile_creator() = shot("j13-profile-creator", true) {
-        played(); com.nexus.psp.data.Cloud.setForTest("KAPSULA", true, Triple(2.0, "Выходные ×2", System.currentTimeMillis() + 3_600_000))
-        AppState.S.titleSel = "tt_creator"; Nav.go("my")
+        played(); com.nexus.psp.data.Cloud.setForTest("KAPSULA", true, Triple(2.0, "Выходные ×2", System.currentTimeMillis() + 3_600_000),
+            org.json.JSONObject().put("status", "Делаю KAPSULA").put("name", "gold"))
+        AppState.S.titleSel = "tt_creator"; AppState.S.frame = "fr_creator"; AppState.S.banner = "bn_creator"
+        AppState.S.avMode = "set"; AppState.S.avItem = "av_s_king"; Nav.go("my")
     }
     @Test fun j14_profile_player_id() = shot("j14-profile-id", true) { played(); com.nexus.psp.data.Cloud.setForTest("7Q4M2K", false); Nav.go("my") }
     @Test fun j12_home_wallpaper() = shot("j12-home-wall", true) { played(); AppState.S.wall = "wp_aurora"; AppState.S.accent = "wall"; AppState.wallChanged() }

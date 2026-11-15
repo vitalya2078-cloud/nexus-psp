@@ -147,6 +147,7 @@ private fun Overlay(top: Ov) {
             Ov.Alerts -> AlertsDrawer()
             Ov.Quick -> QuickPanel()
             is Ov.Look -> com.nexus.psp.ui.screens.LooksScreen(top.tab)
+            is Ov.Player -> com.nexus.psp.ui.screens.PlayerScreen(top.id)
             Ov.Settings -> SettingsScreen()
             Ov.Pad -> PadScreen()
             Ov.Consoles -> com.nexus.psp.ui.screens.ConsolesScreen()

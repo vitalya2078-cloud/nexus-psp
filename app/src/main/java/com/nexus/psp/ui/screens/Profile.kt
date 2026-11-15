@@ -115,10 +115,10 @@ internal fun PlayerCard(st: Stats, modifier: Modifier = Modifier, actions: @Comp
 
 
 
-@Composable
-internal fun Badges(st: Stats) {
+/** Награды профиля: картинка, название, прогресс 0…1 (≥ 1 — получена). */
+internal fun badgeList(st: Stats): List<Triple<String, String, Float>> {
     val consoles = AppState.byId.values.filter { (AppState.lib[it.id]?.play ?: 0) > 0 }.map { it.p }.toSet().size
-    val list = listOf(
+    return listOf(
         Triple("ach-first.png", "Первый запуск", minOf(1f, st.play.toFloat())),
         Triple("ach-marathon.png", "10 часов в игре", (AppState.lib.values.maxOfOrNull { it.play } ?: 0) / 600f),
         Triple("ach-saves.png", "10 сохранений", st.saves / 10f),
@@ -126,6 +126,11 @@ internal fun Badges(st: Stats) {
         Triple("ach-trophy.png", "100 часов", st.play / 6000f),
         Triple("ach-fav.png", "5 в избранном", st.favs / 5f),
     )
+}
+
+@Composable
+internal fun Badges(st: Stats) {
+    val list = badgeList(st)
     Text("Получено ${list.count { it.third >= 1f }} из ${list.size}", style = T.small, modifier = Modifier.padding(bottom = 8.dp))
     list.chunked(3).forEach { row ->
         Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

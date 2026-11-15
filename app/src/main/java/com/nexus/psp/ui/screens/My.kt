@@ -116,12 +116,18 @@ private fun Section(t: String, action: (@Composable () -> Unit)? = null) {
 internal fun Banner(st: Stats, onEdit: () -> Unit, onShare: (() -> Unit)?) {
     Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(24.dp))) {
         com.nexus.psp.ui.kit.BannerBg(Look.bannerId(), st.fav, Modifier.matchParentSize())
+        if (com.nexus.psp.data.Cloud.isAdmin) Sparkles(Modifier.matchParentSize())
         Row(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             Avatar(104.dp, Modifier.press(onClick = onEdit), ring = true)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(Look.nick(), style = T.h1.copy(color = OnBanner), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    val admin = com.nexus.psp.data.Cloud.isAdmin
+                    PlayerName(Look.nick(), admin, T.h1.copy(color = OnBanner), com.nexus.psp.data.Cloud.creator.optString("name", "gold"), Modifier.weight(1f, fill = false))
+                    if (admin) PixelCrown(22.dp)
                     PlayerId()
+                }
+                com.nexus.psp.data.Cloud.creator.optString("status").takeIf { com.nexus.psp.data.Cloud.isAdmin && it.isNotEmpty() }?.let {
+                    Text(it, style = T.small.copy(color = Creator.GOLD, fontSize = 13.sp), maxLines = 1)
                 }
                 Text(S.motto.ifBlank { "Нажми на аватар и придумай себе девиз" }, style = T.small.copy(color = OnBanner.copy(alpha = if (S.motto.isBlank()) .45f else .75f), fontSize = 13.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -138,7 +144,12 @@ internal fun Banner(st: Stats, onEdit: () -> Unit, onShare: (() -> Unit)?) {
             if (onShare != null) Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
                 Box(Modifier.press(onClick = onEdit)) { TokensChip() }
                 KButton("Оформить", icon = R.drawable.sl_brush, small = true, onClick = onEdit)
-                KButton("Поделиться", small = true, onClick = onShare)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    var find by remember { mutableStateOf(false) }
+                    KButton(icon = R.drawable.sl_search, small = true) { find = true }
+                    KButton("Поделиться", small = true, onClick = onShare)
+                    if (find) FindPlayerDialog { find = false }
+                }
             }
         }
     }

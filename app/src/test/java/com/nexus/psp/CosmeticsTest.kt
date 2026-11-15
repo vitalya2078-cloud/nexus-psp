@@ -32,7 +32,8 @@ class CosmeticsTest {
 
     @Test fun catalogFilesExist() {
         val names = ctx.assets.list("img/look")!!.toSet()
-        for (it in Cos.ITEMS) if (it.id.startsWith("av_") || it.id.startsWith("fr_") || it.id.startsWith("bn_") || it.id.startsWith("wp_"))
+        // fr_creator рисуется кодом (рамка «Пиксельная корона») — картинки у неё нет
+        for (it in Cos.ITEMS) if (it.id != "fr_creator" && (it.id.startsWith("av_") || it.id.startsWith("fr_") || it.id.startsWith("bn_") || it.id.startsWith("wp_")))
             assertTrue("нет картинки ${it.id}", "${it.id}.webp" in names)
         // у каждого вида есть что-то бесплатное — с первого запуска есть из чего выбрать
         Cos.Kind.entries.forEach { k -> assertTrue(k.name, Cos.of(k).any { it.free }) }

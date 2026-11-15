@@ -98,7 +98,7 @@ fun Avatar(size: Dp, modifier: Modifier = Modifier, ring: Boolean = false) {
         // рамка рисуется поверх, чуть шире аватара; сам аватар — без белого кольца
         Box(modifier.size(size), contentAlignment = Alignment.Center) {
             Avatar(size * .8f, ring = false)
-            AssetImage("look/$frame.webp", Modifier.size(size))
+            if (frame == "fr_creator") com.nexus.psp.ui.screens.PixelCrownFrame(size) else AssetImage("look/$frame.webp", Modifier.size(size))
         }
         return
     }
