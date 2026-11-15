@@ -690,7 +690,7 @@ private fun Chest(to: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         // «нажми меня»: раз в 2,6 с сундук покачивается влево-вправо и подпрыгивает (пока не открыт)
         val wob = loop(2600)
-        Box(Modifier.size(56.dp).graphicsLayer {
+        Box(Modifier.size(44.dp).graphicsLayer {
             if (!opened && !busy) {
                 val k = (wob / .3f).coerceAtMost(1f)
                 val damp = if (wob < .3f) 1f - k else 0f
@@ -742,6 +742,34 @@ private fun Chest(to: String) {
                 shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = .7f), blurRadius = 6f)),
                 modifier = Modifier.align(Alignment.TopCenter).graphicsLayer { translationY = -fly.value * 34.dp.toPx(); alpha = 1f - fly.value * fly.value })
         }
-        Text(if (opened) "завтра\nснова" else "сундук\nсоздателя", style = T.small.copy(fontSize = 10.sp, color = Creator.GOLD.copy(alpha = if (opened) .55f else .9f), lineHeight = 11.sp))
+        // подсказка: наклонное «Открой!» справа сверху и волнистая стрелка к сундуку (вектор, качается); открыт — не нужна
+        if (!opened) Box(Modifier.size(78.dp, 44.dp).graphicsLayer { translationY = 2.dp.toPx() * sin(wob * 2 * PI).toFloat() }) {
+            Text("Открой!", style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 13.sp, color = Creator.GOLD,
+                shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = .75f), blurRadius = 6f)),
+                modifier = Modifier.align(Alignment.TopEnd).offset(y = (-22).dp).graphicsLayer { rotationZ = -10f })
+            Canvas(Modifier.fillMaxSize()) {
+                val w = size.width; val h = size.height
+                val start = Offset(w * .55f, -6.dp.toPx())
+                val end = Offset(w * .04f, h * .5f)
+                val path = Path().apply {
+                    moveTo(start.x, start.y)
+                    // волна: два изгиба по пути вниз-влево
+                    cubicTo(w * .62f, h * .18f, w * .30f, h * .05f, w * .30f, h * .28f)
+                    cubicTo(w * .30f, h * .46f, w * .14f, h * .52f, end.x, end.y)
+                }
+                val st = androidx.compose.ui.graphics.drawscope.Stroke(2.2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawPath(path, Color.Black.copy(alpha = .45f), style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                drawPath(path, Creator.GOLD, style = st)
+                // наконечник
+                val tip = Path().apply {
+                    moveTo(end.x, end.y)
+                    lineTo(end.x + 9.dp.toPx(), end.y - 6.dp.toPx())
+                    moveTo(end.x, end.y)
+                    lineTo(end.x + 8.dp.toPx(), end.y + 5.dp.toPx())
+                }
+                drawPath(tip, Color.Black.copy(alpha = .45f), style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                drawPath(tip, Creator.GOLD, style = st)
+            }
+        }
     }
 }
