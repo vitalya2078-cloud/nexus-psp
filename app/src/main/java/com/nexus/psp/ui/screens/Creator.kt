@@ -228,7 +228,7 @@ private fun PublicCard(o: JSONObject) {
         val title = p.optString("titleSel").takeIf { it.isNotEmpty() }?.let { com.nexus.psp.data.Cos.find(com.nexus.psp.data.Cos.Kind.TT, it)?.name } ?: Look.title(level)
         val bare = JSONObject(p.toString()).apply { remove("frame") }
         CreatorBanner(CreatorCard(nick, p.optString("motto"), cr.optString("status"), cr.optString("name", "gold"), o.optString("short_id"),
-            level, null, title, banner, { s -> AvatarOf(bare, nick, s, true) }, o.optJSONObject("playing"),
+            level, null, title, cr.optString("banner").ifEmpty { banner }, { s -> AvatarOf(bare, nick, s, true) }, o.optJSONObject("playing"),
             o.optInt("cheers"), own = o.optString("short_id") == Cloud.shortId))
     } else Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(24.dp))) {
         BannerBg(banner, null, Modifier.fillMaxSize())

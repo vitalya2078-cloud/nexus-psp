@@ -22,8 +22,8 @@ android {
         applicationId = "com.nexus.psp.admin"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
     }
     buildTypes {
         getByName("release") {
@@ -34,6 +34,8 @@ android {
         }
     }
     buildFeatures { compose = true; buildConfig = true }
+    // картинки баннеров для выбора в «Мой профиль» — те же файлы, что в KAPSULA
+    sourceSets { getByName("main") { assets.srcDir(layout.buildDirectory.dir("generated/adminAssets")) } }
     testOptions { unitTests { isIncludeAndroidResources = true } }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
@@ -53,3 +55,9 @@ dependencies {
     testImplementation("io.github.takahirom.roborazzi:roborazzi:1.39.0")
     testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.39.0")
 }
+
+val copyBanners by tasks.registering(Copy::class) {
+    from(rootProject.file("ui/img/look")) { include("bn_*.webp") }
+    into(layout.buildDirectory.dir("generated/adminAssets/look"))
+}
+tasks.named("preBuild") { dependsOn(copyBanners) }

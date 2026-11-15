@@ -1,5 +1,15 @@
 package com.nexus.psp.admin
 
+import androidx.compose.ui.graphics.Color
+
+import androidx.compose.ui.layout.ContentScale
+
+import androidx.compose.ui.graphics.asImageBitmap
+
+import androidx.compose.foundation.layout.aspectRatio
+
+import androidx.compose.foundation.Image
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -57,6 +67,8 @@ object St {
     var logged by mutableStateOf(false)
     var toast by mutableStateOf<String?>(null)
     var me by mutableStateOf("")
+    /** Стартовая вкладка (для снимков в тестах). */
+    var startTab = "sum"
 }
 
 class AdminActivity : ComponentActivity() {
@@ -142,7 +154,7 @@ private fun Login() {
 
 @Composable
 private fun Main() {
-    var tab by remember { mutableStateOf("sum") }
+    var tab by remember { mutableStateOf(St.startTab) }
     var player by remember { mutableStateOf<String?>(null) }
     BackHandler(player != null) { player = null }
     Column(Modifier.fillMaxSize()) {
@@ -412,6 +424,34 @@ fun Chip(t: String, on: Boolean, onClick: () -> Unit) {
     Text(t, style = F.label.copy(fontSize = 13.sp, color = if (on) C.bg else C.ink2), modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) C.gold else C.s2).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 9.dp))
 }
 
+/** Баннеры профиля (картинки — те же, что в KAPSULA). Пусто — как выбрано в самом приложении. */
+private val BANNERS = listOf("" to "Как в KAPSULA", "bn_creator" to "Зал славы", "bn_city" to "Ночной город", "bn_space" to "Космос",
+    "bn_arcade" to "Аркадный зал", "bn_room" to "Уютная комната", "bn_forest" to "Лес на закате", "bn_reef" to "Подводные руины")
+
+@Composable
+private fun BannerPick(sel: String, onPick: (String) -> Unit) {
+    val ctx = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        BANNERS.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (id, t) ->
+                    val on = id == sel
+                    Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(C.s1)
+                        .border(2.dp, if (on) C.gold else Color.Transparent, RoundedCornerShape(14.dp)).clickable { onPick(id) }.padding(6.dp)) {
+                        val bmp = remember(id) { if (id.isEmpty()) null else try { ctx.assets.open("look/$id.webp").use { android.graphics.BitmapFactory.decodeStream(it) }?.asImageBitmap() } catch (e: Exception) { null } }
+                        Box(Modifier.fillMaxWidth().aspectRatio(3.6f).clip(RoundedCornerShape(10.dp)).background(C.s2), contentAlignment = Alignment.Center) {
+                            if (bmp != null) Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            else Text("выбор из приложения", style = F.small)
+                        }
+                        Text(t, style = F.small.copy(color = if (on) C.gold else C.ink2), maxLines = 1, modifier = Modifier.padding(top = 4.dp, start = 2.dp))
+                    }
+                }
+                if (row.size == 1) Box(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
 // ---------- новости ----------
 
 @Composable
@@ -457,9 +497,15 @@ private fun More() {
     LaunchedEffect(Unit) { val r = req("log"); if (r.ok) log = r.arr() }
     var status by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("gold") }
+    var banner by remember { mutableStateOf("") }
+    // текущие значения — с сервера (пустой запрос ничего не меняет)
+    LaunchedEffect(Unit) {
+        val r = req("creator_set")
+        if (r.ok) r.obj().let { c -> status = c.optString("status"); name = c.optString("name", "gold"); banner = c.optString("banner") }
+    }
     Page {
         Caps("Мой профиль")
-        Text("Видно всем, кто откроет твой профиль в KAPSULA: строка под именем и цвет имени (с бликом).", style = F.text)
+        Text("Видно всем, кто откроет твой профиль в KAPSULA: строка под именем, цвет имени (с бликом) и баннер.", style = F.text)
         Field(status, "Статус, например «Делаю KAPSULA»", Modifier.fillMaxWidth()) { status = it.take(60) }
         Text("Цвет имени", style = F.small)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -468,10 +514,11 @@ private fun More() {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("neon" to "Неон", "ice" to "Лёд").forEach { (id, t) -> Chip(t, name == id) { name = id } }
         }
+        Text("Баннер", style = F.small)
+        BannerPick(banner) { banner = it }
         Btn("Сохранить профиль", Modifier.fillMaxWidth(), gold = true) {
-            scope.launch { if (req("creator_set", JSONObject().put("status", status.trim()).put("name", name)).ok) St.toast = "Сохранено. В KAPSULA обновится при следующем заходе" }
+            scope.launch { if (req("creator_set", JSONObject().put("status", status.trim()).put("name", name).put("banner", banner)).ok) St.toast = "Сохранено. В KAPSULA обновится при следующем заходе" }
         }
-        Text("Рамку «Пиксельная корона» и баннер «Зал славы» выбери в KAPSULA: Оформление → Профиль.", style = F.small)
         Caps("Обязательное обновление")
         Text("У кого версия ниже — KAPSULA попросит обновиться. Пусто — не просить.", style = F.text)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

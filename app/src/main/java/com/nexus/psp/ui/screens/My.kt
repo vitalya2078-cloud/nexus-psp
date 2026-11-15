@@ -194,7 +194,7 @@ private fun MyCreatorBanner(st: Stats, onEdit: () -> Unit) {
         CreatorBanner(CreatorCard(
             nick = Look.nick(), motto = S.motto, status = cr.optString("status"), nameStyle = cr.optString("name", "gold"),
             shortId = com.nexus.psp.data.Cloud.shortId, level = st.level, xp = (st.xp % 1000) / 1000f,
-            title = Look.titleText(st.level), banner = Look.bannerId(),
+            title = Look.titleText(st.level), banner = cr.optString("banner").ifEmpty { Look.bannerId() },
             avatar = { s -> Avatar(s, Modifier.press(onClick = onEdit)) }, playing = playing,
             cheers = cr.optInt("cheers"), own = true,
         ))
