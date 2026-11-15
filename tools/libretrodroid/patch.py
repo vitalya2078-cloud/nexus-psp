@@ -204,3 +204,22 @@ edit('cpp/libretrodroid.cpp', '        if (kapsula_frame_hook) kapsula_frame_hoo
 edit('cpp/libretrodroid.cpp', 'extern void (*kapsula_frame_hook)();\n',
      'extern void (*kapsula_frame_hook)();\nextern "C" void kapsula_frames_inc();\n')
 print('fps patched')
+
+# ---- экран не кратен 60 (90/144 Гц): не спать после кадра, а на каждом обновлении экрана решать, пора ли считать кадр ----
+# Раньше: минимум 1 кадр на каждое обновление + сон до «положенного» момента + ожидание экрана — на 90 Гц ожидания
+# складывались и регулярно съедали кадр (игра давала ~55 к/с). Теперь кадр игры считается, когда подошло его время;
+# в остальные обновления экрана показывается прошлый кадр. После долгой задержки (>4 кадров) — без догонялок.
+edit('cpp/fpssync.cpp',
+     '    auto now = std::chrono::steady_clock::now();\n'
+     '    auto frames = std::max((now - lastFrame) / sampleInterval, (long long) 1);\n'
+     '    lastFrame = lastFrame + sampleInterval * frames;\n\n'
+     '    return frames;\n',
+     '    auto now = std::chrono::steady_clock::now();\n'
+     '    long long frames = (now - lastFrame) / sampleInterval;\n'
+     '    if (frames > 4) { lastFrame = now; return 1; }\n'
+     '    if (frames > 2) frames = 2;  // движок считает не больше 2 кадров за раз — отставание догоняем постепенно\n'
+     '    if (frames > 0) lastFrame = lastFrame + sampleInterval * frames;\n\n'
+     '    return (unsigned) frames;\n')
+edit('cpp/fpssync.cpp', 'void FPSSync::wait() {\n    if (useVSync) return;\n    std::this_thread::sleep_until(lastFrame);\n',
+     'void FPSSync::wait() {\n    // KAPSULA: не спим — темп задают обновления экрана, кадры игры считаются по времени в advanceFrames()\n')
+print('pacing patched')
