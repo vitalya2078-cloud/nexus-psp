@@ -403,6 +403,7 @@ private fun LegalDialog(onClose: () -> Unit) {
         Triple("Значки Phosphor", "© Phosphor Icons. MIT License.", "LICENSE-phosphor.txt"),
         Triple("Шрифт Manrope", "© The Manrope Project Authors. SIL Open Font License 1.1.", "OFL-Manrope.txt"),
         Triple("Шрифт Rubik", "© The Rubik Project Authors. SIL Open Font License 1.1.", "OFL-Rubik.txt"),
+        Triple("Шрифт Russo One", "© Jovanny Lemonad. SIL Open Font License 1.1.", "OFL-RussoOne.txt"),
     )
     androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         Column(

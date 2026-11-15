@@ -110,6 +110,9 @@ val Manrope = FontFamily(manrope(400), manrope(500), manrope(600), manrope(700),
 /** Rubik — заголовки, вкладки и цифры (игровой характер); обычный текст — Manrope. */
 val Rubik = FontFamily(Font(R.font.rubik_semibold, FontWeight.SemiBold), Font(R.font.rubik_bold, FontWeight.Bold))
 
+/** Russo One — оформление создателя (имя, титул, «Играет»). */
+val Russo = FontFamily(Font(R.font.russo_one, FontWeight.Normal))
+
 /** Типографика; size() учитывает «Крупный текст». */
 object T {
     var big by mutableStateOf(false)

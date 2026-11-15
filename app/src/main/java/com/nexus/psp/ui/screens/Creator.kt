@@ -325,19 +325,21 @@ fun CreatorBanner(c: CreatorCard, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().height(184.dp).clip(RoundedCornerShape(24.dp))) {
         BannerBg(c.banner, null, Modifier.fillMaxSize())
         Sparkles(Modifier.fillMaxSize())
-        Row(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.fillMaxSize().padding(start = 18.dp, end = 14.dp, top = 8.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             CreatorAvatar(c.avatar, 136.dp)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                PlayerName(c.nick, true, T.h1.copy(fontSize = 30.sp), c.nameStyle)
-                GlowId(c.shortId)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TitlePlate(c.title)
-                    LevelEmblem(c.level, 50.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        PlayerName(c.nick, true, TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 30.sp), c.nameStyle, Modifier.weight(1f, fill = false))
+                        LevelEmblem(c.level, 44.dp)
+                    }
+                    GlowId(c.shortId, Modifier.padding(start = 2.dp))
                 }
+                TitlePlate(c.title)
                 (c.status.ifEmpty { c.motto }).takeIf { it.isNotEmpty() }?.let { Text(it, style = T.small.copy(color = Creator.GOLD, fontSize = 12.5.sp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 c.xp?.let { GoldBar(it, Modifier.widthIn(max = 260.dp).fillMaxWidth()) }
             }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.align(Alignment.Top), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     BADGES.forEach { (img, name) ->
                         AssetImage("look/$img.webp", Modifier.size(46.dp).press { AppState.say(name) })
@@ -390,20 +392,20 @@ fun CreatorAvatar(avatar: @Composable (Dp) -> Unit, size: Dp) {
 
 /** ID без плашки: буквы светятся, по ним переливается золото, иногда поднимаются искры. */
 @Composable
-fun GlowId(id: String) {
+fun GlowId(id: String, modifier: Modifier = Modifier) {
     val t = loop(4000)
     val shift = t * 700f
     val brush = Brush.linearGradient(listOf(Creator.GOLD2, Creator.GOLD, Color(0xFFFFF4D2), Creator.GOLD, Creator.GOLD2), start = Offset(shift - 500f, 0f), end = Offset(shift, 40f))
-    Box {
-        Text(id.toCharArray().joinToString(" "), style = T.num.copy(fontSize = 15.sp, brush = brush, letterSpacing = 2.sp,
-            shadow = androidx.compose.ui.graphics.Shadow(Creator.GOLD.copy(alpha = .9f), blurRadius = 16f)))
+    Box(modifier) {
+        Text(id, style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 12.sp, brush = brush, letterSpacing = 1.sp,
+            shadow = androidx.compose.ui.graphics.Shadow(Creator.GOLD.copy(alpha = .8f), blurRadius = 10f)))
         Canvas(Modifier.matchParentSize()) {
             for (i in 0 until 4) {
                 val ph = ((t * 2f + i * .27f) % 1f)
                 if (ph > .6f) continue
                 val x = this.size.width * ((i * .29f + .08f) % 1f)
                 val y = this.size.height * (1f - ph / .6f * 1.3f)
-                drawCircle(Creator.GOLD.copy(alpha = (1f - ph / .6f) * .85f), 1.6.dp.toPx(), Offset(x, y))
+                drawCircle(Creator.GOLD.copy(alpha = (1f - ph / .6f) * .85f), 1.2.dp.toPx(), Offset(x, y))
             }
         }
     }
@@ -412,10 +414,11 @@ fun GlowId(id: String) {
 /** Титул на ленте-плашке. */
 @Composable
 fun TitlePlate(title: String) {
-    Box(Modifier.size(200.dp, 37.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(250.dp, 40.dp), contentAlignment = Alignment.Center) {
         AssetImage("look/cr_title.webp", Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.FillBounds)
-        Text(title, style = T.label.copy(fontSize = 12.5.sp, brush = Brush.verticalGradient(listOf(Color(0xFFFFF0C2), Creator.GOLD2))), maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 34.dp))
+        Text(title, style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            brush = Brush.verticalGradient(listOf(Color(0xFFFFF0C2), Creator.GOLD2))), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 38.dp))
     }
 }
 
@@ -424,7 +427,7 @@ fun TitlePlate(title: String) {
 fun LevelEmblem(level: Int, size: Dp) {
     Box(Modifier.size(size)) {
         AssetImage("look/cr_level.webp", Modifier.fillMaxSize())
-        Text("$level", style = T.num.copy(fontSize = (size.value * (if (level >= 100) .26f else .34f)).sp,
+        Text("$level", style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = (size.value * (if (level >= 100) .26f else .34f)).sp,
             brush = Brush.verticalGradient(listOf(Color(0xFFFFF4D2), Creator.GOLD, Creator.GOLD2)),
             shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = .6f), Offset(0f, 2f), 4f)),
             modifier = Modifier.align(Alignment.Center).padding(bottom = size * .08f))
@@ -456,18 +459,18 @@ private fun Playing(p: JSONObject?) {
     val pl = com.nexus.psp.data.PL[p.optString("p")]
     Column(Modifier.widthIn(max = 220.dp).clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(alpha = .45f))
         .border(1.dp, (if (live) Color(0xFF8FC9A3) else Creator.GOLD).copy(alpha = .4f), RoundedCornerShape(14.dp)).padding(horizontal = 10.dp, vertical = 7.dp),
-        horizontalAlignment = Alignment.End) {
+        horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             if (live) Box(Modifier.size(8.dp).clip(CircleShape).background(Color(0xFF8FC9A3).copy(alpha = .5f + .5f * kotlin.math.abs(kotlin.math.sin(pulse * PI)).toFloat())))
-            Text(if (live) "ИГРАЕТ СЕЙЧАС" else "ПОСЛЕДНЯЯ ИГРА", style = T.caps.copy(fontSize = 9.5.sp, color = if (live) Color(0xFF8FC9A3) else Creator.GOLD))
+            Text(if (live) "ИГРАЕТ СЕЙЧАС" else "ПОСЛЕДНЯЯ ИГРА", style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 9.5.sp, letterSpacing = .8.sp, color = if (live) Color(0xFF8FC9A3) else Creator.GOLD))
         }
-        Text(t, style = T.label.copy(fontSize = 13.sp, color = Color(0xFFF2F1EC)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(t, style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 13.sp, color = Color(0xFFF2F1EC), textAlign = androidx.compose.ui.text.style.TextAlign.Center), maxLines = 1, overflow = TextOverflow.Ellipsis)
         val since = try { java.time.OffsetDateTime.parse(p.optString(if (live) "since" else "at")).toInstant().toEpochMilli() } catch (e: Exception) { 0L }
         val mins = if (since > 0) ((System.currentTimeMillis() - since) / 60000).toInt().coerceAtLeast(0) else -1
         Text(listOfNotNull(pl?.short, when {
             mins < 0 -> null
             live -> if (mins < 1) "только начал" else if (mins < 60) "$mins мин" else "${mins / 60} ч ${mins % 60} мин"
             mins < 1 -> "только что"; mins < 60 -> "$mins мин назад"; mins < 1440 -> "${mins / 60} ч назад"; else -> "${mins / 1440} дн назад"
-        }).joinToString(" · "), style = T.small.copy(fontSize = 11.sp, color = Color(0xFFF2F1EC).copy(alpha = .7f)))
+        }).joinToString(" · "), style = T.small.copy(fontSize = 11.sp, color = Color(0xFFF2F1EC).copy(alpha = .7f), textAlign = androidx.compose.ui.text.style.TextAlign.Center))
     }
 }
