@@ -33,6 +33,8 @@ object ControlLayout {
     fun moreBtn(pos: String = "c-46 b14") = Btn("more", "more", 40f, pos, act = "more")
     /** Невидимая зона камеры на правой половине экрана (свайп → кнопки камеры). */
     fun camZone(spec: String) = Btn("camz", null, 0f, "r0 b0", cam = spec)
+    /** Зона камеры = правый стик под свайп, два касания — R3. */
+    const val CAM_STICK = "stick;tap=r3"
 
     /** Зона камеры: направление (u/d/l/r) → кнопки консоли; tap — двойное касание. */
     fun camSpec(spec: String): Map<String, List<String>> = spec.split(',', ';').mapNotNull { p ->
@@ -59,6 +61,7 @@ object ControlLayout {
         "steer_l" -> STEER_L; "steer_r" -> STEER_R
         "up" -> KeyEvent.KEYCODE_DPAD_UP; "down" -> KeyEvent.KEYCODE_DPAD_DOWN
         "left" -> KeyEvent.KEYCODE_DPAD_LEFT; "right" -> KeyEvent.KEYCODE_DPAD_RIGHT
+        "l3" -> KeyEvent.KEYCODE_BUTTON_THUMBL; "r3" -> KeyEvent.KEYCODE_BUTTON_THUMBR
         else -> null
     }
 

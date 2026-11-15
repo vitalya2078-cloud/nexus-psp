@@ -209,6 +209,11 @@ class MainActivity : ComponentActivity() {
         // вернулись из настроек «Доступ ко всем файлам» — перечитать места
         AppState.storageTick++
         // «незаметный перезапуск»: игра сохранилась и просит запустить себя заново с новыми настройками
+        // игра не запустилась и игрок нажал «Карточка игры» — открыть её
+        java.io.File(filesDir, "open_card.txt").takeIf { it.exists() }?.let { f ->
+            val id = try { f.readText().trim() } catch (e: Exception) { "" }; f.delete()
+            if (id.isNotEmpty() && AppState.byId[id] != null) com.nexus.psp.ui.Nav.open(com.nexus.psp.ui.Ov.Game(id))
+        }
         val r = java.io.File(filesDir, "relaunch.json")
         if (r.exists()) {
             val boot = try { r.readText() } catch (e: Exception) { null }

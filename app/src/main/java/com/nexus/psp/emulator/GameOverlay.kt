@@ -105,7 +105,7 @@ fun GameOverlay(a: GameActivity, ui: GameActivity.UiState) {
             modifier = Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.displayCutout).padding(10.dp)
                 .clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = .55f)).padding(horizontal = 8.dp, vertical = 3.dp),
         )
-        if (ui.phase == "error") ErrorScreen(ui.error) { a.exitGame() }
+        if (ui.phase == "error") ErrorScreen(a, ui.error, ui.errorAs) { a.exitGame() }
         // смена раскладки — маленькая тёмная капсула со значком, на секунду
         AnimatedVisibility(ui.layPill != null, Modifier.align(Alignment.TopCenter).padding(top = 16.dp), enter = fadeIn(tween(150)), exit = fadeOut(tween(300))) {
             val (name, base) = ui.layPill ?: ("" to "")
@@ -840,7 +840,7 @@ private fun PresetsPanel(a: GameActivity, ui: GameActivity.UiState, ask: Boolean
 }
 
 @Composable
-private fun ErrorScreen(msg: String, onExit: () -> Unit) {
+private fun ErrorScreen(a: GameActivity, msg: String, asPlat: String?, onExit: () -> Unit) {
     Column(
         Modifier.fillMaxSize().background(Color.Black).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -850,10 +850,24 @@ private fun ErrorScreen(msg: String, onExit: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text("Игра не запустилась", style = T.h2)
         Spacer(Modifier.height(6.dp))
-        Text(msg, style = T.body.copy(color = K.ink2, fontWeight = FontWeight.Medium), textAlign = TextAlign.Center, modifier = Modifier.width(420.dp))
+        Text(msg, style = T.body.copy(color = K.ink2, fontWeight = FontWeight.Medium), textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 460.dp))
+        // подсказка про консоль — если сами её не предложили
+        if (asPlat == null && msg.isNotEmpty() && !msg.startsWith("Ищем")) {
+            Spacer(Modifier.height(6.dp))
+            Text(LaunchCheck.HINT, style = T.small.copy(color = K.ink3), textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 460.dp))
+        }
         Spacer(Modifier.height(18.dp))
-        Box(Modifier.clip(RoundedCornerShape(22.dp)).background(K.ink).press(onClick = onExit).padding(horizontal = 22.dp, vertical = 12.dp)) {
-            Text("Выйти", style = T.label.copy(color = K.bg))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val pl = asPlat?.let { com.nexus.psp.data.PL[it] }
+            if (pl != null) Box(Modifier.clip(RoundedCornerShape(22.dp)).background(K.acc).press { a.relaunchAs(asPlat) }.padding(horizontal = 22.dp, vertical = 12.dp)) {
+                Text("Запустить как ${pl.short}", style = T.label.copy(color = K.bg))
+            }
+            if (a.gameId.isNotEmpty()) Box(Modifier.clip(RoundedCornerShape(22.dp)).background(K.s2).press { a.openCard() }.padding(horizontal = 22.dp, vertical = 12.dp)) {
+                Text("Карточка игры", style = T.label)
+            }
+            Box(Modifier.clip(RoundedCornerShape(22.dp)).background(K.ink).press(onClick = onExit).padding(horizontal = 22.dp, vertical = 12.dp)) {
+                Text("Выйти", style = T.label.copy(color = K.bg))
+            }
         }
     }
 }

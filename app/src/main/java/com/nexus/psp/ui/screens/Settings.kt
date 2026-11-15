@@ -217,7 +217,7 @@ private fun About() {
     // после вылета — неприметная ссылка «Отправить отчёт об ошибке»: окно «Поделиться» с готовым текстом
     // в отчёт идут и сбои загрузки картинок (значки достижений) — чтобы видеть причину, а не гадать
     var crash by remember { mutableStateOf(com.nexus.psp.data.CrashLog.last(ctx)?.let { f -> try { f.readText() } catch (e: Exception) { "" } }
-        .let { c -> listOfNotNull(c?.takeIf { it.isNotBlank() }, com.nexus.psp.data.Net.failLog(ctx)?.let { "Загрузка картинок:\n$it" }, com.nexus.psp.emulator.Jank.log(ctx)).joinToString("\n\n").ifBlank { null }
+        .let { c -> listOfNotNull(c?.takeIf { it.isNotBlank() }, com.nexus.psp.data.Net.failLog(ctx)?.let { "Загрузка картинок:\n$it" }, com.nexus.psp.emulator.LaunchCheck.saved(ctx)?.let { "Игра не запустилась:\n$it" }, com.nexus.psp.emulator.Jank.log(ctx)).joinToString("\n\n").ifBlank { null }
             ?.let { "KAPSULA ${com.nexus.psp.BuildConfig.VERSION_NAME} · ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}\n\n$it" } }) }
     crash?.let { txt ->
         Text(

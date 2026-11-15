@@ -54,7 +54,7 @@ object Templates {
     }
 
     /** Кнопки раскладки по основе. plat — консоль (для «Джойстика» и «Классики»). */
-    fun build(base: String, plat: String): List<Btn> = drawer(when (base) {
+    fun build(base: String, plat: String): List<Btn> = camStick(base, plat, drawer(when (base) {
         "classic" -> ControlLayout.layout("classic", plat)
         // GTA VCS: × бег, □ прыжок, ○ атака, △ сесть, L прицел/смотреть, R цель, ←/→ оружие, Select камера, Start меню
         "foot" -> listOf(small("l1", "aim", "l16 t12", "l1", 52f), small("r1", "lock", "r16 t12", "r1", 52f), stick()) +
@@ -106,7 +106,16 @@ object Templates {
             Btn("tgt", "tgt_switch", 52f, "r40 b128", BLUE, key = "ft"), Btn("spc", "bombs", 46f, "r130 b110", key = "fl"),
             small("up", "thr_up", "r16 t12", "r1", 52f), small("dn", "thr_down", "l16 t12", "l1", 52f), small("cam", "cockpit", "l20 t72", "select", 40f), pause())
         else -> GameLayouts.build(base) ?: ControlLayout.layout("touch", plat)
-    })
+    }))
+
+    /**
+     * PS2 и PS1 (DualShock): камера — правым стиком. В Touch его нет, поэтому правая половина экрана мимо кнопок
+     * работает как правый стик под свайп; два касания — нажать правый стик (R3). У PSP правого стика нет —
+     * там камера кнопками (своя зона в раскладке игры); в «Классике» PS2 правый стик и так на экране.
+     */
+    private fun camStick(base: String, plat: String, list: List<Btn>): List<Btn> =
+        if (plat !in setOf("ps2", "ps1") || base == "classic" || list.any { it.cam != null || (it.stick != null && it.right) }) list
+        else list + ControlLayout.camZone(ControlLayout.CAM_STICK)
 
     /** Редкие кнопки (меню, карта, вещи) — в панель «⋯», чтобы на экране было только главное. */
     private val RARE = setOf("menu", "map", "bag")

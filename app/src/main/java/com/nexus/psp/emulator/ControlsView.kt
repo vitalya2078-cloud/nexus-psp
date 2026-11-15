@@ -495,7 +495,7 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     private fun release(t: Touch) {
         t.job?.let { removeCallbacks(it) }; t.job = null
         val b = buttons.getOrNull(t.idx) ?: return
-        if (b.cam != null) { chordUp(t); t.dir = null; return }
+        if (b.cam != null) { if (b.cam.startsWith("stick")) listener.stick(true, 0f, 0f) else chordUp(t); t.dir = null; return }
         if (b.more) { removeCallbacks(closeDrawer); postDelayed(closeDrawer, 250) }
         when {
             b.stick != null -> listener.stick(b.right, 0f, 0f)
@@ -558,10 +558,24 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
 
     /** Палец ведёт по зоне камеры: отклонение от точки касания больше порога — держим кнопки этого направления. */
     private fun moveCam(b: Btn, t: Touch, x: Float, y: Float) {
+        if (b.cam?.startsWith("stick") == true) { camStick(t, x, y); return }
         val dx = x - t.sx; val dy = y - t.sy; val th = 22 * dp
         if (hypot(dx, dy) > 10 * dp) t.far = true
         val d = when { hypot(dx, dy) < th -> null; abs(dx) > abs(dy) -> if (dx > 0) 'r' else 'l'; else -> if (dy > 0) 'd' else 'u' }
         if (d != t.dir) { camKeys(b, t, t.dir, false); t.dir = d; camKeys(b, t, d, true) }
+    }
+
+    /**
+     * Камера правым стиком: наклон — от точки касания (полный наклон — 56 dp). Если палец ушёл дальше,
+     * точка отсчёта подтягивается за ним — разворот в обратную сторону срабатывает сразу.
+     */
+    private fun camStick(t: Touch, x: Float, y: Float) {
+        val lim = 56 * dp
+        var dx = x - t.sx; var dy = y - t.sy
+        val d = hypot(dx, dy)
+        if (d > 10 * dp) t.far = true
+        if (d > lim) { t.sx = x - dx / d * lim; t.sy = y - dy / d * lim; dx = dx / d * lim; dy = dy / d * lim }
+        listener.stick(true, dx / lim, dy / lim)
     }
 
     /** Двойное касание зоны камеры — вернуть камеру (кнопки из tap=…). */

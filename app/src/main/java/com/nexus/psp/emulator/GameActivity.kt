@@ -68,6 +68,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         var phase by mutableStateOf("loading") // loading | ready | error
         var paused by mutableStateOf(false)
         var error by mutableStateOf("")
+        /** Игра другой консоли: предложить «Запустить как …» (id консоли). */
+        var errorAs by mutableStateOf<String?>(null)
         var toast by mutableStateOf("")
         var hasState by mutableStateOf(false)
         var fast by mutableStateOf(false)
@@ -366,9 +368,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         startAutoSave(); if (isPsp) { startBatteryWatch(); watchVulkan() } else startSramSaver()
         lifecycleScope.launch {
             view.getGLRetroErrors().collect { code ->
+                if (code == GLRetroView.ERROR_LOAD_GAME) { failWhy(); return@collect }
                 fail(when (code) {
                     GLRetroView.ERROR_LOAD_LIBRARY -> "Эмулятор не запустился. Перезапусти KAPSULA"
-                    GLRetroView.ERROR_LOAD_GAME -> "Этот файл не открылся. Возможно, он повреждён"
                     GLRetroView.ERROR_GL_NOT_COMPATIBLE -> "Видеокарта телефона не тянет эту игру. Попробуй OpenGL в настройках"
                     else -> "Игра вылетела. Попробуй запустить ещё раз"
                 })
@@ -638,6 +640,38 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun applyMyPreset(name: String) { myPresets().firstOrNull { it.first == name }?.let { applyCtl(JSONObject(it.second.toString()), "Пресет «$name» применён") } }
     fun applyBuiltin() { GamePresets.find(platform, title, boot.optString("title2"))?.let { (n, o) -> applyCtl(JSONObject(o.toString()), "Пресет «$n» применён") } }
     fun hasBuiltin() = GamePresets.find(platform, title, boot.optString("title2")) != null
+
+    /** Игра не открылась: ищем причину (файл, формат, консоль, журнал эмулятора) и показываем её. */
+    private fun failWhy() {
+        ui.error = "Ищем причину…"; ui.phase = "error"; ui.paused = false
+        updateControlsVisibility()
+        lifecycleScope.launch {
+            val (why, log) = withContext(Dispatchers.IO) {
+                val log = LaunchCheck.coreLog()
+                val w = LaunchCheck.diagnose(File(boot.optString("path")), platform, log)
+                LaunchCheck.save(this@GameActivity, title, platform, w, log)
+                w to log
+            }
+            Log.w(TAG, "игра не открылась: ${why.text}; журнал эмулятора: ${log.size} строк")
+            ui.errorAs = why.asPlat; ui.error = why.text
+        }
+    }
+
+    /** «Запустить как …»: запомнить консоль игры и перезапустить её (через главное окно, как при смене настроек). */
+    fun relaunchAs(plat: String) = lifecycleScope.launch {
+        withContext(Dispatchers.IO) {
+            val f = File(boot.optString("path"))
+            if (!boot.has("store")) GameLibrary.setPlatform(this@GameActivity, f.name, plat)
+            File(filesDir, "relaunch.json").writeText(JSONObject(boot.toString()).put("plat", plat).toString())
+        }
+        finish()
+    }
+
+    /** «Карточка игры»: выйти и открыть её карточку (там выбор консоли). */
+    fun openCard() = lifecycleScope.launch {
+        withContext(Dispatchers.IO) { File(filesDir, "open_card.txt").writeText(gameId) }
+        finish()
+    }
 
     private fun fail(msg: String) {
         ui.error = msg; ui.phase = "error"; ui.paused = false
