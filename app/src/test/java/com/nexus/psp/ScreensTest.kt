@@ -44,6 +44,7 @@ class ScreensTest {
         AppState.init(ApplicationProvider.getApplicationContext())
         AppState.S.onboarded = true; AppState.S.launched = true
         Nav.closeAll(); Nav.tab = "games"
+        com.nexus.psp.ui.screens.MyTab.start = 0; com.nexus.psp.data.Cloud.setFriendsForTest(null)
         prep()
         rule.setContent { KapsulaTheme { KapsulaApp() } }
         rule.mainClock.advanceTimeBy(3000)
@@ -133,6 +134,25 @@ class ScreensTest {
         } } }
         rule.mainClock.advanceTimeBy(3000); rule.waitForIdle()
         rule.onRoot().captureRoboImage("build/shots/j15-creator-guest.png")
+    }
+    /** Вкладка «Друзья»: заявка, друзья (один играет сейчас, создатель), исходящая. */
+    @Test fun j16_friends() = shot("j16-friends", true) { j16Data(); com.nexus.psp.ui.screens.MyTab.start = 1; Nav.go("my") }
+    private fun j16Data() {
+        com.nexus.psp.data.Cloud.setForTest("7Q4M2K", false)
+        fun card(id: String, nick: String, lvl: Int, admin: Boolean = false, play: org.json.JSONObject? = null) = org.json.JSONObject()
+            .put("short_id", id).put("nick", nick).put("level", lvl).put("is_admin", admin).put("avColor", lvl % 8).apply { play?.let { put("playing", it) } }
+        val now = java.time.OffsetDateTime.now()
+        com.nexus.psp.data.Cloud.setFriendsForTest(org.json.JSONObject()
+            .put("incoming", org.json.JSONArray().put(card("H8R2NQ", "Лиса_Pro", 7)))
+            .put("friends", org.json.JSONArray()
+                .put(card("KAPSULA", "Виталий", 12, true, org.json.JSONObject().put("t", "Patapon 3").put("p", "psp").put("live", true).put("since", now.minusMinutes(42).toString())))
+                .put(card("Z3WQ7P", "Gamer.Max", 4, false, org.json.JSONObject().put("t", "Crash Bandicoot").put("p", "ps1").put("live", false).put("at", now.minusHours(3).toString())))
+                .put(card("M5T9KD", "Котик 2000", 2)))
+            .put("outgoing", org.json.JSONArray().put(card("Q7PL3X", "Neo_X", 9))))
+    }
+    @Test fun j17_friends_list() = shot("j17-friends-list", true) {
+        j16Data(); val f = com.nexus.psp.data.Cloud.friends!!; f.put("incoming", org.json.JSONArray())
+        com.nexus.psp.ui.screens.MyTab.start = 1; Nav.go("my")
     }
     @Test fun j14_profile_player_id() = shot("j14-profile-id", true) { played(); com.nexus.psp.data.Cloud.setForTest("7Q4M2K", false); Nav.go("my") }
     @Test fun j12_home_wallpaper() = shot("j12-home-wall", true) { played(); AppState.S.wall = "wp_aurora"; AppState.S.accent = "wall"; AppState.wallChanged() }

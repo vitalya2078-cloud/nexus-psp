@@ -61,6 +61,9 @@ import com.nexus.psp.ui.kit.press
 import kotlinx.coroutines.launch
 import java.io.File
 
+/** Какая вкладка «Моё» открыта первой (для снимков в тестах). */
+object MyTab { var start = 0 }
+
 /** Белый текст на баннере — фон баннера всегда тёмный. */
 private val OnBanner = Color(0xFFF2F1EC)
 
@@ -86,19 +89,30 @@ fun MyScreen() {
     val ctx = LocalContext.current
     val st = Stats()
     var view by remember { mutableStateOf<Moment?>(null) }
+    var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(MyTab.start) }
     val scope = rememberCoroutineScope()
     Column(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Banner(st, onEdit = { com.nexus.psp.ui.Nav.open(com.nexus.psp.ui.Ov.Look("profile")) }, onShare = { scope.launch { shareProfile(ctx, st) } })
-        StatsStrip(st)
-        if (AppState.byId.size < 3) AddGuide()
-        ContinueRow()
-        MomentsRow { view = it }
-        Section("Награды")
-        Badges(st)
-        RaCard()
+        androidx.compose.runtime.LaunchedEffect(com.nexus.psp.data.Cloud.code) {
+            if (com.nexus.psp.data.Cloud.friends == null) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.data.Cloud.loadFriends() }
+        }
+        val inc = com.nexus.psp.data.Cloud.friends?.optJSONArray("incoming")?.length() ?: 0
+        Box(Modifier.padding(top = 4.dp, bottom = 4.dp)) {
+            com.nexus.psp.ui.kit.Seg(listOf("Профиль", if (inc > 0) "Друзья · $inc" else "Друзья"), tab, small = true) { tab = it }
+        }
+        if (tab == 1) FriendsPane()
+        else {
+            Banner(st, onEdit = { com.nexus.psp.ui.Nav.open(com.nexus.psp.ui.Ov.Look("profile")) }, onShare = { scope.launch { shareProfile(ctx, st) } })
+            StatsStrip(st)
+            if (AppState.byId.size < 3) AddGuide()
+            ContinueRow()
+            MomentsRow { view = it }
+            Section("Награды")
+            Badges(st)
+            RaCard()
+        }
     }
     view?.let { m -> MomentViewer(m) { view = null } }
 }

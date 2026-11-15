@@ -269,7 +269,14 @@ private fun ProfileTab() {
     Banner(Stats(), onEdit = {}, onShare = null)
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val wide = maxWidth > 600.dp
-        val nickF = @Composable { m: Modifier -> SearchField(nick, "Имя игрока", m, icon = R.drawable.sl_user) { nick = it.take(20); S.nick = nick.trim() } }
+        val nickErr = com.nexus.psp.data.Nick.problem(nick, com.nexus.psp.data.Cloud.isAdmin)
+        val nickF = @Composable { m: Modifier -> Column(m) {
+            SearchField(nick, "Имя игрока (5–16 символов)", Modifier.fillMaxWidth(), icon = R.drawable.sl_user) {
+                nick = it.take(com.nexus.psp.data.Nick.MAX)
+                if (com.nexus.psp.data.Nick.problem(nick, com.nexus.psp.data.Cloud.isAdmin) == null) S.nick = nick.trim()
+            }
+            nickErr?.let { Text(it, style = T.small.copy(color = K.bad, fontSize = 12.sp), modifier = Modifier.padding(start = 12.dp, top = 4.dp)) }
+        } }
         val mottoF = @Composable { m: Modifier -> SearchField(motto, "Девиз, например «Пройду всё на 100%»", m, icon = R.drawable.sl_text) { motto = it.take(48); S.motto = motto.trim() } }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Caps("Имя и девиз")

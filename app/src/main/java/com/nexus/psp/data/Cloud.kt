@@ -57,6 +57,7 @@ object Cloud {
         lastOk = sp.getLong("lastOk", 0L)
         shortId = sp.getString("shortId", "") ?: ""; isAdmin = sp.getBoolean("admin", false); banned = sp.getBoolean("banned", false)
         creator = try { JSONObject(sp.getString("creator", "{}")!!) } catch (e: Exception) { JSONObject() }
+        hidePlay = sp.getBoolean("hidePlay", false)
     }
     /** В автотестах (Robolectric) на настоящий сервер не ходим — иначе тесты создавали бы аккаунты. */
     private val offline get() = android.os.Build.FINGERPRINT == "robolectric"
@@ -101,6 +102,71 @@ object Cloud {
     private fun today() = java.time.LocalDate.now(java.time.ZoneId.of("Europe/Moscow")).toString()
     /** Сегодня (по Москве) создатель уже поприветствован с этого телефона. */
     val cheeredToday get() = ::sp.isInitialized && sp.getString("cheerDay", "") == today()
+
+    // ---------- друзья ----------
+
+    /** Друзья и заявки: {friends, incoming, outgoing} — карточки игроков (short_id, nick, аватар, level, playing). */
+    var friends by mutableStateOf<JSONObject?>(null)
+        private set
+    /** Не показывать друзьям, во что играю. */
+    var hidePlay by mutableStateOf(false)
+        private set
+
+    fun hidePlaying(v: Boolean) {
+        hidePlay = v
+        if (!::sp.isInitialized) return
+        sp.edit().putBoolean("hidePlay", v).apply()
+        if (v && ready && code.isNotEmpty()) Thread { call(JSONObject().put("action", "presence").put("code", code).put("p", JSONObject().put("hide", true))) }.start()
+    }
+
+    /** Загрузить друзей и заявки; null — получилось, иначе текст ошибки. */
+    fun loadFriends(): String? {
+        if (!ready) return "Нет связи с сервером"
+        if (code.isEmpty()) return "Аккаунт ещё создаётся — попробуй через минуту"
+        val (st, r) = call(JSONObject().put("action", "friends").put("code", code))
+        return when {
+            st == 200 && r != null -> { friends = r; null }
+            st == 0 -> "Нет связи с сервером. Проверь интернет"
+            else -> "Сервер не ответил. Попробуй позже"
+        }
+    }
+
+    /** Действие с другом: add / accept / decline / cancel / remove. Ответ — что показать игроку. */
+    fun friend(op: String, to: String): String {
+        if (!ready) return "Нет связи с сервером"
+        if (code.isEmpty()) return "Аккаунт ещё создаётся — попробуй через минуту"
+        val id = to.uppercase().filter { it.isLetterOrDigit() }
+        if (id.length < 6) return "ID — 6 букв и цифр, например 7Q4M2K"
+        val (st, r) = call(JSONObject().put("action", "friend").put("code", code).put("op", op).put("to", id))
+        if (st == 200 && r != null) friends = r
+        return when (r?.optString("result")?.ifEmpty { null } ?: r?.optString("error")) {
+            "sent_new" -> "Заявка отправлена"
+            "sent" -> "Заявка уже отправлена — ждём ответа"
+            "already" -> "Вы уже друзья"
+            "cooldown" -> "Игрок недавно отклонил заявку — попробуй через неделю"
+            "limit" -> "В друзьях уже 100 игроков"
+            "daily" -> "На сегодня заявок хватит — продолжим завтра"
+            "accepted" -> "Теперь вы друзья"
+            "declined" -> "Заявка отклонена"
+            "cancelled" -> "Заявка отменена"
+            "removed" -> "Больше не в друзьях"
+            "no_request" -> "Этой заявки уже нет"
+            "not_friends" -> "Вы не в друзьях"
+            "self" -> "Это твой ID"
+            "no_player" -> "Игрока с таким ID нет"
+            "banned" -> "Аккаунт заблокирован"
+            else -> if (st == 0) "Нет связи с сервером. Проверь интернет" else "Сервер не ответил. Попробуй позже"
+        }
+    }
+
+    /** Кто этот игрок мне: friend / in (ждёт моего ответа) / out (жду его) / null. */
+    fun relation(id: String): String? {
+        val f = friends ?: return null
+        fun has(k: String) = f.optJSONArray(k)?.let { a -> (0 until a.length()).any { a.getJSONObject(it).optString("short_id") == id } } == true
+        return when { has("friends") -> "friend"; has("incoming") -> "in"; has("outgoing") -> "out"; else -> null }
+    }
+
+    internal fun setFriendsForTest(f: JSONObject?) { friends = f }
 
     /** «Поприветствовать создателя» (раз в сутки). Ответ: число приветствий, было ли уже сегодня, или текст ошибки. */
     fun cheer(to: String): Triple<Int, Boolean, String?> {

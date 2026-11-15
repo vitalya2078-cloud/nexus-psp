@@ -204,7 +204,7 @@ fun PlayerScreen(id: String) {
                     Mascot("search", 90.dp); Text(r.second ?: "Не нашли", style = T.body)
                 }
                 r.first!!.optBoolean("banned") -> Text("Аккаунт ${r.first!!.optString("short_id")} заблокирован", style = T.body)
-                else -> PublicCard(r.first!!)
+                else -> { PublicCard(r.first!!); FriendActions(r.first!!.optString("short_id")) }
             }
         }
     }
@@ -280,7 +280,7 @@ private fun PublicCard(o: JSONObject) {
 
 /** Аватар чужого игрока: из набора или буква (своё фото других не загружается). Рамка — его выбор. */
 @Composable
-private fun AvatarOf(p: JSONObject, nick: String, size: Dp, creator: Boolean) {
+internal fun AvatarOf(p: JSONObject, nick: String, size: Dp, creator: Boolean) {
     val frame = p.optString("frame").let { if (it == "fr_creator" && !creator) "" else it }
     val inner = if (frame.isNotEmpty()) size * .8f else size
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
