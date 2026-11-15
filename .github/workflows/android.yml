@@ -60,12 +60,25 @@ jobs:
           echo "PPSSPP libretro · buildbot nightly $(date -u +%Y-%m-%d) · sha256 ${CORE_SHA}" | tee app/src/main/assets/ppsspp/CORE.txt
           ls -la app/src/main/jniLibs/arm64-v8a app/src/main/assets/ppsspp
 
-      - name: Restore stable signing key
+      - name: Restore release signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.KAPSULA_KEYSTORE_B64 }}
+          KEY_PASS: ${{ secrets.KAPSULA_KEY_PASS }}
         run: |
-          base64 --decode nexus-debug.keystore.b64 > nexus-debug.keystore
+          # ключ — только в секретах; без него выпуск не собираем (не публикуем неподписанный или чужой APK)
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEY_PASS" ]; then echo "::error::Нет секретов KAPSULA_KEYSTORE_B64 / KAPSULA_KEY_PASS"; exit 1; fi
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/kapsula.jks"
+          echo "KAPSULA_KEYSTORE=$RUNNER_TEMP/kapsula.jks" >> "$GITHUB_ENV"
+          echo "KAPSULA_KEY_PASS=$KEY_PASS" >> "$GITHUB_ENV"
 
       - name: Build APK
         run: gradle --no-daemon :app:assembleRelease
+
+      - name: Check APK signature
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | tee sig.txt
+          grep -qi "b3c5cd37224b4ece08b4075c4f215f53f3535af134b19a29172c747ad65f2313" <(tr -d ':' < sig.txt | tr 'A-F' 'a-f') || { echo "::error::APK подписан не ключом KAPSULA"; exit 1; }
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -85,3 +98,13 @@ jobs:
           gh release create latest kapsula.apk --prerelease --target "$GITHUB_SHA" \
             --title "KAPSULA $VER" \
             --notes "Сборка ${GITHUB_SHA::7} из ветки ${GITHUB_REF_NAME}"
+
+      - name: Mirror to GitVerse
+        # зеркало для тех, у кого GitHub не открывается; если не вышло — выпуск на GitHub всё равно есть
+        continue-on-error: true
+        env:
+          GV_TOKEN: ${{ secrets.GITVERSE_TOKEN }}
+          GV_REPO: ${{ secrets.GITVERSE_REPO }}
+        run: |
+          git fetch --unshallow origin || true
+          VER=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts) APK=kapsula.apk python3 tools/gitverse_mirror.py

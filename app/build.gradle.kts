@@ -10,12 +10,15 @@ android {
     // NDK — чтобы при упаковке вырезать отладочную информацию из нативных библиотек (LibretroDroid собирается из исходников)
     ndkVersion = "27.2.12479018"
 
+    // ключ выпусков — только в секретах сборки (GitHub Actions), в репозитории его нет.
+    // KAPSULA_KEYSTORE — путь к файлу ключа, KAPSULA_KEY_PASS — пароль, KAPSULA_KEY_ALIAS — имя ключа (по умолчанию kapsula)
+    val ksPath = System.getenv("KAPSULA_KEYSTORE")
     signingConfigs {
-        create("nexusStable") {
-            storeFile = rootProject.file("nexus-debug.keystore")
-            storePassword = "nexusdebug2026"
-            keyAlias = "nexus"
-            keyPassword = "nexusdebug2026"
+        if (ksPath != null) create("kapsula") {
+            storeFile = file(ksPath)
+            storePassword = System.getenv("KAPSULA_KEY_PASS")
+            keyAlias = System.getenv("KAPSULA_KEY_ALIAS") ?: "kapsula"
+            keyPassword = System.getenv("KAPSULA_KEY_PASS")
         }
     }
 
@@ -23,8 +26,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 55
-        versionName = "0.36.4"
+        versionCode = 56
+        versionName = "0.37.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a") // ядро PPSSPP собрано только под 64-бит ARM
@@ -32,12 +35,10 @@ android {
     }
 
     buildTypes {
-        getByName("debug") {
-            signingConfig = signingConfigs.getByName("nexusStable")
-        }
-        // выпускная сборка: сжатый код, без средств отладки; тот же ключ — ставится поверх прежних версий
+        // отладочная сборка — обычный отладочный ключ Android (только для проверки на своём телефоне)
+        // выпускная сборка: сжатый код, без средств отладки; ключ выпусков — ставится поверх прежних версий
         getByName("release") {
-            signingConfig = signingConfigs.getByName("nexusStable")
+            signingConfigs.findByName("kapsula")?.let { signingConfig = it }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
