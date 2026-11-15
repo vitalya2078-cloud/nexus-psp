@@ -576,7 +576,8 @@ private fun SaveikWalker(game: String, modifier: Modifier = Modifier) {
     androidx.compose.foundation.layout.BoxWithConstraints(modifier) {
         val size = 60.dp
         val w = maxWidth.value
-        val minX = maxOf(w * .5f, w - 380f).coerceAtMost(w - 170f)
+        // правее кнопки приветствия и сундука (они кончаются около 580 dp от левого края)
+        val minX = maxOf(w * .5f, 580f).coerceAtMost(w - 170f)
         val maxX = w - size.value - 10f
         val medalsX = w - 14f - 150f
         val gameX = w - 14f - 120f
@@ -689,7 +690,7 @@ private fun Chest(to: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         // «нажми меня»: раз в 2,6 с сундук покачивается влево-вправо и подпрыгивает (пока не открыт)
         val wob = loop(2600)
-        Box(Modifier.size(52.dp).graphicsLayer {
+        Box(Modifier.size(56.dp).graphicsLayer {
             if (!opened && !busy) {
                 val k = (wob / .3f).coerceAtMost(1f)
                 val damp = if (wob < .3f) 1f - k else 0f
@@ -708,38 +709,30 @@ private fun Chest(to: String) {
                 opened = true
                 if (already) { lid.snapTo(1f); AppState.say("Сундук уже открыт — заходи завтра"); return@launch }
                 got = amt
-                lid.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = .45f, stiffness = 300f))
+                lid.animateTo(1f, tween(420, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                 fly.snapTo(0f); fly.animateTo(1f, tween(1300, easing = LinearEasing))
                 AppState.say("+$amt ${com.nexus.psp.data.Tokens.word(amt)} из сундука")
             }
         }) {
+            // свечение, пока сундук ждёт
+            if (!opened) Canvas(Modifier.fillMaxSize()) {
+                val c0 = Offset(size.width / 2, size.height * .6f)
+                drawCircle(Brush.radialGradient(listOf(Creator.GOLD.copy(alpha = .3f + .2f * sin(glow * 2 * PI).toFloat()), Color.Transparent), c0, size.width * .62f), size.width * .62f, c0)
+            }
+            // закрытый → «вспухает» → открытый (картинки)
+            val l = lid.value
+            val pop = if (l < .5f) 1f + .18f * (l / .5f) else 1f + .18f * (1f - (l - .5f) / .5f).coerceAtLeast(0f)
+            AssetImage(if (l < .5f) "look/cr_chest.webp" else "look/cr_chest_open.webp", Modifier.fillMaxSize().graphicsLayer {
+                scaleX = pop; scaleY = pop; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(.5f, .9f)
+                alpha = if (opened && fly.value >= 1f || opened && got == 0) .75f else 1f
+            })
+            // монетки
             Canvas(Modifier.fillMaxSize()) {
-                val w = size.width; val h = size.height
-                // свечение, пока сундук ждёт
-                if (!opened) drawCircle(Brush.radialGradient(listOf(Creator.GOLD.copy(alpha = .28f + .2f * sin(glow * 2 * PI).toFloat()), Color.Transparent), Offset(w / 2, h * .62f), w * .6f), w * .6f, Offset(w / 2, h * .62f))
-                val bodyTop = h * .48f
-                val wood = Color(0xFF7A4A22); val woodD = Color(0xFF5A3315)
-                // корпус
-                drawRoundRect(woodD, Offset(w * .1f, bodyTop), Size(w * .8f, h * .42f), androidx.compose.ui.geometry.CornerRadius(w * .06f))
-                drawRoundRect(wood, Offset(w * .13f, bodyTop + h * .03f), Size(w * .74f, h * .36f), androidx.compose.ui.geometry.CornerRadius(w * .05f))
-                drawRect(Creator.GOLD2, Offset(w * .1f, bodyTop + h * .1f), Size(w * .8f, h * .05f))
-                drawRect(Creator.GOLD2, Offset(w * .44f, bodyTop), Size(w * .12f, h * .42f))
-                // внутри — золото, пока не опустел
-                if (lid.value > .05f && !(opened && fly.value >= 1f && got == 0)) drawOval(Creator.GOLD.copy(alpha = if (fly.value >= 1f || got == 0) .35f else 1f), Offset(w * .18f, bodyTop - h * .05f), Size(w * .64f, h * .12f))
-                // крышка: откидывается назад вокруг задней кромки
-                rotate(-110f * lid.value, Offset(w * .5f, bodyTop)) {
-                    drawRoundRect(woodD, Offset(w * .1f, bodyTop - h * .26f), Size(w * .8f, h * .27f), androidx.compose.ui.geometry.CornerRadius(w * .12f, w * .12f))
-                    drawRoundRect(wood, Offset(w * .13f, bodyTop - h * .23f), Size(w * .74f, h * .22f), androidx.compose.ui.geometry.CornerRadius(w * .1f))
-                    drawRect(Creator.GOLD2, Offset(w * .44f, bodyTop - h * .26f), Size(w * .12f, h * .27f))
-                }
-                // замочек
-                if (lid.value < .5f) drawRoundRect(Creator.GOLD, Offset(w * .42f, bodyTop - h * .02f), Size(w * .16f, h * .14f), androidx.compose.ui.geometry.CornerRadius(w * .03f))
-                // монетки
-                val f = fly.value
+                val w = size.width; val h = size.height; val f = fly.value
                 if (f > 0f && f < 1f) for (i in 0 until 7) {
                     val ang = (-PI / 2) + (i - 3) * .32
                     val d = h * (.2f + .9f * f)
-                    val pt = Offset(w / 2 + (d * cos(ang)).toFloat(), bodyTop + (d * sin(ang)).toFloat() + h * 1.4f * f * f)
+                    val pt = Offset(w / 2 + (d * cos(ang)).toFloat(), h * .45f + (d * sin(ang)).toFloat() + h * 1.4f * f * f)
                     drawCircle(Creator.GOLD2, w * .085f * (1f - .3f * f), pt)
                     drawCircle(Color(0xFFFFF4D2).copy(alpha = 1f - f), w * .045f, pt)
                 }
