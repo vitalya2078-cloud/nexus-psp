@@ -338,7 +338,7 @@ private fun CoreSettings() {
     when (sec) {
         0 -> {
             val f = listOf("default" to "Обычный", "smooth" to "Сглаживание", "pixel" to "Пиксели", "lcd" to "ЖК", "crt" to "ЭЛТ")
-            CoreRows(CoreOptions.RENDER); VulkanNote()
+            CoreRows(CoreOptions.RENDER)
             Opt("Авто-качество", "Держать 60 кадров: разрешение снижается само при нехватке скорости") { Toggle(S.autoRes) { S.autoRes = it } }
             Opt("Экран 60 Гц в игре", "Игры идут в 60 кадров. На экране 120 или 144 Гц картинка может периодически дёргаться — на время игры KAPSULA переключает экран на 60 Гц") { Toggle(S.hz60) { S.hz60 = it } }
             Opt("Фильтр картинки", "Для всех игр; в игре можно поменять на лету: пауза → Настройки") {

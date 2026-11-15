@@ -303,7 +303,7 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
                 key(ui.scopeGame) {
                     when (tab) {
                         0 -> if (!a.isPsp) { FilterRow(a, ui); if (a.platform == "ps1") CoreRows(CoreOptions.PS1_QUALITY, a.coreStore) } else {
-                            CoreRows(CoreOptions.RENDER, a.coreStore); com.nexus.psp.ui.screens.VulkanNote()
+                            CoreRows(CoreOptions.RENDER, a.coreStore)
                             Opt("Авто-качество", "Держать 60 кадров: при нехватке скорости разрешение снижается само, при запасе — возвращается") { Toggle(ui.autoRes) { a.setAutoRes(it) } }
                             FilterRow(a, ui); CoreQuality(a.coreStore)
                         }

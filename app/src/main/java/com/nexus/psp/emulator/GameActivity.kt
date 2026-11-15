@@ -354,7 +354,14 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 // FPS — кадры, которые посчитала игра (на экране 90/120 Гц обновлений экрана больше, чем кадров игры)
                 val core = try { RA.nFrames() } catch (e: Throwable) { -1L }
                 val f = if (core >= 0 && lastCore >= 0) (core - lastCore).toInt() else frames
+                val draws = frames
                 lastCore = core; ui.fps = f; frames = 0; if (isPsp) autoResTick(ui.fps)
+                // страховка: без ускорения игра дала заметно больше 60 кадров — телефон назвал частоту экрана,
+                // которую мы просили, а не настоящую. Сообщаем движку измеренную (сколько раз экран реально обновился)
+                if (ui.phase == "ready" && !ui.paused && !ui.fast && core >= 0 && f > 66 && draws > 0) {
+                    Log.i(TAG, "игра быстрее нормы: $f к/с при $draws обновлениях экрана — синхронизация по измеренной частоте")
+                    retro?.queueEvent { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(draws.toFloat()) }
+                }
                 if (ui.phase == "ready" && !ui.paused && !ui.fast) jank?.second(f, autoAt)
                 // диагностика Vulkan — только в журнал (для разработчика), игроку не показываем
                 if (vkOn && frames == 0 && ui.fps > 0) try { Vk.nStats()?.let { Log.i(TAG, "vulkan $it fps=${ui.fps}") } } catch (e: Throwable) { }
@@ -400,9 +407,11 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         // игра по сети
         gx.optJSONObject("net")?.let { n -> v.putAll(NetPlay.vars(n.optString("mode"), n.optString("ip"), NetPlay.mac(this))) }
         // графика: Vulkan — только если телефон подходит и прошлый запуск на нём не упал
-        vkCrashed = v["ppsspp_backend"] == "vulkan" && Vk.tryFile(this).exists()
-        vkOn = Vk.prepare(this, v["ppsspp_backend"])
-        v["ppsspp_backend"] = if (vkOn) "vulkan" else "opengl"
+        // PSP — всегда OpenGL (Vulkan скрыт: на PSP он не нужен, а мост отнимал кадры); у кого был включён — молча OpenGL
+        vkCrashed = false
+        vkOn = false
+        try { Vk.nSetWanted(false) } catch (e: Throwable) { }
+        v["ppsspp_backend"] = "opengl"
         // Vulkan раскрывается, когда видеокарта рисует один кадр, пока готовится следующий
         if (vkOn && v["ppsspp_inflight_frames"] != "No buffer") v["ppsspp_inflight_frames"] = "Up to 2"
         return v.map { Variable(it.key, it.value) }.toTypedArray()

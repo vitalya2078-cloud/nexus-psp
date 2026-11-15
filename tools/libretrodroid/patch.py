@@ -205,3 +205,8 @@ edit('cpp/libretrodroid.cpp', 'extern void (*kapsula_frame_hook)();\n',
      'extern void (*kapsula_frame_hook)();\nextern "C" void kapsula_frames_inc();\n')
 print('fps patched')
 
+
+# ---- звук при просадках: подгонка скорости звука до ~8% (было ~2%) — вместо заиканий звук на мгновение чуть ниже ----
+edit('cpp/audio.h', '    const double ki = 0.00002;\n    const double maxp = 0.003;\n    const double maxi = 0.02;\n',
+     '    const double ki = 0.00005;\n    const double maxp = 0.005;\n    const double maxi = 0.08;\n')
+print('audio patched')

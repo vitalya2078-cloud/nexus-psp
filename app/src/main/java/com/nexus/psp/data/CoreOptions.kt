@@ -29,9 +29,9 @@ object CoreOptions {
         CoreOpt("ppsspp_texture_deposterize", "Без полос на текстурах", "Сглаживает ступеньки цвета при улучшении текстур", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
     )
     /** Графика: Vulkan — пробный режим (при сбое игра сама вернётся на OpenGL). */
-    val RENDER = listOf(
-        CoreOpt("ppsspp_backend", "Графика", "Vulkan обычно быстрее и плавнее. Пробный режим: при сбое игра сама вернётся на OpenGL", listOf("opengl", "vulkan"), listOf("OpenGL", "Vulkan"), "opengl", restart = true),
-    )
+    // Vulkan для PSP скрыт: игры PSP упираются в процессор, а мост Vulkan → OpenGL только отнимал кадры. Код моста остаётся
+    // (Vk, kapsula_vk.cpp) — для PS2/Dreamcast после проверки.
+    val RENDER = emptyList<CoreOpt>()
     val SPEED = listOf(
         CoreOpt("ppsspp_frameskip", "Пропуск кадров", "Помогает слабым телефонам, но картинка менее плавная", listOf("disabled", "1", "2", "3"), listOf("Выкл", "1", "2", "3"), "disabled"),
         CoreOpt("ppsspp_auto_frameskip", "Авто-пропуск кадров", "Пропускать кадры только когда игра не успевает", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "enabled"),
