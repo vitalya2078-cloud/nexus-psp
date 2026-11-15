@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.rotate
 import com.nexus.psp.ui.kit.press
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.width
 import com.nexus.psp.ui.kit.tap
 import androidx.compose.foundation.layout.wrapContentSize
@@ -348,8 +349,11 @@ fun CreatorBanner(c: CreatorCard, modifier: Modifier = Modifier) {
                 (c.status.ifEmpty { c.motto }).takeIf { it.isNotEmpty() }?.let { Text(it, style = T.small.copy(color = Creator.GOLD, fontSize = 12.5.sp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 c.xp?.let { GoldBar(it, Modifier.widthIn(max = 260.dp).fillMaxWidth()) }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CheerButton(c) { burst++ }
-                    if (!c.own) Chest(c.shortId)
+                    // сундук — ровно по высоте кнопки приветствия
+                    var cheerH by remember { mutableStateOf(30.dp) }
+                    val dens = androidx.compose.ui.platform.LocalDensity.current
+                    Box(Modifier.onSizeChanged { cheerH = with(dens) { it.height.toDp() } }) { CheerButton(c) { burst++ } }
+                    if (!c.own) Chest(c.shortId, cheerH)
                 }
             }
             Column(Modifier.align(Alignment.Top), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -679,7 +683,7 @@ private fun SaveikWalker(game: String, modifier: Modifier = Modifier) {
  * Тап — крышка откидывается, вылетают монетки, всплывает «+N». Открыт сегодня — пустой, «завтра снова».
  */
 @Composable
-private fun Chest(to: String) {
+private fun Chest(to: String, h: Dp) {
     var opened by remember { mutableStateOf(Cloud.chestToday) }
     var busy by remember { mutableStateOf(false) }
     var got by remember { mutableStateOf(0) }
@@ -688,17 +692,10 @@ private fun Chest(to: String) {
     val scope = rememberCoroutineScope()
     val glow = loop(1800)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        // «нажми меня»: раз в 2,6 с сундук покачивается влево-вправо и подпрыгивает (пока не открыт)
+        // покачивается только надпись «Открой!» (раз в 2,6 с)
         val wob = loop(2600)
-        Box(Modifier.size(44.dp).graphicsLayer {
-            if (!opened && !busy) {
-                val k = (wob / .3f).coerceAtMost(1f)
-                val damp = if (wob < .3f) 1f - k else 0f
-                rotationZ = 12f * sin(k * 4 * PI).toFloat() * damp
-                translationY = -4.dp.toPx() * sin(k * PI).toFloat() * damp
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(.5f, .95f)
-            }
-        }.tap {
+        // корпус сундука занимает нижние 72 % картинки и всю её ширину — по высоте кнопки
+        Box(Modifier.size(h * 1.39f, h).tap {
             if (busy) return@tap
             if (opened) { AppState.say("Сундук уже открыт — заходи завтра"); return@tap }
             busy = true
@@ -722,7 +719,8 @@ private fun Chest(to: String) {
             // закрытый → «вспухает» → открытый (картинки)
             val l = lid.value
             val pop = if (l < .5f) 1f + .18f * (l / .5f) else 1f + .18f * (1f - (l - .5f) / .5f).coerceAtLeast(0f)
-            AssetImage(if (l < .5f) "look/cr_chest.webp" else "look/cr_chest_open.webp", Modifier.fillMaxSize().graphicsLayer {
+            AssetImage(if (l < .5f) "look/cr_chest.webp" else "look/cr_chest_open.webp", Modifier.align(Alignment.BottomCenter)
+                .wrapContentSize(align = Alignment.BottomCenter, unbounded = true).size(h / .72f).graphicsLayer {
                 scaleX = pop; scaleY = pop; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(.5f, .9f)
                 alpha = if (opened && fly.value >= 1f || opened && got == 0) .75f else 1f
             })
@@ -743,10 +741,16 @@ private fun Chest(to: String) {
                 modifier = Modifier.align(Alignment.TopCenter).graphicsLayer { translationY = -fly.value * 34.dp.toPx(); alpha = 1f - fly.value * fly.value })
         }
         // подсказка: наклонное «Открой!» справа сверху и волнистая стрелка к сундуку (вектор, качается); открыт — не нужна
-        if (!opened) Box(Modifier.size(78.dp, 44.dp).graphicsLayer { translationY = 2.dp.toPx() * sin(wob * 2 * PI).toFloat() }) {
+        if (!opened) Box(Modifier.size(70.dp, h)) {
             Text("Открой!", style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 13.sp, color = Creator.GOLD,
                 shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = .75f), blurRadius = 6f)),
-                modifier = Modifier.align(Alignment.TopEnd).offset(y = (-22).dp).graphicsLayer { rotationZ = -10f })
+                modifier = Modifier.align(Alignment.TopEnd).offset(y = (-24).dp).graphicsLayer {
+                    // качается влево-вправо, затухая, затем пауза
+                    val k = (wob / .35f).coerceAtMost(1f)
+                    val damp = if (wob < .35f) 1f - k else 0f
+                    rotationZ = -10f + 14f * sin(k * 4 * PI).toFloat() * damp
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(.5f, 1f)
+                })
             Canvas(Modifier.fillMaxSize()) {
                 val w = size.width; val h = size.height
                 val start = Offset(w * .55f, -6.dp.toPx())
