@@ -41,6 +41,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.rotate
+import com.nexus.psp.ui.kit.press
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -215,7 +219,12 @@ private fun PublicCard(o: JSONObject) {
     val nick = p.optString("nick").ifBlank { "Игрок" }
     val level = o.optInt("level", 1)
     val banner = p.optString("banner").let { b -> if (b.startsWith("bn_") || b.startsWith("g")) b else "g0" }.let { if (it == "bn_creator" && !creator) "g0" else it }
-    Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(24.dp))) {
+    if (creator) {
+        val title = p.optString("titleSel").takeIf { it.isNotEmpty() }?.let { com.nexus.psp.data.Cos.find(com.nexus.psp.data.Cos.Kind.TT, it)?.name } ?: Look.title(level)
+        val bare = JSONObject(p.toString()).apply { remove("frame") }
+        CreatorBanner(CreatorCard(nick, p.optString("motto"), cr.optString("status"), cr.optString("name", "gold"), o.optString("short_id"),
+            level, null, title, banner, { s -> AvatarOf(bare, nick, s, true) }, o.optJSONObject("playing")))
+    } else Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(24.dp))) {
         BannerBg(banner, null, Modifier.fillMaxSize())
         if (creator) Sparkles(Modifier.fillMaxSize())
         Row(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -294,4 +303,171 @@ private fun IdChip(id: String, gold: Boolean) {
     Text("ID $id", style = T.num.copy(fontSize = 12.sp, color = if (gold) Creator.GOLD else Color(0xFFF2F1EC).copy(alpha = .8f)),
         modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (gold) Creator.GOLD2.copy(alpha = .22f) else Color.White.copy(alpha = .1f))
             .border(1.dp, if (gold) Creator.GOLD.copy(alpha = .8f) else Color.White.copy(alpha = .14f), RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 3.dp))
+}
+
+// ---------- баннер создателя ----------
+
+/** Что показывает баннер создателя (свой — из телефона, чужой просмотр — с сервера). */
+class CreatorCard(
+    val nick: String, val motto: String, val status: String, val nameStyle: String, val shortId: String,
+    val level: Int, val xp: Float?, val title: String, val banner: String,
+    val avatar: @Composable (Dp) -> Unit, val playing: JSONObject?,
+)
+
+private val BADGES = listOf("cr_b1" to "Создатель KAPSULA", "cr_b2" to "Разработчик", "cr_b3" to "Друг Сейвика")
+
+/**
+ * Баннер создателя: рамка-картинка с бегущим бликом и пульсом, светящийся ID с искрами, титул на плашке,
+ * уровень на эмблеме, три особых значка и «Сейчас играет». Только у аккаунта создателя.
+ */
+@Composable
+fun CreatorBanner(c: CreatorCard, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxWidth().height(184.dp).clip(RoundedCornerShape(24.dp))) {
+        BannerBg(c.banner, null, Modifier.fillMaxSize())
+        Sparkles(Modifier.fillMaxSize())
+        Row(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            CreatorAvatar(c.avatar, 136.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                PlayerName(c.nick, true, T.h1.copy(fontSize = 30.sp), c.nameStyle)
+                GlowId(c.shortId)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TitlePlate(c.title)
+                    LevelEmblem(c.level, 50.dp)
+                }
+                (c.status.ifEmpty { c.motto }).takeIf { it.isNotEmpty() }?.let { Text(it, style = T.small.copy(color = Creator.GOLD, fontSize = 12.5.sp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                c.xp?.let { GoldBar(it, Modifier.widthIn(max = 260.dp).fillMaxWidth()) }
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    BADGES.forEach { (img, name) ->
+                        AssetImage("look/$img.webp", Modifier.size(46.dp).press { AppState.say(name) })
+                    }
+                }
+                Playing(c.playing)
+            }
+        }
+    }
+}
+
+/** Аватар в рамке создателя: блик бежит по золоту, свечение пульсирует, иногда отлетают искры. */
+@Composable
+fun CreatorAvatar(avatar: @Composable (Dp) -> Unit, size: Dp) {
+    val t = loop(3400)
+    val p = loop(2200)
+    Box(Modifier.size(size)) {
+        // свечение за рамкой
+        Canvas(Modifier.fillMaxSize()) {
+            val c = Offset(this.size.width * .5f, this.size.height * .517f)
+            val a = .22f + .16f * kotlin.math.sin(p * 2 * PI).toFloat()
+            drawCircle(Brush.radialGradient(listOf(Creator.GOLD.copy(alpha = a), Color.Transparent), c, this.size.minDimension * .56f), this.size.minDimension * .56f, c)
+        }
+        // сам аватар — в круглом окне рамки (центр окна чуть ниже центра картинки из-за короны)
+        Box(Modifier.align(Alignment.TopStart).padding(start = size * .147f, top = size * .167f).size(size * .70f).clip(CircleShape)) { avatar(size * .70f) }
+        // рамка + бегущий блик только по золоту (SrcAtop)
+        AssetImage("look/cr_frame.webp", Modifier.fillMaxSize()
+            .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+            .drawWithContent {
+                drawContent()
+                rotate(t * 360f) {
+                    drawRect(Brush.sweepGradient(listOf(Color.Transparent, Color.Transparent, Color.White.copy(alpha = .75f), Color.Transparent, Color.Transparent),
+                        Offset(this.size.width / 2, this.size.height / 2)), blendMode = androidx.compose.ui.graphics.BlendMode.SrcAtop)
+                }
+            })
+        // искры с кольца наружу
+        Canvas(Modifier.fillMaxSize()) {
+            val c = Offset(this.size.width * .5f, this.size.height * .517f); val r0 = this.size.minDimension * .4f
+            for (i in 0 until 5) {
+                val ph = ((t * 1.7f + i * .2f) % 1f)
+                if (ph > .55f) continue
+                val ang = (i * 1.3f + 0.6f) * 2.0
+                val d = r0 + this.size.minDimension * .18f * ph / .55f
+                val pt = Offset(c.x + (d * cos(ang)).toFloat(), c.y + (d * sin(ang)).toFloat())
+                drawCircle(Creator.GOLD.copy(alpha = (1f - ph / .55f) * .9f), 2.2.dp.toPx(), pt)
+            }
+        }
+    }
+}
+
+/** ID без плашки: буквы светятся, по ним переливается золото, иногда поднимаются искры. */
+@Composable
+fun GlowId(id: String) {
+    val t = loop(4000)
+    val shift = t * 700f
+    val brush = Brush.linearGradient(listOf(Creator.GOLD2, Creator.GOLD, Color(0xFFFFF4D2), Creator.GOLD, Creator.GOLD2), start = Offset(shift - 500f, 0f), end = Offset(shift, 40f))
+    Box {
+        Text(id.toCharArray().joinToString(" "), style = T.num.copy(fontSize = 15.sp, brush = brush, letterSpacing = 2.sp,
+            shadow = androidx.compose.ui.graphics.Shadow(Creator.GOLD.copy(alpha = .9f), blurRadius = 16f)))
+        Canvas(Modifier.matchParentSize()) {
+            for (i in 0 until 4) {
+                val ph = ((t * 2f + i * .27f) % 1f)
+                if (ph > .6f) continue
+                val x = this.size.width * ((i * .29f + .08f) % 1f)
+                val y = this.size.height * (1f - ph / .6f * 1.3f)
+                drawCircle(Creator.GOLD.copy(alpha = (1f - ph / .6f) * .85f), 1.6.dp.toPx(), Offset(x, y))
+            }
+        }
+    }
+}
+
+/** Титул на ленте-плашке. */
+@Composable
+fun TitlePlate(title: String) {
+    Box(Modifier.size(200.dp, 37.dp), contentAlignment = Alignment.Center) {
+        AssetImage("look/cr_title.webp", Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.FillBounds)
+        Text(title, style = T.label.copy(fontSize = 12.5.sp, brush = Brush.verticalGradient(listOf(Color(0xFFFFF0C2), Creator.GOLD2))), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 34.dp))
+    }
+}
+
+/** Уровень на эмблеме: крупное золотое число. */
+@Composable
+fun LevelEmblem(level: Int, size: Dp) {
+    Box(Modifier.size(size)) {
+        AssetImage("look/cr_level.webp", Modifier.fillMaxSize())
+        Text("$level", style = T.num.copy(fontSize = (size.value * (if (level >= 100) .26f else .34f)).sp,
+            brush = Brush.verticalGradient(listOf(Color(0xFFFFF4D2), Creator.GOLD, Creator.GOLD2)),
+            shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = .6f), Offset(0f, 2f), 4f)),
+            modifier = Modifier.align(Alignment.Center).padding(bottom = size * .08f))
+    }
+}
+
+/** Полоса опыта: золото с бегущим бликом. */
+@Composable
+fun GoldBar(frac: Float, modifier: Modifier = Modifier) {
+    val t = loop(2600)
+    Canvas(modifier.height(5.dp)) {
+        val r = androidx.compose.ui.geometry.CornerRadius(this.size.height / 2)
+        drawRoundRect(Color.White.copy(alpha = .14f), cornerRadius = r)
+        val w = this.size.width * frac.coerceIn(0.02f, 1f)
+        drawRoundRect(Brush.horizontalGradient(listOf(Creator.GOLD3, Creator.GOLD, Creator.GOLD2)), size = Size(w, this.size.height), cornerRadius = r)
+        val x = w * t
+        drawRoundRect(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = .7f), Color.Transparent), x - 30f, x + 30f),
+            topLeft = Offset((x - 30f).coerceAtLeast(0f), 0f), size = Size(60f.coerceAtMost(w), this.size.height), cornerRadius = r)
+    }
+}
+
+/** «Сейчас играет» / «Последняя игра». */
+@Composable
+private fun Playing(p: JSONObject?) {
+    val t = p?.optString("t").orEmpty()
+    if (t.isEmpty()) return
+    val live = p!!.optBoolean("live")
+    val pulse = loop(1400)
+    val pl = com.nexus.psp.data.PL[p.optString("p")]
+    Column(Modifier.widthIn(max = 220.dp).clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(alpha = .45f))
+        .border(1.dp, (if (live) Color(0xFF8FC9A3) else Creator.GOLD).copy(alpha = .4f), RoundedCornerShape(14.dp)).padding(horizontal = 10.dp, vertical = 7.dp),
+        horizontalAlignment = Alignment.End) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (live) Box(Modifier.size(8.dp).clip(CircleShape).background(Color(0xFF8FC9A3).copy(alpha = .5f + .5f * kotlin.math.abs(kotlin.math.sin(pulse * PI)).toFloat())))
+            Text(if (live) "ИГРАЕТ СЕЙЧАС" else "ПОСЛЕДНЯЯ ИГРА", style = T.caps.copy(fontSize = 9.5.sp, color = if (live) Color(0xFF8FC9A3) else Creator.GOLD))
+        }
+        Text(t, style = T.label.copy(fontSize = 13.sp, color = Color(0xFFF2F1EC)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val since = try { java.time.OffsetDateTime.parse(p.optString(if (live) "since" else "at")).toInstant().toEpochMilli() } catch (e: Exception) { 0L }
+        val mins = if (since > 0) ((System.currentTimeMillis() - since) / 60000).toInt().coerceAtLeast(0) else -1
+        Text(listOfNotNull(pl?.short, when {
+            mins < 0 -> null
+            live -> if (mins < 1) "только начал" else if (mins < 60) "$mins мин" else "${mins / 60} ч ${mins % 60} мин"
+            mins < 1 -> "только что"; mins < 60 -> "$mins мин назад"; mins < 1440 -> "${mins / 60} ч назад"; else -> "${mins / 1440} дн назад"
+        }).joinToString(" · "), style = T.small.copy(fontSize = 11.sp, color = Color(0xFFF2F1EC).copy(alpha = .7f)))
+    }
 }

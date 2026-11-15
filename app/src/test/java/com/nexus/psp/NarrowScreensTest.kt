@@ -55,6 +55,10 @@ class NarrowScreensTest {
     @Test fun a2() = shot("n2-game", true) { Nav.open(Ov.Game(firstId())) }
     @Test fun a3() = shot("n3-pad", true) { Nav.open(Ov.Pad) }
     @Test fun a4() = shot("n4-core", true) { Nav.settingsTab = "core"; Nav.open(Ov.Settings) }
+    @Test fun a9_creator() = shot("n9-creator", true) {
+        com.nexus.psp.data.Cloud.setForTest("KAPSULA", true, null, org.json.JSONObject().put("status", "Делаю KAPSULA").put("name", "gold"))
+        AppState.S.titleSel = "tt_creator"; AppState.S.banner = "bn_creator"; AppState.S.avMode = "set"; AppState.S.avItem = "av_s_king"; Nav.go("my")
+    }
     @Test fun a5() = shot("n5-quick", true) { Nav.open(Ov.Quick) }
     @Test fun a6() = shot("n6-onboarding", false) { AppState.S.onboarded = false }
     @Test fun a7() = shot("n7-library", true) { Nav.open(Ov.Library) }

@@ -114,6 +114,7 @@ private fun Section(t: String, action: (@Composable () -> Unit)? = null) {
 /** Баннер: фон (оформление или обложка любимой игры), аватар, имя, девиз, уровень, кнопки. */
 @Composable
 internal fun Banner(st: Stats, onEdit: () -> Unit, onShare: (() -> Unit)?) {
+    if (com.nexus.psp.data.Cloud.isAdmin) { MyCreatorBanner(st, onEdit, onShare); return }
     Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(24.dp))) {
         com.nexus.psp.ui.kit.BannerBg(Look.bannerId(), st.fav, Modifier.matchParentSize())
         if (com.nexus.psp.data.Cloud.isAdmin) Sparkles(Modifier.matchParentSize())
@@ -151,6 +152,34 @@ internal fun Banner(st: Stats, onEdit: () -> Unit, onShare: (() -> Unit)?) {
                     if (find) FindPlayerDialog { find = false }
                 }
             }
+        }
+    }
+}
+
+/** Свой баннер создателя + жетоны и кнопки под ним. */
+@Composable
+private fun MyCreatorBanner(st: Stats, onEdit: () -> Unit, onShare: (() -> Unit)?) {
+    val cr = com.nexus.psp.data.Cloud.creator
+    val last = AppState.lib.entries.filter { it.value.play > 0 }.maxByOrNull { it.value.t }
+    val playing = last?.let { e -> AppState.byId[e.key]?.let { g ->
+        org.json.JSONObject().put("t", g.t).put("p", g.p).put("live", false)
+            .put("at", java.time.Instant.ofEpochMilli(e.value.t).atOffset(java.time.ZoneOffset.UTC).toString())
+    } }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        CreatorBanner(CreatorCard(
+            nick = Look.nick(), motto = S.motto, status = cr.optString("status"), nameStyle = cr.optString("name", "gold"),
+            shortId = com.nexus.psp.data.Cloud.shortId, level = st.level, xp = (st.xp % 1000) / 1000f,
+            title = Look.titleText(st.level), banner = Look.bannerId(),
+            avatar = { s -> Avatar(s, Modifier.press(onClick = onEdit)) }, playing = playing,
+        ))
+        if (onShare != null) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.press(onClick = onEdit)) { TokensChip() }
+            Box(Modifier.weight(1f))
+            var find by remember { mutableStateOf(false) }
+            KButton("Оформить", icon = R.drawable.sl_brush, small = true, onClick = onEdit)
+            KButton(icon = R.drawable.sl_search, small = true) { find = true }
+            KButton("Поделиться", small = true, onClick = onShare)
+            if (find) FindPlayerDialog { find = false }
         }
     }
 }

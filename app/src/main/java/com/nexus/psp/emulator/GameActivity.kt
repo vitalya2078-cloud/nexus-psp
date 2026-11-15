@@ -325,6 +325,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                     perf.frame()
                     if (ui.phase == "loading") {
                         ui.phase = "ready"; updateControlsVisibility()
+                        com.nexus.psp.data.Presence.send(applicationContext, title, platform, true)
                         // через пару секунд игры — какие потоки самые занятые, их и держим на больших ядрах
                         lifecycleScope.launch(Dispatchers.IO) { delay(4000); perf.startHints(glTid) }
                         ui.builtin?.let { toast("Кнопки уже под «$it». Поменять — пауза → «Кнопки»") }
@@ -1561,6 +1562,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     override fun onDestroy() {
+        if (isFinishing && ui.phase == "ready") com.nexus.psp.data.Presence.send(applicationContext, title, platform, false)
         if (raStarted) try { RA.nUnload() } catch (e: Throwable) { }
         perf.close()
         jank?.save(this, "${title} · ${platform} · ${if (vkOn) "Vulkan" else "OpenGL"} · экран ${perf.refreshRate()} Гц (умеет ${perf.modes()}) · ${vars.optString("ppsspp_internal_resolution")}")
