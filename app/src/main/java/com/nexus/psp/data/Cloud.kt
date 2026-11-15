@@ -32,12 +32,26 @@ object Cloud {
         private set
     var lastOk by mutableStateOf(0L)
         private set
+    /** Короткий ID игрока (6 знаков; у создателя — KAPSULA), админ ли, заблокирован ли. */
+    var shortId by mutableStateOf("")
+        private set
+    var isAdmin by mutableStateOf(false)
+        private set
+    var banned by mutableStateOf(false)
+        private set
+    /** Для снимков экранов в тестах. */
+    internal fun setForTest(id: String, admin: Boolean, ev: Triple<Double, String, Long>? = null) { shortId = id; isAdmin = admin; event = ev }
+
+    /** Событие «×N жетонов» (null — нет): множитель, название, до какого времени (мс). */
+    var event by mutableStateOf<Triple<Double, String, Long>?>(null)
+        private set
 
     fun init(c: Context) {
         sp = c.getSharedPreferences("kapsula_cloud", Context.MODE_PRIVATE)
         code = sp.getString("code", "") ?: ""
         server = sp.getString("server", null)?.let { try { JSONObject(it) } catch (e: Exception) { null } }
         lastOk = sp.getLong("lastOk", 0L)
+        shortId = sp.getString("shortId", "") ?: ""; isAdmin = sp.getBoolean("admin", false); banned = sp.getBoolean("banned", false)
     }
     /** В автотестах (Robolectric) на настоящий сервер не ходим — иначе тесты создавали бы аккаунты. */
     private val offline get() = android.os.Build.FINGERPRINT == "robolectric"
@@ -88,7 +102,34 @@ object Cloud {
             if (p.has("avColor")) S.avColor = p.optInt("avColor")
             S.frame = p.optString("frame"); S.banner = p.optString("banner"); S.titleSel = p.optString("titleSel")
         }
+        shortId = state.optString("short_id", shortId); isAdmin = state.optBoolean("is_admin", false)
+        val wasBanned = banned; banned = state.optBoolean("banned", false)
+        sp.edit().putString("shortId", shortId).putBoolean("admin", isAdmin).putBoolean("banned", banned).apply()
+        if (banned && !wasBanned) AppState.alerts.add(0, Alert("Аккаунт KAPSULA заблокирован", "Жетоны и покупки сейчас не работают. Игры — как обычно. Если это ошибка, напиши в поддержку и назови ID $shortId", true))
+        extras(state)
         lastOk = System.currentTimeMillis(); sp.edit().putLong("lastOk", lastOk).apply()
+    }
+
+    /** Новости, минимальная версия, событие — из ответа сервера. */
+    private fun extras(state: JSONObject) {
+        state.optJSONArray("news")?.let { a ->
+            var last = sp.getLong("newsAfter", 0L)
+            for (i in 0 until a.length()) {
+                val n = a.getJSONObject(i); val id = n.optLong("id")
+                if (id > last) { AppState.alerts.add(0, Alert(n.optString("text"), "Новости KAPSULA", true)); last = id }
+            }
+            if (last != sp.getLong("newsAfter", 0L)) { sp.edit().putLong("newsAfter", last).apply(); AppState.save() }
+        }
+        val need = state.optString("min_version").takeIf { it.isNotEmpty() && it != "null" }
+        if (need != null && Update.newer(need, com.nexus.psp.BuildConfig.VERSION_NAME) && sp.getString("minSaid", "") != need) {
+            sp.edit().putString("minSaid", need).apply()
+            AppState.alerts.add(0, Alert("Обнови KAPSULA до $need", "В этой версии важные исправления. Нажми, чтобы скачать", true, Update.G))
+            AppState.save()
+        }
+        event = state.optJSONObject("event")?.let { e ->
+            val until = try { java.time.OffsetDateTime.parse(e.optString("until")).toInstant().toEpochMilli() } catch (x: Exception) { 0L }
+            if (until > System.currentTimeMillis()) Triple(e.optDouble("mult", 1.0), e.optString("title"), until) else null
+        }
     }
 
     private fun got(state: JSONObject): List<Pair<String, Int>> = state.optJSONArray("got")?.let { a ->
@@ -127,6 +168,7 @@ object Cloud {
         val buys = sp.getStringSet("buys", emptySet())!!
         val p = JSONObject().put("d_play", (localPlay() - sPlay).coerceAtLeast(0)).put("d_saves", (localSaves() - sSaves).coerceAtLeast(0))
             .put("games", AppState.byId.size).put("streak", AppState.streak()).put("cons", cons).put("profile", profile()).put("buys", JSONArray(buys.toList()))
+            .put("ver", com.nexus.psp.BuildConfig.VERSION_NAME).put("news_after", sp.getLong("newsAfter", 0L))
         val (st, r) = call(JSONObject().put("action", "sync").put("code", code).put("p", p))
         val state = r?.optJSONObject("state")
         if (st != 200 || state == null) { if (st == 404) Log.w(TAG, "код не найден на сервере"); return null }

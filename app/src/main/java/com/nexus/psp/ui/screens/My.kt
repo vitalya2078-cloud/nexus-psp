@@ -119,7 +119,10 @@ internal fun Banner(st: Stats, onEdit: () -> Unit, onShare: (() -> Unit)?) {
         Row(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             Avatar(104.dp, Modifier.press(onClick = onEdit), ring = true)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(Look.nick(), style = T.h1.copy(color = OnBanner), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(Look.nick(), style = T.h1.copy(color = OnBanner), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    PlayerId()
+                }
                 Text(S.motto.ifBlank { "Нажми на аватар и придумай себе девиз" }, style = T.small.copy(color = OnBanner.copy(alpha = if (S.motto.isBlank()) .45f else .75f), fontSize = 13.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = .12f)).padding(horizontal = 10.dp, vertical = 4.dp)) {

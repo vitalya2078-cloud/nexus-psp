@@ -74,6 +74,17 @@ jobs:
       - name: Build APK
         run: gradle --no-daemon :app:assembleRelease
 
+      - name: Build KAPSULA Admin (only for the owner, not published)
+        run: gradle --no-daemon :admin:assembleRelease
+
+      - name: Upload KAPSULA Admin APK (private artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: kapsula-admin-apk
+          path: admin/build/outputs/apk/release/admin-release.apk
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Check APK signature
         run: |
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)

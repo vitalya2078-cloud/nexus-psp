@@ -107,6 +107,37 @@ fun TokensChip() {
         Coin(16.dp)
         Text("${Tokens.balance}", style = T.num.copy(fontSize = 14.sp))
         Text(Tokens.word(Tokens.balance), style = T.small.copy(fontSize = 12.sp))
+        // событие «×N жетонов» — янтарная бирка
+        com.nexus.psp.data.Cloud.event?.let { (m, _, _) ->
+            Text("×" + (if (m % 1.0 == 0.0) m.toInt().toString() else m.toString()), style = T.num.copy(fontSize = 12.sp, color = Color(0xFF0E0F13)),
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFFD9B36C)).padding(horizontal = 6.dp, vertical = 1.dp))
+        }
+    }
+}
+
+/**
+ * Короткий ID игрока (касание — скопировать). У создателя (админа) — золотой, с мягким свечением.
+ */
+@Composable
+fun PlayerId(onDark: Boolean = true, modifier: Modifier = Modifier) {
+    val id = com.nexus.psp.data.Cloud.shortId
+    if (id.isEmpty()) return
+    val ctx = LocalContext.current
+    val gold = com.nexus.psp.data.Cloud.isAdmin
+    val g1 = Color(0xFFF6D98A); val g2 = Color(0xFFD9A441)
+    Row(
+        modifier.clip(RoundedCornerShape(10.dp))
+            .background(if (gold) androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(g2.copy(alpha = .28f), g1.copy(alpha = .18f))) else androidx.compose.ui.graphics.SolidColor(Color.White.copy(alpha = if (onDark) .1f else .0f)))
+            .border(1.dp, if (gold) g1.copy(alpha = .85f) else Color.White.copy(alpha = if (onDark) .14f else .0f), RoundedCornerShape(10.dp))
+            .press {
+                ctx.getSystemService(android.content.ClipboardManager::class.java)?.setPrimaryClip(android.content.ClipData.newPlainText("ID KAPSULA", id))
+                AppState.say("ID $id скопирован")
+            }.padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Text("ID", style = T.small.copy(fontSize = 10.5.sp, color = if (gold) g1 else (if (onDark) Color(0xFFF2F1EC).copy(alpha = .6f) else K.ink3)))
+        Text(id, style = T.num.copy(fontSize = 12.5.sp, color = if (gold) g1 else (if (onDark) Color(0xFFF2F1EC) else K.ink),
+            shadow = if (gold) androidx.compose.ui.graphics.Shadow(g2.copy(alpha = .8f), blurRadius = 10f) else null))
     }
 }
 

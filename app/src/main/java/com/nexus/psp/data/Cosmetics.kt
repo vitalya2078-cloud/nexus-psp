@@ -77,6 +77,7 @@ object Cos {
         Item("tt_marathon", Kind.TT, "Марафонец", need = hours(50)), Item("tt_saver", Kind.TT, "Мастер сохранений", need = saves(50)),
         Item("tt_traveler", Kind.TT, "Путешественник", need = cons(5)), Item("tt_loyal", Kind.TT, "Верный игрок", need = streak(14)),
         Item("tt_legend", Kind.TT, "Легенда KAPSULA", need = lvl(15)),
+        Item("tt_creator", Kind.TT, "Создатель KAPSULA", need = Need("admin", 1, "Только у создателя")),
         Item("tt_retro", Kind.TT, "Ретро-душа", 200), Item("tt_ninja", Kind.TT, "Кнопочный ниндзя", 200), Item("tt_keeper", Kind.TT, "Хранитель картриджей", 300),
     )
 
@@ -95,6 +96,7 @@ object Cos {
             what == "consoles" -> playedConsoles().size
             what == "streak" -> maxOf(AppState.streak(), Cloud.stat("streak"))
             what == "saves" -> maxOf(lib.values.sumOf { it.saves }, Cloud.stat("saves"))
+            what == "admin" -> if (Cloud.isAdmin) 1 else 0
             what.startsWith("con:") -> { val p = what.substringAfter(':'); maxOf(lib.entries.filter { AppState.byId[it.key]?.p == p }.sumOf { it.value.play }, Cloud.consoleMinutes(p)) }
             else -> 0
         }
@@ -107,7 +109,9 @@ object Cos {
 
     /** Фильтры экрана «Оформление». */
     enum class Filter(val title: String) { ALL("Все"), FREE("Бесплатные"), PLAY("За игру"), TOKENS("За жетоны"), MINE("Мои") }
-    fun pass(it: Item, f: Filter) = when (f) {
+    /** Особые предметы (создателя) показываются только тем, у кого они есть. */
+    fun visible(it: Item) = it.need?.what != "admin" || has(it)
+    fun pass(it: Item, f: Filter) = visible(it) && when (f) {
         Filter.ALL -> true; Filter.FREE -> it.free; Filter.PLAY -> it.need != null; Filter.TOKENS -> it.price > 0; Filter.MINE -> has(it)
     }
 }

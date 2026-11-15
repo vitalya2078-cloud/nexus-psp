@@ -59,6 +59,7 @@ fun CloudAccount() {
             KButton("Восстановить", small = true) { restore = true }
         }
     }
+    if (code.isNotEmpty()) Opt("ID игрока", "Его можно называть в поддержке и (скоро) друзьям. Код восстановления — секрет, его не показывай") { PlayerId(onDark = false) }
     if (restore) RestoreDialog { restore = false }
 }
 

@@ -113,6 +113,11 @@ class ScreensTest {
         played(); AppState.S.avMode = "set"; AppState.S.avItem = "av_s_knight"; AppState.S.frame = "fr_bronze"; AppState.S.banner = "bn_city"; AppState.S.titleSel = "tt_night"
         Nav.go("my")
     }
+    @Test fun j13_profile_creator() = shot("j13-profile-creator", true) {
+        played(); com.nexus.psp.data.Cloud.setForTest("KAPSULA", true, Triple(2.0, "Выходные ×2", System.currentTimeMillis() + 3_600_000))
+        AppState.S.titleSel = "tt_creator"; Nav.go("my")
+    }
+    @Test fun j14_profile_player_id() = shot("j14-profile-id", true) { played(); com.nexus.psp.data.Cloud.setForTest("7Q4M2K", false); Nav.go("my") }
     @Test fun j12_home_wallpaper() = shot("j12-home-wall", true) { played(); AppState.S.wall = "wp_aurora"; AppState.S.accent = "wall"; AppState.wallChanged() }
     /** Игра PS1: CUE + две дорожки BIN. */
     private fun ps1Game() {
