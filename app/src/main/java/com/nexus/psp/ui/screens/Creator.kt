@@ -223,7 +223,8 @@ private fun PublicCard(o: JSONObject) {
         val title = p.optString("titleSel").takeIf { it.isNotEmpty() }?.let { com.nexus.psp.data.Cos.find(com.nexus.psp.data.Cos.Kind.TT, it)?.name } ?: Look.title(level)
         val bare = JSONObject(p.toString()).apply { remove("frame") }
         CreatorBanner(CreatorCard(nick, p.optString("motto"), cr.optString("status"), cr.optString("name", "gold"), o.optString("short_id"),
-            level, null, title, banner, { s -> AvatarOf(bare, nick, s, true) }, o.optJSONObject("playing")))
+            level, null, title, banner, { s -> AvatarOf(bare, nick, s, true) }, o.optJSONObject("playing"),
+            o.optInt("cheers"), own = o.optString("short_id") == Cloud.shortId))
     } else Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(24.dp))) {
         BannerBg(banner, null, Modifier.fillMaxSize())
         if (creator) Sparkles(Modifier.fillMaxSize())
@@ -312,6 +313,8 @@ class CreatorCard(
     val nick: String, val motto: String, val status: String, val nameStyle: String, val shortId: String,
     val level: Int, val xp: Float?, val title: String, val banner: String,
     val avatar: @Composable (Dp) -> Unit, val playing: JSONObject?,
+    /** Сколько раз создателя поприветствовали; own — свой баннер (кнопки нет, только счётчик). */
+    val cheers: Int = 0, val own: Boolean = true,
 )
 
 private val BADGES = listOf("cr_b1" to "Создатель KAPSULA", "cr_b2" to "Разработчик", "cr_b3" to "Друг Сейвика")
@@ -322,9 +325,11 @@ private val BADGES = listOf("cr_b1" to "Создатель KAPSULA", "cr_b2" to 
  */
 @Composable
 fun CreatorBanner(c: CreatorCard, modifier: Modifier = Modifier) {
+    var burst by remember { mutableStateOf(0) }
     Box(modifier.fillMaxWidth().height(184.dp).clip(RoundedCornerShape(24.dp))) {
         BannerBg(c.banner, null, Modifier.fillMaxSize())
         Sparkles(Modifier.fillMaxSize())
+        if (burst > 0) Salute(burst, Modifier.fillMaxSize())
         Row(Modifier.fillMaxSize().padding(start = 18.dp, end = 14.dp, top = 8.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             CreatorAvatar(c.avatar, 136.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -335,10 +340,11 @@ fun CreatorBanner(c: CreatorCard, modifier: Modifier = Modifier) {
                     }
                     GlowId(c.shortId, Modifier.padding(start = 2.dp))
                 }
-                TitlePlate(c.title)
                 (c.status.ifEmpty { c.motto }).takeIf { it.isNotEmpty() }?.let { Text(it, style = T.small.copy(color = Creator.GOLD, fontSize = 12.5.sp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 c.xp?.let { GoldBar(it, Modifier.widthIn(max = 260.dp).fillMaxWidth()) }
+                CheerButton(c) { burst++ }
             }
+            SaveikMascot(Modifier.align(Alignment.Bottom))
             Column(Modifier.align(Alignment.Top), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     BADGES.forEach { (img, name) ->
@@ -411,17 +417,6 @@ fun GlowId(id: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Титул на ленте-плашке. */
-@Composable
-fun TitlePlate(title: String) {
-    Box(Modifier.size(250.dp, 40.dp), contentAlignment = Alignment.Center) {
-        AssetImage("look/cr_title.webp", Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.FillBounds)
-        Text(title, style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            brush = Brush.verticalGradient(listOf(Color(0xFFFFF0C2), Creator.GOLD2))), maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 38.dp))
-    }
-}
-
 /** Уровень на эмблеме: крупное золотое число. */
 @Composable
 fun LevelEmblem(level: Int, size: Dp) {
@@ -472,5 +467,96 @@ private fun Playing(p: JSONObject?) {
             live -> if (mins < 1) "только начал" else if (mins < 60) "$mins мин" else "${mins / 60} ч ${mins % 60} мин"
             mins < 1 -> "только что"; mins < 60 -> "$mins мин назад"; mins < 1440 -> "${mins / 60} ч назад"; else -> "${mins / 1440} дн назад"
         }).joinToString(" · "), style = T.small.copy(fontSize = 11.sp, color = Color(0xFFF2F1EC).copy(alpha = .7f), textAlign = androidx.compose.ui.text.style.TextAlign.Center))
+    }
+}
+
+
+internal fun cheersWord(n: Int) = "$n " + when { n % 10 == 1 && n % 100 != 11 -> "приветствие"; n % 10 in 2..4 && n % 100 !in 12..14 -> "приветствия"; else -> "приветствий" }
+
+/** «Поприветствовать создателя»: у гостя — кнопка (раз в сутки), у себя — только счётчик. */
+@Composable
+private fun CheerButton(c: CreatorCard, onCheer: () -> Unit) {
+    var n by remember(c.cheers) { mutableStateOf(c.cheers) }
+    var sent by remember { mutableStateOf(Cloud.cheeredToday) }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val beat = loop(1600)
+    val active = !c.own && !sent && !busy
+    val txt = when {
+        c.own -> cheersWord(n)
+        sent -> "Привет отправлен · $n"
+        else -> if (n > 0) "Поприветствовать · $n" else "Поприветствовать"
+    }
+    Row(Modifier.clip(RoundedCornerShape(50)).background(if (active) Creator.GOLD2.copy(alpha = .9f) else Color.Black.copy(alpha = .45f))
+        .border(1.dp, Creator.GOLD.copy(alpha = .55f), RoundedCornerShape(50))
+        .press(enabled = active) {
+            busy = true
+            scope.launch {
+                val (cnt, already, err) = withContext(Dispatchers.IO) { Cloud.cheer(c.shortId) }
+                busy = false
+                if (err != null) { AppState.say(err); return@launch }
+                n = cnt; sent = true
+                if (already) AppState.say("Сегодня привет уже отправлен — заходи завтра") else onCheer()
+            }
+        }.padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        val sc = if (active) 1f + .12f * kotlin.math.abs(kotlin.math.sin(beat * PI)).toFloat() else 1f
+        SolarIcon(R.drawable.sl_heart, 15.dp, if (active) Color(0xFF2A1A06) else Creator.GOLD, Modifier.graphicsLayer { scaleX = sc; scaleY = sc })
+        Text(txt, style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 12.sp, color = if (active) Color(0xFF2A1A06) else Creator.GOLD))
+    }
+}
+
+/** Салют золотых искр по всему баннеру — после приветствия. */
+@Composable
+private fun Salute(key: Int, modifier: Modifier) {
+    val a = remember(key) { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(key) { a.snapTo(0f); a.animateTo(1f, tween(1600, easing = LinearEasing)) }
+    val parts = remember(key) { val r = java.util.Random(key.toLong()); List(3) { Offset(.2f + .6f * r.nextFloat(), .25f + .4f * r.nextFloat()) } to List(54) { r.nextFloat() } }
+    Canvas(modifier) {
+        val t = a.value
+        if (t >= 1f) return@Canvas
+        parts.first.forEachIndexed { k, o ->
+            val tt = ((t - k * .15f) / .7f).coerceIn(0f, 1f)
+            if (tt <= 0f || tt >= 1f) return@forEachIndexed
+            val c0 = Offset(size.width * o.x, size.height * o.y)
+            for (i in 0 until 18) {
+                val ang = i / 18.0 * 2 * PI + parts.second[k * 18 + i]
+                val d = size.minDimension * .32f * (1 - (1 - tt) * (1 - tt)) * (.7f + .3f * parts.second[(k * 18 + i + 7) % 54])
+                val pt = Offset(c0.x + (d * cos(ang)).toFloat(), c0.y + (d * sin(ang)).toFloat() + 30f * tt * tt)
+                drawCircle((if (i % 3 == 0) Color(0xFFFFF4D2) else Creator.GOLD).copy(alpha = 1f - tt), (2.6f - 1.4f * tt).dp.toPx(), pt)
+            }
+        }
+    }
+}
+
+private val SAVEIK = listOf(
+    "Привет! Я Сейвик", "Сохраняйся почаще!", "Создатель опять что-то пилит…", "Тут живёт KAPSULA",
+    "Нажми ещё — не жалко", "Скоро будет ещё круче", "Я храню твои сохранения", "Ура, гости!",
+)
+
+/** Живой Сейвик: тап — подпрыгивает, радуется и говорит фразу. */
+@Composable
+private fun SaveikMascot(modifier: Modifier = Modifier) {
+    val jump = remember { androidx.compose.animation.core.Animatable(0f) }
+    var say by remember { mutableStateOf<String?>(null) }
+    var k by remember { mutableStateOf(0) }
+    val scope = rememberCoroutineScope()
+    val idle = loop(2600)
+    Column(modifier.widthIn(max = 150.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.height(28.dp), contentAlignment = Alignment.BottomCenter) {
+            say?.let {
+                Text(it, style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 10.5.sp, color = Color(0xFF2A1A06), textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                    maxLines = 2, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Creator.GOLD).padding(horizontal = 8.dp, vertical = 3.dp))
+            }
+        }
+        val bob = if (S.calm) 0f else 2.5f * sin(idle * 2 * PI).toFloat()
+        Box(Modifier.graphicsLayer { translationY = (bob - jump.value * 26f) * density }.press {
+            k++
+            say = SAVEIK[(k - 1) % SAVEIK.size]
+            scope.launch {
+                jump.animateTo(1f, tween(180)); jump.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = .35f, stiffness = 500f))
+                kotlinx.coroutines.delay(2200); if (say == SAVEIK[(k - 1) % SAVEIK.size]) say = null
+            }
+        }) { Mascot(if (say != null) "joy" else "wave", 66.dp) }
     }
 }

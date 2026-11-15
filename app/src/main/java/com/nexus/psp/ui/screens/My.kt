@@ -160,8 +160,8 @@ private fun BannerActions(onEdit: () -> Unit, onShare: () -> Unit) {
         Box(Modifier.press(onClick = onEdit)) { TokensChip() }
         Box(Modifier.weight(1f))
         var find by remember { mutableStateOf(false) }
-        KButton("Оформить", icon = R.drawable.sl_brush, small = true, onClick = onEdit)
         KButton(icon = R.drawable.sl_search, small = true) { find = true }
+        KButton("Оформить", icon = R.drawable.sl_brush, small = true, onClick = onEdit)
         KButton("Поделиться", small = true, onClick = onShare)
         if (find) FindPlayerDialog { find = false }
     }
@@ -182,6 +182,7 @@ private fun MyCreatorBanner(st: Stats, onEdit: () -> Unit) {
             shortId = com.nexus.psp.data.Cloud.shortId, level = st.level, xp = (st.xp % 1000) / 1000f,
             title = Look.titleText(st.level), banner = Look.bannerId(),
             avatar = { s -> Avatar(s, Modifier.press(onClick = onEdit)) }, playing = playing,
+            cheers = cr.optInt("cheers"), own = true,
         ))
     }
 }

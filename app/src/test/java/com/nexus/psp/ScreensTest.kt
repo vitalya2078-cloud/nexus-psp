@@ -2,6 +2,8 @@ package com.nexus.psp
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.core.app.ApplicationProvider
@@ -118,6 +120,19 @@ class ScreensTest {
             org.json.JSONObject().put("status", "Делаю KAPSULA").put("name", "gold"))
         AppState.S.titleSel = "tt_creator"; AppState.S.frame = "fr_creator"; AppState.S.banner = "bn_creator"
         AppState.S.avMode = "set"; AppState.S.avItem = "av_s_king"; Nav.go("my")
+    }
+    /** Баннер создателя глазами гостя: кнопка «Поприветствовать», Сейвик, «Играет сейчас». */
+    @Test fun j15_creator_guest() {
+        AppState.autoFetch = false
+        AppState.init(ApplicationProvider.getApplicationContext())
+        com.nexus.psp.data.Cloud.setForTest("7Q4M2K", false)
+        val pl = org.json.JSONObject().put("t", "Patapon 3").put("p", "psp").put("live", true).put("since", java.time.OffsetDateTime.now().minusMinutes(42).toString())
+        rule.setContent { KapsulaTheme { androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().padding(16.dp)) {
+            com.nexus.psp.ui.screens.CreatorBanner(com.nexus.psp.ui.screens.CreatorCard("Виталий", "", "Делаю KAPSULA", "gold", "KAPSULA", 12, null, "", "bn_creator",
+                { s -> com.nexus.psp.ui.kit.Mascot("head", s) }, pl, cheers = 128, own = false))
+        } } }
+        rule.mainClock.advanceTimeBy(3000); rule.waitForIdle()
+        rule.onRoot().captureRoboImage("build/shots/j15-creator-guest.png")
     }
     @Test fun j14_profile_player_id() = shot("j14-profile-id", true) { played(); com.nexus.psp.data.Cloud.setForTest("7Q4M2K", false); Nav.go("my") }
     @Test fun j12_home_wallpaper() = shot("j12-home-wall", true) { played(); AppState.S.wall = "wp_aurora"; AppState.S.accent = "wall"; AppState.wallChanged() }

@@ -98,6 +98,25 @@ object Cloud {
         }
     }
 
+    private fun today() = java.time.LocalDate.now(java.time.ZoneId.of("Europe/Moscow")).toString()
+    /** Сегодня (по Москве) создатель уже поприветствован с этого телефона. */
+    val cheeredToday get() = ::sp.isInitialized && sp.getString("cheerDay", "") == today()
+
+    /** «Поприветствовать создателя» (раз в сутки). Ответ: число приветствий, было ли уже сегодня, или текст ошибки. */
+    fun cheer(to: String): Triple<Int, Boolean, String?> {
+        if (!ready) return Triple(-1, false, "Нет связи с сервером")
+        if (code.isEmpty()) return Triple(-1, false, "Аккаунт ещё создаётся — попробуй через минуту")
+        val (st, r) = call(JSONObject().put("action", "cheer").put("code", code).put("to", to))
+        if (st == 200 && r != null) sp.edit().putString("cheerDay", today()).apply()
+        return when {
+            st == 200 && r != null -> Triple(r.optInt("cheers"), r.optBoolean("already"), null)
+            r?.optString("error") == "self" -> Triple(-1, false, "Себя поприветствовать не выйдет")
+            r?.optString("error") == "banned" -> Triple(-1, false, "Аккаунт заблокирован")
+            st == 0 -> Triple(-1, false, "Нет связи с сервером. Проверь интернет")
+            else -> Triple(-1, false, "Сервер не ответил. Попробуй позже")
+        }
+    }
+
     // ---------- покупки без сети ----------
     fun pendingBuy(id: String) { if (ready) sp.edit().putStringSet("buys", (sp.getStringSet("buys", emptySet())!! + id)).apply() }
 
