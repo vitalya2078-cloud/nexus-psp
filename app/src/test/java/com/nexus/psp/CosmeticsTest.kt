@@ -75,6 +75,13 @@ class CosmeticsTest {
         assertFalse(Cos.has(Cos.find(Cos.Kind.AV, "av_s_king")!!))
     }
 
+    /** Тесты не ходят на настоящий сервер (раньше автотест запуска создавал аккаунт). */
+    @Test fun cloudOfflineInTests() {
+        com.nexus.psp.data.Cloud.init(ctx)
+        assertEquals(null, com.nexus.psp.data.Cloud.sync())
+        assertEquals(true, com.nexus.psp.data.Cloud.restore("KPS-AAAA-AAAA-AAAA") != null)
+    }
+
     @Test fun tokenWord() {
         assertEquals(listOf("жетонов", "жетон", "жетона", "жетона", "жетонов", "жетонов", "жетон", "жетона"), listOf(0, 1, 2, 4, 5, 11, 21, 102).map { Tokens.word(it) })
     }

@@ -39,7 +39,9 @@ object Cloud {
         server = sp.getString("server", null)?.let { try { JSONObject(it) } catch (e: Exception) { null } }
         lastOk = sp.getLong("lastOk", 0L)
     }
-    private val ready get() = ::sp.isInitialized
+    /** В автотестах (Robolectric) на настоящий сервер не ходим — иначе тесты создавали бы аккаунты. */
+    private val offline get() = android.os.Build.FINGERPRINT == "robolectric"
+    private val ready get() = ::sp.isInitialized && !offline
 
     // ---------- что считается на телефоне ----------
     private fun localPlay() = AppState.lib.values.sumOf { it.play }
