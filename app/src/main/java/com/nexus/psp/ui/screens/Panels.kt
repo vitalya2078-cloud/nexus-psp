@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import com.nexus.psp.R
 import com.nexus.psp.data.AppState
 import com.nexus.psp.data.AppState.S
@@ -138,9 +139,14 @@ fun QuickPanel() {
         val p = com.nexus.psp.ui.rememberEnter(220)
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = p.value }.background(Color.Black.copy(alpha = .55f)).tap { Nav.back() })
         // шторка сверху: выезжает вниз
+        // на любом телефоне шторка целиком на экране: плиток в ряд — по ширине, а если не хватит высоты — прокрутка
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val perRow = if (maxWidth >= 600.dp) 5 else 4
+        val low = maxHeight < 350.dp
         Column(
-            Modifier.fillMaxWidth().graphicsLayer { translationY = -(1f - p.value) * 48.dp.toPx(); alpha = p.value }
+            Modifier.fillMaxWidth().heightIn(max = maxHeight).graphicsLayer { translationY = -(1f - p.value) * 48.dp.toPx(); alpha = p.value }
                 .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(K.bg).tap { }
+                .verticalScroll(androidx.compose.foundation.rememberScrollState())
                 .windowInsetsPadding(WindowInsets.displayCutout).padding(bottom = 16.dp),
         ) {
             // заголовок и плитки — на одной вертикали (поля 16 dp у обоих)
@@ -159,8 +165,8 @@ fun QuickPanel() {
                 Tile(R.drawable.sd_list, "Библиотека", "Все игры", false) { Nav.replace(Ov.Library) },
                 Tile(R.drawable.sd_gear, "Настройки", "Все параметры", false) { Nav.replace(Ov.Settings) },
             )
-            FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 4) {
-                tiles.forEach { t -> QTile(t, Modifier.weight(1f)) }
+            FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = perRow) {
+                tiles.forEach { t -> QTile(t, Modifier.weight(1f), low) }
             }
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(K.s1).padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -171,18 +177,20 @@ fun QuickPanel() {
                 }
             }
         }
+        }
     }
 }
 
 private data class Tile(val icon: Int, val title: String, val sub: String, val on: Boolean, val onClick: () -> Unit)
 
 @Composable
-private fun QTile(t: Tile, modifier: Modifier) {
+private fun QTile(t: Tile, modifier: Modifier, low: Boolean = false) {
     Column(
-        modifier.height(96.dp).clip(RoundedCornerShape(18.dp)).background(if (t.on) K.ink else K.s1).press(onClick = t.onClick).padding(14.dp),
+        modifier.height(if (low) 72.dp else 84.dp).clip(RoundedCornerShape(18.dp)).background(if (t.on) K.ink else K.s1).press(onClick = t.onClick).padding(horizontal = 14.dp, vertical = if (low) 9.dp else 12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        if (t.on) SolarDuo(t.icon, 26.dp, main = K.bg, accent = K.bg.copy(alpha = .55f)) else SolarDuo(t.icon, 26.dp)
+        val ic = if (low) 22.dp else 26.dp
+        if (t.on) SolarDuo(t.icon, ic, main = K.bg, accent = K.bg.copy(alpha = .55f)) else SolarDuo(t.icon, ic)
         Column {
             Text(t.title, style = T.label.copy(color = if (t.on) K.bg else K.ink), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             Text(t.sub, style = T.small.copy(color = if (t.on) K.bg.copy(alpha = .7f) else K.ink2), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
