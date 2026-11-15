@@ -41,6 +41,21 @@ class Perf(private val a: Activity) {
     fun modes(): String = try { display()?.supportedModes?.map { it.refreshRate.toInt() }?.distinct()?.sorted()?.joinToString("/") ?: "?" } catch (e: Exception) { "?" }
 
     /**
+     * Android 15+: при касании система сама поднимает частоту экрана (touch boost) — в игре палец на экране всегда,
+     * поэтому экран держался на 90 Гц, что бы мы ни просили. Отключаем это для окна игры и просим 60 к/с у каждого слоя
+     * (картинка игры, кнопки, меню): система выбирает частоту по «голосам» слоёв.
+     */
+    fun pinFrameRate(views: List<android.view.View>) {
+        if (Build.VERSION.SDK_INT < 35) return
+        try {
+            a.window.setFrameRateBoostOnTouchEnabled(false)
+            a.window.setFrameRatePowerSavingsBalanced(true)
+            views.forEach { it.setRequestedFrameRate(60f) }
+            Log.i(tag, "touch boost выключен, слоёв с 60 к/с: ${views.size}")
+        } catch (e: Throwable) { Log.w(tag, "частота окна: $e") }
+    }
+
+    /**
      * Ещё одна просьба о частоте — у самой картинки игры (Android 11+). Её прошивки уважают охотнее, чем просьбу окна:
      * «содержимое идёт с 60 к/с» — система выбирает 60 или 120 Гц.
      */

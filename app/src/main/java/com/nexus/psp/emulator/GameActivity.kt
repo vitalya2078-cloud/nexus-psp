@@ -313,6 +313,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             override fun surfaceChanged(h: android.view.SurfaceHolder, f: Int, w: Int, hh: Int) {}
             override fun surfaceDestroyed(h: android.view.SurfaceHolder) {}
         })
+        if (hz60) root.post { perf.pinFrameRate(listOf(root as View) + (0 until root.childCount).map { root.getChildAt(it) }) }
         displayWatch = perf.watchRefresh { hz -> if (ui.phase == "ready") retro?.queueEvent { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(hz) } }
         root.addView(view, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         lifecycle.addObserver(view)
