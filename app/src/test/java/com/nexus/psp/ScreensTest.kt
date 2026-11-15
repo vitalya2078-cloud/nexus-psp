@@ -105,11 +105,15 @@ class ScreensTest {
     @Test fun j05_ach_logged() = shot("j05-ach-logged", true) { AppState.S.raUser = "KapsulaTest"; AppState.S.raToken = "x"; AppState.S.raScore = "1250"; Nav.settingsTab = "ach"; Nav.open(Ov.Settings) }
     @Test fun j06_bios() = shot("j06-bios", true) { Nav.settingsTab = "bios"; Nav.open(Ov.Settings) }
     @Test fun j07_about() = shot("j07-about", true) { java.io.File(ApplicationProvider.getApplicationContext<android.content.Context>().filesDir, "crash_main.txt").writeText("KAPSULA 0.25.0 · тест\n2026-11-14 · поток main\n\njava.lang.IllegalArgumentException: тест"); Nav.settingsTab = "about"; Nav.open(Ov.Settings) }
-    @Test fun j08_editor() {
-        shot("j08-profile-editor", true) { played(); Nav.go("my"); com.nexus.psp.ui.screens.ProfileUi.edit.value = true }
-        com.github.takahirom.roborazzi.captureScreenRoboImage("build/shots/j08-profile-editor-dialog.png")
-        com.nexus.psp.ui.screens.ProfileUi.edit.value = false
+    // «Оформление»: тема и цвет, фон, профиль; профиль с аватаром из набора, рамкой, баннером и титулом
+    @Test fun j08_looks_theme() = shot("j08-looks-theme", true) { played(); Nav.open(Ov.Look("theme")) }
+    @Test fun j09_looks_wall() = shot("j09-looks-wall", true) { played(); Nav.open(Ov.Look("wall")) }
+    @Test fun j10_looks_profile() = shot("j10-looks-profile", true) { played(); Nav.open(Ov.Look("profile")) }
+    @Test fun j11_profile_dressed() = shot("j11-profile-dressed", true) {
+        played(); AppState.S.avMode = "set"; AppState.S.avItem = "av_s_knight"; AppState.S.frame = "fr_bronze"; AppState.S.banner = "bn_city"; AppState.S.titleSel = "tt_night"
+        Nav.go("my")
     }
+    @Test fun j12_home_wallpaper() = shot("j12-home-wall", true) { played(); AppState.S.wall = "wp_aurora"; AppState.S.accent = "wall"; AppState.wallChanged() }
     /** Игра PS1: CUE + две дорожки BIN. */
     private fun ps1Game() {
         val dir = CoreFiles.gamesDir(ApplicationProvider.getApplicationContext())

@@ -206,6 +206,11 @@ class MainActivity : ComponentActivity() {
         // после выхода из игры — время в игре, сохранения; файлы могли удалить вручную
         AppState.loadReal()
         AppState.consumePendingGlobal()
+        // жетоны за время в игре, вход, уровень, новые консоли и игры (с прошлого раза)
+        com.nexus.psp.data.Tokens.earn().takeIf { it.isNotEmpty() }?.let { got ->
+            val sum = got.sumOf { it.second }
+            AppState.say("+$sum ${com.nexus.psp.data.Tokens.word(sum)} · " + got.joinToString(", ") { it.first.lowercase() }, action = "Оформление") { com.nexus.psp.ui.Nav.open(com.nexus.psp.ui.Ov.Look("profile")) }
+        }
         // вернулись из настроек «Доступ ко всем файлам» — перечитать места
         AppState.storageTick++
         // «незаметный перезапуск»: игра сохранилась и просит запустить себя заново с новыми настройками

@@ -89,9 +89,6 @@ internal class Stats {
     val recent: List<Game> = AppState.lib.entries.filter { it.value.play > 0 }.sortedByDescending { it.value.t }.mapNotNull { AppState.byId[it.key] }.take(8)
 }
 
-/** Открыт ли редактор оформления (снаружи — для снимков экрана). */
-object ProfileUi { val edit = androidx.compose.runtime.mutableStateOf(false) }
-
 /** Белый текст на фоне карточки — фон всегда тёмный, при любой теме. */
 private val OnCard = Color(0xFFF2F1EC)
 
@@ -99,19 +96,15 @@ internal fun days(n: Int) = "$n " + when { n % 10 == 1 && n % 100 != 11 -> "де
 
 /** Карточка игрока: фон (оформление или обложка любимой игры), аватар, ник, девиз, уровень. */
 @Composable
-private fun PlayerCard(st: Stats, modifier: Modifier = Modifier, actions: @Composable () -> Unit = {}) {
+internal fun PlayerCard(st: Stats, modifier: Modifier = Modifier, actions: @Composable () -> Unit = {}) {
     Box(modifier.clip(RoundedCornerShape(22.dp))) {
-        val fav = st.fav
-        if (S.cardBg == -1 && fav != null) {
-            Box(Modifier.matchParentSize()) { Cover(fav, 400, 400, modifier = Modifier.fillMaxSize()) }
-            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .35f), Color.Black.copy(alpha = .85f)))))
-        } else Box(Modifier.matchParentSize().background(Look.cardBrush(S.cardBg)))
+        com.nexus.psp.ui.kit.BannerBg(Look.bannerId(), st.fav, Modifier.matchParentSize())
         Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Avatar(84.dp, ring = true)
             Text(Look.nick(), style = T.h2.copy(color = OnCard), maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (S.motto.isNotBlank()) Text(S.motto, style = T.small.copy(color = OnCard.copy(alpha = .75f), textAlign = TextAlign.Center), maxLines = 2)
             Box(Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = .12f)).padding(horizontal = 10.dp, vertical = 4.dp)) {
-                Text("Уровень ${st.level} · ${Look.title(st.level)}", style = T.small.copy(color = OnCard, fontSize = 12.sp))
+                Text("Уровень ${st.level} · ${Look.titleText(st.level)}", style = T.small.copy(color = OnCard, fontSize = 12.sp))
             }
             Bar((st.xp % 1000) / 1000f, color = Look.avColor(S.avColor), modifier = Modifier.padding(top = 4.dp))
             Text("${st.xp % 1000} / 1000 опыта до следующего уровня", style = T.small.copy(color = OnCard.copy(alpha = .6f), fontSize = 10.5.sp))
@@ -167,99 +160,7 @@ internal fun RaCard() {
     }
 }
 
-// ---------- оформление профиля ----------
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-internal fun ProfileEditor(onClose: () -> Unit) {
-    val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var nick by remember { mutableStateOf(S.nick) }
-    var motto by remember { mutableStateOf(S.motto) }
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) scope.launch {
-            val ok = withContext(Dispatchers.IO) { saveAvatar(ctx, uri) }
-            if (ok) S.avMode = "photo" else AppState.say("Фото не открылось")
-        }
-    }
-    androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
-        Row(
-            Modifier.fillMaxWidth(.9f).fillMaxHeight(.92f).clip(RoundedCornerShape(24.dp)).background(K.bg).border(1.dp, K.line, RoundedCornerShape(24.dp)).padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            // живой предпросмотр
-            Column(Modifier.width(250.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Оформление", style = T.h3)
-                PlayerCard(Stats(), Modifier.fillMaxWidth())
-                Spacer(Modifier.weight(1f))
-                KButton("Готово", R.drawable.ph_check, BtnKind.Main) { S.nick = nick.trim(); S.motto = motto.trim(); onClose() }
-            }
-            Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("ИМЯ И ДЕВИЗ", style = T.caps)
-                SearchField(nick, "Имя игрока", Modifier.fillMaxWidth(), icon = R.drawable.sl_user) { nick = it.take(20); S.nick = nick.trim() }
-                SearchField(motto, "Девиз, например «Пройду всё на 100%»", Modifier.fillMaxWidth(), icon = R.drawable.sl_text) { motto = it.take(48); S.motto = motto.trim() }
-
-                Text("АВАТАР", style = T.caps, modifier = Modifier.padding(top = 8.dp))
-                val modes = buildList { add("letter" to "Буква"); add("photo" to "Фото"); if (S.raToken.isNotEmpty()) add("ra" to "Из достижений") }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Seg(modes.map { it.second }, modes.indexOfFirst { it.first == S.avMode }.coerceAtLeast(0), small = true) {
-                        val m = modes[it].first
-                        if (m == "photo" && !Look.photoFile(ctx).exists()) pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        else S.avMode = m
-                    }
-                    if (S.avMode == "photo") KButton("Другое фото", small = true) { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
-                }
-                Text("Цвет — для буквы и полоски опыта", style = T.small)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Look.AV_COLORS.forEachIndexed { i, c ->
-                        val on = S.avColor == i
-                        Box(Modifier.size(34.dp).clip(CircleShape).background(c).border(if (on) 3.dp else 0.dp, if (on) K.ink else Color.Transparent, CircleShape).press { S.avColor = i }, contentAlignment = Alignment.Center) {
-                            if (on) SolarIcon(R.drawable.ph_check, 16.dp, Color(0xFF0E0F13))
-                        }
-                    }
-                }
-
-                Text("ФОН КАРТОЧКИ", style = T.caps, modifier = Modifier.padding(top = 8.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Look.CARDS.forEachIndexed { i, (name, a, b) ->
-                        Swatch(name, S.cardBg == i, Modifier.background(Brush.linearGradient(listOf(a, b)))) { S.cardBg = i }
-                    }
-                    val fav = Stats().fav
-                    if (fav != null) Swatch("Игра", S.cardBg == -1) { S.cardBg = -1 }
-                }
-
-                Text("ЛЮБИМАЯ ИГРА", style = T.caps, modifier = Modifier.padding(top = 8.dp))
-                val games = AppState.myList().take(16)
-                if (games.isEmpty()) Text("Добавь игры — и выбери ту, что будет на карточке.", style = T.small)
-                else FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Chip("Больше всего часов", S.favGame.isEmpty()) { S.favGame = "" }
-                    games.forEach { g -> Chip(g.t, S.favGame == g.id) { S.favGame = g.id } }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Swatch(name: String, on: Boolean, fill: Modifier = Modifier, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box(Modifier.size(64.dp, 42.dp).clip(RoundedCornerShape(12.dp)).then(fill).background(if (name == "Игра") K.s2 else Color.Transparent)
-            .border(if (on) 2.5.dp else 1.dp, if (on) K.ink else K.line, RoundedCornerShape(12.dp)).press(onClick = onClick), contentAlignment = Alignment.Center) {
-            if (name == "Игра") SolarIcon(R.drawable.sl_pad, 18.dp, K.ink2)
-        }
-        Text(name, style = T.small.copy(fontSize = 10.5.sp, color = if (on) K.ink else K.ink3))
-    }
-}
-
-@Composable
-private fun Chip(text: String, on: Boolean, onClick: () -> Unit) {
-    Box(Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) K.ink else K.s2).press(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp)) {
-        Text(text, style = T.small.copy(color = if (on) K.bg else K.ink2, fontSize = 12.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-/** Фото для аватара: квадрат по центру, 320×320, JPEG. */
-private fun saveAvatar(ctx: Context, uri: android.net.Uri): Boolean = try {
+internal fun saveAvatar(ctx: Context, uri: android.net.Uri): Boolean = try {
     val src = ctx.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) } ?: throw IllegalStateException()
     val side = minOf(src.width, src.height)
     val sq = android.graphics.Bitmap.createBitmap(src, (src.width - side) / 2, (src.height - side) / 2, side, side)
@@ -311,7 +212,7 @@ internal fun drawShareCard(ctx: Context, st: Stats): File {
     // имя, девиз, уровень
     c.drawText(Look.nick().take(20), 280f, 180f, paint(64f, white))
     if (S.motto.isNotBlank()) c.drawText(S.motto.take(48), 282f, 230f, paint(30f, dim, false))
-    c.drawText("Уровень ${st.level} · ${Look.title(st.level)}", 282f, if (S.motto.isNotBlank()) 280f else 240f, paint(30f, acc))
+    c.drawText("Уровень ${st.level} · ${Look.titleText(st.level)}", 282f, if (S.motto.isNotBlank()) 280f else 240f, paint(30f, acc))
     // цифры
     val cells = listOf(
         (if (st.play > 0) hrs(st.play) else "—") to "наиграно", "${st.games}" to "игр", (if (st.streak > 0) days(st.streak) else "—") to "подряд", "${st.saves}" to "сохранений",

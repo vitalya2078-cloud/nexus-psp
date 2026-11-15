@@ -87,11 +87,11 @@ fun Header() {
             Row(horizontalArrangement = Arrangement.spacedBy(if (w >= 700.dp) 4.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (status) HeadStatus()
                 if (extra) IconBtn(R.drawable.sl_pad) { Nav.open(Ov.Consoles) }
-                if (extra) IconBtn(R.drawable.sl_list) { Nav.open(Ov.Library) }
+                if (extra) IconBtn(R.drawable.sl_library) { Nav.open(Ov.Library) }
                 IconBtn(R.drawable.sl_search) { Nav.open(Ov.Search) }
                 if (dl) DownloadsBtn()
                 BellBtn()
-                IconBtn(R.drawable.sl_grid) { Nav.open(Ov.Quick) }
+                IconBtn(R.drawable.sl_sliders) { Nav.open(Ov.Quick) }
                 com.nexus.psp.ui.kit.Avatar(38.dp, Modifier.padding(start = 4.dp).clip(CircleShape).press { Nav.closeAll(); Nav.go("my") })
             }
         }

@@ -113,7 +113,8 @@ fun SettingsScreen() {
 @Composable
 private fun General() {
     val th = listOf("dark", "oled", "light")
-    Opt("Тема", "OLED — чистый чёрный для AMOLED-экранов") { Seg(listOf("Тёмная", "OLED", "Светлая"), th.indexOf(S.theme).coerceAtLeast(0)) { S.theme = th[it]; AppState.applyLook() } }
+    // тема, цвет, фон главного экрана и профиль — в «Оформлении» (быстрая панель); здесь — дорога туда
+    Opt("Оформление", "Тема, цвет, фон главного экрана, аватар и рамки") { KButton("Открыть", small = true) { com.nexus.psp.ui.Nav.replace(com.nexus.psp.ui.Ov.Look()) } }
     Opt("Язык", null) { Seg(listOf("RU", "EN"), if (S.lang == "EN") 1 else 0) { S.lang = if (it == 1) "EN" else "RU"; if (it == 1) AppState.say("Английский перевод появится позже") } }
     Opt("Вибрация", "Отклик при выборе и важных действиях") { Toggle(S.vib) { S.vib = it } }
     Opt("Звуки интерфейса", "Тихий щелчок в карусели") { Toggle(S.sound) { S.sound = it } }

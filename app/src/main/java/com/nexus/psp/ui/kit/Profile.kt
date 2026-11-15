@@ -55,6 +55,36 @@ object Look {
     /** Уровень по опыту и звание. */
     fun level(xp: Int) = xp / 1000 + 1
     fun title(level: Int) = when { level >= 11 -> "Легенда"; level >= 7 -> "Мастер"; level >= 4 -> "Знаток"; level >= 2 -> "Игрок"; else -> "Новичок" }
+    /** Титул на профиле: выбранный (если открыт) или по уровню. */
+    fun titleText(level: Int): String = AppState.S.titleSel.takeIf { it.isNotEmpty() }
+        ?.let { com.nexus.psp.data.Cos.find(com.nexus.psp.data.Cos.Kind.TT, it) }?.takeIf { com.nexus.psp.data.Cos.has(it) }?.name ?: title(level)
+    /** Баннер профиля: выбранный (если открыт) или прежний фон карточки. */
+    fun bannerId(): String = AppState.S.banner.takeIf { it.isNotEmpty() }
+        ?.takeIf { id -> com.nexus.psp.data.Cos.find(com.nexus.psp.data.Cos.Kind.BN, id)?.let { com.nexus.psp.data.Cos.has(it) } == true }
+        ?: if (AppState.S.cardBg == -1) "game" else "g${AppState.S.cardBg.coerceIn(0, CARDS.lastIndex)}"
+    /** Рамка аватара (только открытая). */
+    fun frameId(): String = AppState.S.frame.takeIf { id -> id.isNotEmpty() && com.nexus.psp.data.Cos.find(com.nexus.psp.data.Cos.Kind.FR, id)?.let { com.nexus.psp.data.Cos.has(it) } == true } ?: ""
+}
+
+/**
+ * Фон баннера профиля: картинка (bn_*), градиент (g0…g5) или обложка любимой игры (game).
+ * dark — затемнение слева направо, чтобы текст на баннере читался.
+ */
+@Composable
+fun BannerBg(id: String, fav: com.nexus.psp.data.Game?, modifier: Modifier = Modifier) {
+    Box(modifier) {
+        when {
+            id.startsWith("bn_") -> {
+                AssetImage("look/$id.webp", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .55f), Color.Black.copy(alpha = .25f), Color.Black.copy(alpha = .45f)))))
+            }
+            id == "game" && fav != null -> {
+                com.nexus.psp.ui.Cover(fav, 800, 300, modifier = Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .85f), Color.Black.copy(alpha = .45f)))))
+            }
+            else -> Box(Modifier.fillMaxSize().background(Look.cardBrush(id.removePrefix("g").toIntOrNull() ?: 0)))
+        }
+    }
 }
 
 /** Аватар игрока: буква на цвете, своё фото или аватар RetroAchievements. */
@@ -63,7 +93,20 @@ fun Avatar(size: Dp, modifier: Modifier = Modifier, ring: Boolean = false) {
     val S = AppState.S
     val ctx = LocalContext.current
     val col = Look.avColor(S.avColor)
+    val frame = if (ring) Look.frameId() else ""
+    if (frame.isNotEmpty()) {
+        // рамка рисуется поверх, чуть шире аватара; сам аватар — без белого кольца
+        Box(modifier.size(size), contentAlignment = Alignment.Center) {
+            Avatar(size * .8f, ring = false)
+            AssetImage("look/$frame.webp", Modifier.size(size))
+        }
+        return
+    }
     val base = modifier.size(size).clip(CircleShape).let { if (ring) it.border(2.dp, K.ink.copy(alpha = .9f), CircleShape) else it }
+    if (S.avMode == "set") {
+        Box(base.background(Color(0xFF1D1F29))) { AssetImage("look/${S.avItem}.webp", Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+        return
+    }
     val photo = S.avMode == "photo" && Look.photoFile(ctx).exists()
     val ra = S.avMode == "ra" && S.raUser.isNotEmpty() && S.raToken.isNotEmpty()
     when {

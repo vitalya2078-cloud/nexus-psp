@@ -78,6 +78,8 @@ import com.nexus.psp.R
 object K {
     var theme by mutableStateOf("dark")
     var contrast by mutableStateOf(false)
+    /** Свой акцент (уже подогнан под текущую тему); null — фирменный. */
+    var accent by mutableStateOf<Color?>(null)
     private val light get() = theme == "light"
 
     val bg get() = when (theme) { "oled" -> Color(0xFF000000); "light" -> Color(0xFFE7E5E0); else -> Color(0xFF0B0C0F) }
@@ -90,7 +92,7 @@ object K {
     val ink3 get() = ink.copy(alpha = if (contrast) .78f else .58f)
     val line get() = if (light) Color(0x1A141416) else Color(0x14FFFFFF)
     val line2 get() = if (light) Color(0x33141416) else Color(0x29FFFFFF)
-    val acc get() = if (light) Color(0xFF3E6699) else Color(0xFF7FA7D9)
+    val acc get() = accent ?: if (light) Color(0xFF3E6699) else Color(0xFF7FA7D9)
     val ok get() = if (light) Color(0xFF2F7A4C) else Color(0xFF8FC9A3)
     val warn get() = if (light) Color(0xFF8A6418) else Color(0xFFD9B36C)
     val bad get() = if (light) Color(0xFFA34444) else Color(0xFFD98A8A)

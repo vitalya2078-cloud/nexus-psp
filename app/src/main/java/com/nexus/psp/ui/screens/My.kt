@@ -85,14 +85,13 @@ object Moments {
 fun MyScreen() {
     val ctx = LocalContext.current
     val st = Stats()
-    var edit by ProfileUi.edit
     var view by remember { mutableStateOf<Moment?>(null) }
     val scope = rememberCoroutineScope()
     Column(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Banner(st, onEdit = { edit = true }, onShare = { scope.launch { shareProfile(ctx, st) } })
+        Banner(st, onEdit = { com.nexus.psp.ui.Nav.open(com.nexus.psp.ui.Ov.Look("profile")) }, onShare = { scope.launch { shareProfile(ctx, st) } })
         StatsStrip(st)
         if (AppState.byId.size < 3) AddGuide()
         ContinueRow()
@@ -101,7 +100,6 @@ fun MyScreen() {
         Badges(st)
         RaCard()
     }
-    if (edit) ProfileEditor { edit = false }
     view?.let { m -> MomentViewer(m) { view = null } }
 }
 
@@ -117,19 +115,15 @@ private fun Section(t: String, action: (@Composable () -> Unit)? = null) {
 @Composable
 private fun Banner(st: Stats, onEdit: () -> Unit, onShare: () -> Unit) {
     Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(24.dp))) {
-        val fav = st.fav
-        if (S.cardBg == -1 && fav != null) {
-            Box(Modifier.matchParentSize()) { Cover(fav, 800, 300, modifier = Modifier.fillMaxSize()) }
-            Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .85f), Color.Black.copy(alpha = .45f)))))
-        } else Box(Modifier.matchParentSize().background(Look.cardBrush(S.cardBg)))
+        com.nexus.psp.ui.kit.BannerBg(Look.bannerId(), st.fav, Modifier.matchParentSize())
         Row(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Avatar(92.dp, Modifier.press(onClick = onEdit), ring = true)
+            Avatar(104.dp, Modifier.press(onClick = onEdit), ring = true)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(Look.nick(), style = T.h1.copy(color = OnBanner), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(S.motto.ifBlank { "Нажми на аватар и придумай себе девиз" }, style = T.small.copy(color = OnBanner.copy(alpha = if (S.motto.isBlank()) .45f else .75f), fontSize = 13.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = .12f)).padding(horizontal = 10.dp, vertical = 4.dp)) {
-                        Text("Ур. ${st.level} · ${Look.title(st.level)}", style = T.small.copy(color = OnBanner, fontSize = 12.sp))
+                        Text("Ур. ${st.level} · ${Look.titleText(st.level)}", style = T.small.copy(color = OnBanner, fontSize = 12.sp))
                     }
                     Column(Modifier.width(180.dp)) {
                         Bar((st.xp % 1000) / 1000f, color = Look.avColor(S.avColor))
@@ -138,7 +132,8 @@ private fun Banner(st: Stats, onEdit: () -> Unit, onShare: () -> Unit) {
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
-                KButton("Оформить", icon = R.drawable.sl_sliders, small = true, onClick = onEdit)
+                Box(Modifier.press(onClick = onEdit)) { TokensChip() }
+                KButton("Оформить", icon = R.drawable.sl_brush, small = true, onClick = onEdit)
                 KButton("Поделиться", small = true, onClick = onShare)
             }
         }

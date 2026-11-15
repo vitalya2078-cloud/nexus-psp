@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -84,10 +85,15 @@ fun KapsulaApp() {
             .graphicsLayer { if (bright < 1f) alpha = 1f },
     ) {
         // фон игры — до краёв экрана (без отступа под вырез камеры) и под шапкой: нет «полки» и тёмной полосы слева
-        if (Nav.tab == "games" && Ambient.game != null) {
-            GameBackdrop(Ambient.game, Modifier.fillMaxSize(), strength = .55f)
+        if (Nav.tab == "games") {
+            // фон главного экрана: обложка выбранной игры, готовая картинка или своё фото (см. «Оформление»)
+            val wall = S.wall
+            when {
+                wall == "game" && Ambient.game != null -> GameBackdrop(Ambient.game, Modifier.fillMaxSize(), strength = .55f)
+                wall.startsWith("wp_") || wall == "photo" -> Wallpaper(wall, S.wallDim / 100f)
+            }
             // мягкое затемнение сверху: шапка читается на любом фоне и получает глубину
-            Box(Modifier.fillMaxWidth().height(150.dp).background(Brush.verticalGradient(listOf(K.bg.copy(alpha = .82f), K.bg.copy(alpha = .35f), Color.Transparent))))
+            if (wall != "none") Box(Modifier.fillMaxWidth().height(150.dp).background(Brush.verticalGradient(listOf(K.bg.copy(alpha = .82f), K.bg.copy(alpha = .35f), Color.Transparent))))
         }
         Column(Modifier.fillMaxSize()) {
             Header()
@@ -124,6 +130,7 @@ private fun Overlays() {
             Ov.Downloads -> DownloadsDrawer()
             Ov.Alerts -> AlertsDrawer()
             Ov.Quick -> QuickPanel()
+            is Ov.Look -> com.nexus.psp.ui.screens.LooksScreen(top.tab)
             Ov.Settings -> SettingsScreen()
             Ov.Pad -> PadScreen()
             Ov.Consoles -> com.nexus.psp.ui.screens.ConsolesScreen()
@@ -239,5 +246,28 @@ private fun Splash(full: Boolean, onDone: () -> Unit) {
             Text("KAPSULA", style = T.h2.copy(letterSpacing = (2 + 4 * a.value).sp), modifier = Modifier.alpha(a.value))
             Spacer(Modifier.height(4.dp).width(1.dp))
         }
+    }
+}
+
+/**
+ * Картинка фона главного экрана: заполняет экран, сверху — слой цвета темы (затемнение на тёмной теме,
+ * высветление на светлой), чтобы обложки и текст оставались главными. Читается с диска один раз.
+ */
+@Composable
+private fun Wallpaper(id: String, dim: Float) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val stamp = if (id == "photo") java.io.File(ctx.filesDir, "wall.jpg").lastModified() else 0L
+    val img by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, id, stamp) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                if (id == "photo") android.graphics.BitmapFactory.decodeFile(java.io.File(ctx.filesDir, "wall.jpg").path)?.asImageBitmap()
+                else ctx.assets.open("img/look/$id.webp").use { android.graphics.BitmapFactory.decodeStream(it)?.asImageBitmap() }
+            } catch (e: Exception) { null }
+        }
+    }
+    val b = img ?: return
+    Box(Modifier.fillMaxSize()) {
+        androidx.compose.foundation.Image(b, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+        Box(Modifier.fillMaxSize().background(K.bg.copy(alpha = dim)))
     }
 }
