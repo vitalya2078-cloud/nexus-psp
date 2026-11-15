@@ -396,7 +396,7 @@ private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
                 Text("НАЖИМАЕТ В ИГРЕ", style = T.caps, modifier = Modifier.padding(top = 10.dp, bottom = 6.dp))
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     val curKey = a.btnKey(key)
-                    ControlLayout.PARTS.forEach { k ->
+                    ControlLayout.parts(a.platform).forEach { k ->
                         val on = k == curKey
                         Box(
                             Modifier.size(52.dp, 42.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.acc.copy(alpha = .18f) else K.s1)
@@ -437,13 +437,14 @@ private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
                 KButton("Как было", small = true) { a.setIcon(key, null); cur = ui.pickingDefault }
             }
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                CtlIcons.GROUPS.forEachIndexed { i, (g, _) -> com.nexus.psp.ui.kit.Chip(g, group == i) { group = i } }
+                val groups = remember(a.platform) { CtlIcons.groups(a.platform) }
+                groups.forEachIndexed { i, (g, _) -> com.nexus.psp.ui.kit.Chip(g, group == i) { group = i } }
             }
             androidx.compose.foundation.layout.FlowRow(
                 Modifier.padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                CtlIcons.GROUPS[group].second.forEach { (name, label) ->
+                CtlIcons.groups(a.platform).getOrNull(group)?.second.orEmpty().forEach { (name, label) ->
                     val on = name == cur
                     Column(
                         Modifier.width(76.dp).clip(RoundedCornerShape(14.dp)).background(if (on) K.acc.copy(alpha = .16f) else K.s1)
@@ -453,6 +454,7 @@ private fun IconPicker(a: GameActivity, ui: GameActivity.UiState, key: String) {
                     ) {
                         val gc = GLYPH_COLOR[name]
                         if (gc != null) GlyphIcon(name, gc, 30.dp)
+                        else if (name.startsWith(ControlLayout.CLASSIC)) ClassicIcon(a, name.removePrefix(ControlLayout.CLASSIC), 30.dp)
                         else {
                             val id = remember(name) { ctx.resources.getIdentifier("ctl_$name", "drawable", ctx.packageName) }
                             if (id != 0) SolarIcon(id, 30.dp, K.ink)
@@ -604,9 +606,20 @@ private fun NetPanel(a: GameActivity, ui: GameActivity.UiState) {
 /** Значок части своей кнопки: фигура, стрелка или надпись. */
 @Composable
 private fun PartIcon(a: GameActivity, k: String, size: androidx.compose.ui.unit.Dp) {
-    val gc = GLYPH_COLOR[k]
+    val gc = GLYPH_COLOR[k].takeIf { !ControlLayout.hasPad(a.platform) }
     if (gc != null) GlyphIcon(k, gc, size)
+    else if (ControlLayout.hasPad(a.platform) && ControlLayout.classicLabel(a.platform, k) != null) ClassicIcon(a, k, size)
     else Text(a.partName(k), style = T.label.copy(fontSize = (size.value * .5f).sp, color = K.ink), maxLines = 1)
+}
+
+/** Родная кнопка консоли: буква/цифра её джойстика в кольце её цвета. */
+@Composable
+private fun ClassicIcon(a: GameActivity, k: String, size: androidx.compose.ui.unit.Dp) {
+    val t = ControlLayout.classicLabel(a.platform, k) ?: ControlLayout.KEY_TEXT[k] ?: k
+    val col = ControlLayout.classicColor(a.platform, k)?.let { Color(it) } ?: K.ink
+    Box(Modifier.size(size).clip(androidx.compose.foundation.shape.CircleShape).border(2.dp, col, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+        Text(t, style = T.label.copy(fontSize = (size.value * (if (t.length > 2) .26f else .46f)).sp, color = K.ink), maxLines = 1)
+    }
 }
 
 /** Новая кнопка: «две разом» (все вместе, пока держишь) или комбо (по очереди одним касанием). */
@@ -652,7 +665,7 @@ private fun AddButtonPanel(a: GameActivity) {
                 if (combo && keys.isNotEmpty()) KButton("Стереть", small = true) { keys.removeAt(keys.lastIndex) }
             }
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ControlLayout.PARTS.forEach { k ->
+                ControlLayout.parts(a.platform).forEach { k ->
                     val on = mode != 2 && k in keys
                     Box(
                         Modifier.size(64.dp, 52.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.acc.copy(alpha = .16f) else K.s1)

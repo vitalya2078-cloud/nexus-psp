@@ -1272,12 +1272,14 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         return (0 until a.length()).mapNotNull { i ->
             val o = a.optJSONObject(i) ?: return@mapNotNull null
             val keys = o.optJSONArray("keys")?.let { k -> (0 until k.length()).map { k.getString(it) } } ?: return@mapNotNull null
-            if (keys.size == 1) Btn(o.getString("id"), o.optString("icon").ifEmpty { "tap" }, 54f, "r230 b150", ControlLayout.AMBER, key = keys[0])
+            // одна кнопка консоли — по умолчанию выглядит как родная кнопка (буква консоли, стрелка, фигура)
+            if (keys.size == 1) Btn(o.getString("id"), o.optString("icon").ifEmpty { ControlLayout.classicIcon(platform, keys[0]) }, 54f, "r230 b150",
+                ControlLayout.classicColor(platform, keys[0]) ?: ControlLayout.AMBER, key = keys[0])
             else ControlLayout.extra(o.getString("id"), keys, o.optBoolean("combo"), null)
         }
     }
 
-    fun partName(k: String) = when (k) {
+    fun partName(k: String) = ControlLayout.NAMES[platform]?.get(k)?.takeIf { it.length <= 6 } ?: when (k) {
         "ft" -> "Верх"; "fr" -> "Право"; "fb" -> "Низ"; "fl" -> "Лево"
         "up" -> "↑"; "down" -> "↓"; "left" -> "←"; "right" -> "→"
         "select" -> "Select"; "start" -> "Start"; else -> k.uppercase()

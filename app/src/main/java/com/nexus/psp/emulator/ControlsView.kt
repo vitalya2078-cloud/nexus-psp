@@ -142,6 +142,12 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
 
     private fun drawIcon(c: Canvas, name: String, cx: Float, cy: Float, half: Float, color: Int, alpha: Int = 255) {
         if (name in GLYPHS) { drawGlyph(c, name, cx, cy, half * 1.1f, color); return }
+        if (name.startsWith(ControlLayout.CLASSIC)) {
+            val k = name.removePrefix(ControlLayout.CLASSIC)
+            val t = ControlLayout.classicLabel(platform, k) ?: ControlLayout.KEY_TEXT[k] ?: k
+            text.color = color; text.alpha = alpha; text.letterSpacing = 0f; text.textSize = half * (if (t.length > 2) .8f else 1.5f)
+            c.drawText(t, cx, cy + text.textSize * .36f, text); return
+        }
         val d = icon(name) ?: return
         d.setBounds((cx - half).toInt(), (cy - half).toInt(), (cx + half).toInt(), (cy + half).toInt())
         d.setTint(color); d.alpha = alpha
@@ -239,7 +245,9 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         val (cx, cy) = center(b)
         val pressed = t != null
         val on = b.act != null && b.act in toggles
-        val col = b.color?.toInt() ?: (if (on) ControlLayout.BLUE.toInt() else ivory)
+        // родная кнопка консоли (значок k:…): буква/цифра джойстика консоли её цветом
+        val classic = iconOf(b)?.takeIf { it.startsWith(ControlLayout.CLASSIC) }?.removePrefix(ControlLayout.CLASSIC)
+        val col = (classic?.let { ControlLayout.classicColor(platform, it) } ?: b.color)?.toInt() ?: (if (on) ControlLayout.BLUE.toInt() else ivory)
         val dark = 0xFF08090C.toInt()
         val r = diameter(b) / 2 * (if (pressed) .94f else 1f)
         val f = when { pressed -> .68f; on -> .45f; b.color != null -> .21f; else -> 0f }
@@ -253,11 +261,13 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         val sw = max(2 * dp, diameter(b) * .055f)
         ring.strokeWidth = sw; ring.color = col; ring.alpha = if (b.color == null && !on) 235 else 255
         c.drawCircle(cx, cy, r - sw / 2, ring)
-        if (iconOf(b) == null && b.label != null && b.w == null) {
-            text.color = ivory; text.alpha = 235; text.letterSpacing = 0f; text.textSize = r * .78f
-            c.drawText(b.label, cx, cy + text.textSize * .36f, text)
+        val letter = if (classic != null) ControlLayout.classicLabel(platform, classic) ?: ControlLayout.KEY_TEXT[classic] ?: classic
+            else b.label?.takeIf { iconOf(b) == null && b.w == null }
+        if (letter != null) {
+            text.color = ivory; text.alpha = 235; text.letterSpacing = 0f; text.textSize = r * (if (letter.length > 2) .42f else .78f)
+            c.drawText(letter, cx, cy + text.textSize * .36f, text)
         }
-        iconOf(b)?.let { name ->
+        iconOf(b)?.takeIf { classic == null }?.let { name ->
             // фигуры — цветом места; пиктограммы — белым
             drawIcon(c, name, cx, cy, r * (if (name in GLYPHS) .5f else .62f), if (name in GLYPHS) col else ivory)
         }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KAPSULA Touch: значок кнопки — простая стрелка -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="100" android:viewportHeight="100">
+  <group android:pivotX="50" android:pivotY="50" android:rotation="270">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M50,14L84,52L62,52L62,86L38,86L38,52L16,52Z"/>
+  </group>
+</vector>

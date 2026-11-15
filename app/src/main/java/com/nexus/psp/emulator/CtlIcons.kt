@@ -35,9 +35,13 @@ object CtlIcons {
         ),
         "Кнопки" to listOf(
             "ft" to "Верх", "fr" to "Право", "fb" to "Низ", "fl" to "Лево", "l1" to "L1", "r1" to "R1", "l2" to "L2", "r2" to "R2",
-            "select" to "Select", "start" to "Start", "layout" to "Раскладка", "both" to "Две разом", "turbo" to "Турбо",
+            "select" to "Select", "start" to "Start", "arr_up" to "Вверх", "arr_down" to "Вниз", "arr_left" to "Влево", "arr_right" to "Вправо",
+            "layout" to "Раскладка", "both" to "Две разом", "turbo" to "Турбо",
         ),
     )
+
+    /** Группы значков для игры этой консоли: общие + «Классика» — родные кнопки её джойстика. */
+    fun groups(plat: String): List<Pair<String, List<Pair<String, String>>>> = GROUPS + ("Классика" to ControlLayout.classicIcons(plat))
 
     /** Подпись под кнопкой по её значку (кнопки консоли и служебные — без подписи). */
     val CAPS: Map<String, String> by lazy { GROUPS.filter { it.first != "Кнопки" }.flatMap { it.second }.toMap() + mapOf("more" to "Ещё", "left" to "Влево", "right" to "Вправо", "camreset" to "Камера") }

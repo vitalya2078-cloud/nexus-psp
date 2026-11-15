@@ -164,6 +164,49 @@ object ControlLayout {
         "lynx" to mapOf("fr" to "A", "fb" to "B", "l1" to "Option 1", "r1" to "Option 2", "start" to "Pause"),
     )
 
+    /** Подпись кнопки RetroPad, если у консоли нет своей буквы. */
+    val KEY_TEXT = mapOf("l1" to "L1", "r1" to "R1", "l2" to "L2", "r2" to "R2", "select" to "SEL", "start" to "START",
+        "ft" to "△", "fr" to "○", "fb" to "×", "fl" to "□", "up" to "↑", "down" to "↓", "left" to "←", "right" to "→")
+
+    /** Значок «родная кнопка консоли»: k:<кнопка RetroPad> — рисуется буквой/цифрой консоли её цветом. */
+    const val CLASSIC = "k:"
+
+    /** Родные кнопки консоли для редактора: значок → подпись (группа «Классика»). */
+    fun classicIcons(plat: String): List<Pair<String, String>> {
+        val p = pad(plat) ?: return when (plat) {
+            "psp" -> listOf("ft" to "Треугольник", "fr" to "Круг", "fb" to "Крест", "fl" to "Квадрат", "l1" to "L", "r1" to "R", "select" to "Select", "start" to "Start")
+            else -> listOf("ft" to "Треугольник", "fr" to "Круг", "fb" to "Крест", "fl" to "Квадрат", "l1" to "L1", "r1" to "R1", "l2" to "L2", "r2" to "R2", "select" to "Select", "start" to "Start")
+        }
+        return p.filter { !it.dpad && it.stick == null && it.act == null && it.cam == null }.mapNotNull { b ->
+            val k = b.key ?: b.id
+            when {
+                b.label != null -> CLASSIC + k to (NAMES[plat]?.get(k) ?: b.label)
+                b.icon != null -> b.icon to (b.cap ?: NAMES[plat]?.get(k) ?: k)
+                else -> CLASSIC + k to (NAMES[plat]?.get(k) ?: b.cap ?: k)
+            }
+        }.distinctBy { it.first }
+    }
+
+    /** Кнопки консоли, из которых собираются свои кнопки: только те, что есть у консоли, и стрелки. */
+    fun parts(plat: String): List<String> {
+        val p = pad(plat) ?: return if (plat == "psp") PARTS.filter { it != "l2" && it != "r2" } else PARTS
+        val ks = p.filter { !it.dpad && it.stick == null && it.act == null && it.cam == null }.map { it.key ?: it.id }.filter { code(it) != null }
+        return (ks + listOf("up", "down", "left", "right")).distinct()
+    }
+
+    /** Буква/цифра кнопки на джойстике консоли (null — у консоли своих букв нет). */
+    fun classicLabel(plat: String, key: String): String? = pad(plat)?.firstOrNull { (it.key ?: it.id) == key }?.let { it.label ?: NAMES[plat]?.get(key) } ?: NAMES[plat]?.get(key)
+
+    /** Цвет родной кнопки консоли (как на её джойстике). */
+    fun classicColor(plat: String, key: String): Long? = pad(plat)?.firstOrNull { (it.key ?: it.id) == key }?.color
+
+    /** Как выглядит новая своя кнопка с одной кнопкой консоли: родная кнопка (буква или значок) или палец. */
+    fun classicIcon(plat: String, key: String): String {
+        if (key in setOf("up", "down", "left", "right")) return "arr_$key"
+        val b = pad(plat)?.firstOrNull { (it.key ?: it.id) == key } ?: return if (key in KEY) key else "tap"
+        return b.icon?.takeIf { b.label == null } ?: (CLASSIC + key)
+    }
+
     /** У консоли свой джойстик (один и в Touch, и в «Классике»; жанровые шаблоны PSP к ней не подходят). */
     fun hasPad(plat: String) = plat in NAMES
 

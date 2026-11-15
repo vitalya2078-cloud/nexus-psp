@@ -52,6 +52,13 @@ class ControlsShotTest {
         for (p in ControlLayout.NAMES.keys) shot("pad_$p") { v ->
             v.captions = true; v.platform = p; v.layName = "touch:$p"; v.setLayout(ControlLayout.layout("touch", p))
         }
+        // своя кнопка с родной буквой консоли и стрелка
+        shot("pad_md_own") { v ->
+            v.captions = true; v.platform = "md"; v.layName = "touch:md"
+            v.setLayout(ControlLayout.layout("touch", "md") + com.nexus.psp.emulator.Btn("x1", ControlLayout.classicIcon("md", "fr"), 54f, "r330 b60", ControlLayout.classicColor("md", "fr"), key = "fr") +
+                com.nexus.psp.emulator.Btn("x2", "arr_up", 54f, "r330 b150", ControlLayout.AMBER, key = "up"))
+            v.customIcons["touch:md:a"] = "k:ft"
+        }
         // игры с подписанными действиями
         for ((p, n) in listOf("neogeo" to "Metal Slug", "md" to "Street Fighter II", "nes" to "Contra")) shot("preset_$p") { v ->
             val base = com.nexus.psp.emulator.GamePresets.find(p, n)!!.second.getJSONArray("layouts").getJSONObject(0).getString("base")

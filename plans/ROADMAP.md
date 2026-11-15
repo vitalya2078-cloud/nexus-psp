@@ -695,3 +695,8 @@
   Master System / Game Gear, Денди (Contra, Battletoads, Chip 'n Dale, DuckTales, Mega Man, Ninja Gaiden, Castlevania и др.,
   без игр Nintendo), PC Engine, Saturn (файтинги Capcom), Dreamcast (Sonic Adventure), Neo Geo (Metal Slug, KOF, Garou, Samurai Shodown,
   Last Blade), Neo Geo Pocket. Раскладка ретро-игры — родной джойстик, кнопки подписаны действиями.
+
+## 0.36.1
+- Редактор кнопок: обычные стрелки ↑ ↓ ← → в значках «Кнопки» (новые простые значки) — для своих кнопок, в раскладку сами не ставятся.
+- Группа значков «Классика»: родные кнопки консоли игры (буквы/цифры её джойстика её цветами, Монетка, Mode, Run…); у PSP/PS1/PS2 — фигуры, L/R.
+- «Своя кнопка»: только кнопки этой консоли и стрелки, подписаны её буквами; новая кнопка по умолчанию выглядит как родная.
