@@ -73,7 +73,18 @@ def release():
     st, a = req("POST", f"/repos/{REPO}/releases/{rel['id']}/assets?name=kapsula.apk", data=body, ctype=f"multipart/form-data; boundary={b}")
     if st not in (200, 201):
         print(f"::error::APK на GitVerse не загружен: {st} {a}"); return None
-    print("APK загружен:", (a or {}).get("browser_download_url"))
+    url = (a or {}).get("browser_download_url")
+    print("APK загружен:", url)
+    # скачивается ли APK без входа (нужно приложению для обновлений без VPN)
+    if url:
+        try:
+            r = urllib.request.Request(url, method="GET", headers={"Range": "bytes=0-3"})
+            with urllib.request.urlopen(r, timeout=60) as resp:
+                print(f"без входа: {resp.status}, начало файла {resp.read(4)!r}")
+        except urllib.error.HTTPError as e:
+            print(f"без входа: {e.code} — APK по этой ссылке скачивается только с токеном")
+        except Exception as e:
+            print("без входа: не проверилось:", e)
     return rel
 
 
