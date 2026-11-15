@@ -213,6 +213,9 @@ object Tokens {
      * Состояние с сервера — главное: баланс, купленное. Счётчики «уже начислено» на телефоне подтягиваются к текущим цифрам,
      * чтобы без сети те же минуты не начислились второй раз.
      */
+    /** Баланс с сервера (сундук, начисления) — без остального пересчёта. */
+    fun serverBalance(bal: Int) { if (!ready) return; balance = bal; sp.edit().putInt("balance", bal).apply() }
+
     fun fromServer(bal: Int, own: Set<String>, visit: Int) {
         if (!ready) return
         balance = bal; owned = own

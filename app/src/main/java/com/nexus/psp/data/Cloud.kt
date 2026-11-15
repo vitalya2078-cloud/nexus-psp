@@ -168,6 +168,72 @@ object Cloud {
 
     internal fun setFriendsForTest(f: JSONObject?) { friends = f }
 
+    // ---------- уведомления, пока приложение открыто ----------
+
+    /**
+     * Что нового (раз в минуту и при возврате в приложение): личные уведомления → колокольчик + плашка, новости → колокольчик.
+     * Начисления и подарки — сразу перечитать баланс (sync), заявки и друзья — перечитать список.
+     */
+    fun pollNow(c: android.content.Context) {
+        if (!ready || code.isEmpty()) return
+        val after = sp.getLong("inboxAfter", 0L)
+        val r = Inbox.poll(c, after, sp.getLong("newsAfter", 0L)) ?: return
+        val items = r.optJSONArray("items") ?: org.json.JSONArray()
+        var last = after; var money = false; var friendsChanged = false
+        val fresh = ArrayList<JSONObject>()
+        for (i in 0 until items.length()) items.getJSONObject(i).let { o ->
+            last = maxOf(last, o.optLong("id")); fresh.add(o)
+            val k = o.optString("kind")
+            if (k == "grant" || k == "item") money = true
+            if (Inbox.isFriend(k)) friendsChanged = true
+        }
+        var lastNews = sp.getLong("newsAfter", 0L)
+        val news = r.optJSONArray("news") ?: org.json.JSONArray()
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            fresh.forEach { o -> AppState.alerts.add(0, Alert(o.optString("title"), o.optString("body"), true, if (Inbox.isFriend(o.optString("kind"))) FRIENDS else null)) }
+            for (i in 0 until news.length()) news.getJSONObject(i).let { n -> if (n.optLong("id") > lastNews) { AppState.alerts.add(0, Alert(n.optString("text"), "Новости KAPSULA", true)); lastNews = n.optLong("id") } }
+            fresh.lastOrNull()?.let { o ->
+                if (Inbox.isFriend(o.optString("kind"))) AppState.say(o.optString("title"), action = "Открыть") { openFriends() }
+                else AppState.say(o.optString("title"))
+            }
+            if (fresh.isNotEmpty() || news.length() > 0) {
+                sp.edit().putLong("inboxAfter", last).putLong("notifAfter", maxOf(last, sp.getLong("notifAfter", 0L)))
+                    .putLong("newsAfter", lastNews).putLong("newsNotifAfter", maxOf(lastNews, sp.getLong("newsNotifAfter", 0L))).apply()
+                AppState.save()
+            }
+        }
+        if (money) sync()
+        if (friendsChanged) loadFriends()
+    }
+
+    /** Колокольчик: метка «открыть друзей». */
+    const val FRIENDS = "@friends"
+
+    /** Открыть «Моё → Друзья». */
+    fun openFriends() {
+        com.nexus.psp.ui.Nav.go("my")
+        com.nexus.psp.ui.screens.MyTab.open++
+    }
+
+    /** Сундук создателя (раз в сутки): сколько выпало, был ли уже сегодня, или текст ошибки. */
+    fun chest(to: String): Triple<Int, Boolean, String?> {
+        if (!ready) return Triple(0, false, "Нет связи с сервером")
+        if (code.isEmpty()) return Triple(0, false, "Аккаунт ещё создаётся — попробуй через минуту")
+        val (st, r) = call(JSONObject().put("action", "chest").put("code", code).put("to", to))
+        if (st == 200 && r != null) {
+            sp.edit().putString("chestDay", today()).apply()
+            if (r.has("balance")) Tokens.serverBalance(r.optInt("balance"))
+        }
+        return when {
+            st == 200 && r != null -> Triple(r.optInt("amount"), r.optBoolean("already"), null)
+            r?.optString("error") == "self" -> Triple(0, false, "Свой сундук открывают гости")
+            r?.optString("error") == "banned" -> Triple(0, false, "Аккаунт заблокирован")
+            st == 0 -> Triple(0, false, "Нет связи с сервером. Проверь интернет")
+            else -> Triple(0, false, "Сервер не ответил. Попробуй позже")
+        }
+    }
+    val chestToday get() = ::sp.isInitialized && sp.getString("chestDay", "") == today()
+
     /** «Поприветствовать создателя» (раз в сутки). Ответ: число приветствий, было ли уже сегодня, или текст ошибки. */
     fun cheer(to: String): Triple<Int, Boolean, String?> {
         if (!ready) return Triple(-1, false, "Нет связи с сервером")

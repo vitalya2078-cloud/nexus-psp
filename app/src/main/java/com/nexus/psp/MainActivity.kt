@@ -199,10 +199,54 @@ class MainActivity : ComponentActivity() {
         Act.openNotifySettings = { openNotifySettings() }
         watchNetwork()
         setContent { KapsulaTheme { KapsulaApp() } }
+        com.nexus.psp.data.Inbox.channels(this)
+        com.nexus.psp.data.Inbox.schedule(applicationContext)
+        openFrom(intent)
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        openFrom(intent)
+    }
+
+    /** Тап по системному уведомлению: друзья — «Моё → Друзья», остальное — колокольчик. */
+    private fun openFrom(i: android.content.Intent?) {
+        when (i?.getStringExtra(com.nexus.psp.data.Inbox.EXTRA_OPEN)) {
+            "friends" -> com.nexus.psp.data.Cloud.openFriends()
+            "alerts" -> { Nav.closeAll(); Nav.open(Ov.Alerts) }
+            else -> return
+        }
+        i.removeExtra(com.nexus.psp.data.Inbox.EXTRA_OPEN)
+    }
+
+    private var pollJob: kotlinx.coroutines.Job? = null
+
+    override fun onPause() {
+        super.onPause()
+        com.nexus.psp.data.Inbox.foreground = false
+        pollJob?.cancel(); pollJob = null
     }
 
     override fun onResume() {
         super.onResume()
+        // пока KAPSULA на экране — заявки, жетоны и новости проверяются раз в минуту (без перезапуска)
+        com.nexus.psp.data.Inbox.foreground = true
+        getSystemService(android.app.NotificationManager::class.java)?.cancelAll()
+        pollJob?.cancel()
+        pollJob = lifecycleScope.launch {
+            kotlinx.coroutines.delay(4000)
+            while (true) {
+                withContext(Dispatchers.IO) { com.nexus.psp.data.Cloud.pollNow(applicationContext) }
+                kotlinx.coroutines.delay(60_000)
+            }
+        }
+        // разрешение на уведомления (Android 13+) — один раз, после знакомства с приложением
+        val cp = getSharedPreferences("kapsula_cloud", MODE_PRIVATE)
+        if (AppState.S.onboarded && !cp.getBoolean("askedNotify", false)) {
+            cp.edit().putBoolean("askedNotify", true).apply()
+            ensureNotify { }
+        }
         // после выхода из игры — время в игре, сохранения; файлы могли удалить вручную
         AppState.loadReal()
         AppState.consumePendingGlobal()

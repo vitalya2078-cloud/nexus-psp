@@ -62,7 +62,11 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 /** Какая вкладка «Моё» открыта первой (для снимков в тестах). */
-object MyTab { var start = 0 }
+object MyTab {
+    var start = 0
+    /** Увеличь — «Моё» переключится на «Друзья» (из уведомления). */
+    var open by androidx.compose.runtime.mutableIntStateOf(0)
+}
 
 /** Белый текст на баннере — фон баннера всегда тёмный. */
 private val OnBanner = Color(0xFFF2F1EC)
@@ -90,6 +94,7 @@ fun MyScreen() {
     val st = Stats()
     var view by remember { mutableStateOf<Moment?>(null) }
     var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(MyTab.start) }
+    androidx.compose.runtime.LaunchedEffect(MyTab.open) { if (MyTab.open > 0) tab = 1 }
     val scope = rememberCoroutineScope()
     Column(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),

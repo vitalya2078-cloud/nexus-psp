@@ -347,7 +347,10 @@ fun CreatorBanner(c: CreatorCard, modifier: Modifier = Modifier) {
                 }
                 (c.status.ifEmpty { c.motto }).takeIf { it.isNotEmpty() }?.let { Text(it, style = T.small.copy(color = Creator.GOLD, fontSize = 12.5.sp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 c.xp?.let { GoldBar(it, Modifier.widthIn(max = 260.dp).fillMaxWidth()) }
-                CheerButton(c) { burst++ }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CheerButton(c) { burst++ }
+                    if (!c.own) Chest(c.shortId)
+                }
             }
             Column(Modifier.align(Alignment.Top), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Medals(Modifier.zIndex(1f))
@@ -666,5 +669,86 @@ private fun SaveikWalker(game: String, modifier: Modifier = Modifier) {
                 }
             }
         }
+    }
+}
+
+
+/**
+ * Сундук создателя (видят гости): раз в сутки — 5–10 жетонов (выдаёт сервер).
+ * Тап — крышка откидывается, вылетают монетки, всплывает «+N». Открыт сегодня — пустой, «завтра снова».
+ */
+@Composable
+private fun Chest(to: String) {
+    var opened by remember { mutableStateOf(Cloud.chestToday) }
+    var busy by remember { mutableStateOf(false) }
+    var got by remember { mutableStateOf(0) }
+    val lid = remember { androidx.compose.animation.core.Animatable(if (Cloud.chestToday) 1f else 0f) }
+    val fly = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val glow = loop(1800)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        // «нажми меня»: раз в 2,6 с сундук покачивается влево-вправо и подпрыгивает (пока не открыт)
+        val wob = loop(2600)
+        Box(Modifier.size(52.dp).graphicsLayer {
+            if (!opened && !busy) {
+                val k = (wob / .3f).coerceAtMost(1f)
+                val damp = if (wob < .3f) 1f - k else 0f
+                rotationZ = 12f * sin(k * 4 * PI).toFloat() * damp
+                translationY = -4.dp.toPx() * sin(k * PI).toFloat() * damp
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(.5f, .95f)
+            }
+        }.tap {
+            if (busy) return@tap
+            if (opened) { AppState.say("Сундук уже открыт — заходи завтра"); return@tap }
+            busy = true
+            scope.launch {
+                val (amt, already, err) = withContext(Dispatchers.IO) { Cloud.chest(to) }
+                busy = false
+                if (err != null) { AppState.say(err); return@launch }
+                opened = true
+                if (already) { lid.snapTo(1f); AppState.say("Сундук уже открыт — заходи завтра"); return@launch }
+                got = amt
+                lid.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = .45f, stiffness = 300f))
+                fly.snapTo(0f); fly.animateTo(1f, tween(1300, easing = LinearEasing))
+                AppState.say("+$amt ${com.nexus.psp.data.Tokens.word(amt)} из сундука")
+            }
+        }) {
+            Canvas(Modifier.fillMaxSize()) {
+                val w = size.width; val h = size.height
+                // свечение, пока сундук ждёт
+                if (!opened) drawCircle(Brush.radialGradient(listOf(Creator.GOLD.copy(alpha = .28f + .2f * sin(glow * 2 * PI).toFloat()), Color.Transparent), Offset(w / 2, h * .62f), w * .6f), w * .6f, Offset(w / 2, h * .62f))
+                val bodyTop = h * .48f
+                val wood = Color(0xFF7A4A22); val woodD = Color(0xFF5A3315)
+                // корпус
+                drawRoundRect(woodD, Offset(w * .1f, bodyTop), Size(w * .8f, h * .42f), androidx.compose.ui.geometry.CornerRadius(w * .06f))
+                drawRoundRect(wood, Offset(w * .13f, bodyTop + h * .03f), Size(w * .74f, h * .36f), androidx.compose.ui.geometry.CornerRadius(w * .05f))
+                drawRect(Creator.GOLD2, Offset(w * .1f, bodyTop + h * .1f), Size(w * .8f, h * .05f))
+                drawRect(Creator.GOLD2, Offset(w * .44f, bodyTop), Size(w * .12f, h * .42f))
+                // внутри — золото, пока не опустел
+                if (lid.value > .05f && !(opened && fly.value >= 1f && got == 0)) drawOval(Creator.GOLD.copy(alpha = if (fly.value >= 1f || got == 0) .35f else 1f), Offset(w * .18f, bodyTop - h * .05f), Size(w * .64f, h * .12f))
+                // крышка: откидывается назад вокруг задней кромки
+                rotate(-110f * lid.value, Offset(w * .5f, bodyTop)) {
+                    drawRoundRect(woodD, Offset(w * .1f, bodyTop - h * .26f), Size(w * .8f, h * .27f), androidx.compose.ui.geometry.CornerRadius(w * .12f, w * .12f))
+                    drawRoundRect(wood, Offset(w * .13f, bodyTop - h * .23f), Size(w * .74f, h * .22f), androidx.compose.ui.geometry.CornerRadius(w * .1f))
+                    drawRect(Creator.GOLD2, Offset(w * .44f, bodyTop - h * .26f), Size(w * .12f, h * .27f))
+                }
+                // замочек
+                if (lid.value < .5f) drawRoundRect(Creator.GOLD, Offset(w * .42f, bodyTop - h * .02f), Size(w * .16f, h * .14f), androidx.compose.ui.geometry.CornerRadius(w * .03f))
+                // монетки
+                val f = fly.value
+                if (f > 0f && f < 1f) for (i in 0 until 7) {
+                    val ang = (-PI / 2) + (i - 3) * .32
+                    val d = h * (.2f + .9f * f)
+                    val pt = Offset(w / 2 + (d * cos(ang)).toFloat(), bodyTop + (d * sin(ang)).toFloat() + h * 1.4f * f * f)
+                    drawCircle(Creator.GOLD2, w * .085f * (1f - .3f * f), pt)
+                    drawCircle(Color(0xFFFFF4D2).copy(alpha = 1f - f), w * .045f, pt)
+                }
+            }
+            // «+N» всплывает
+            if (fly.value > 0f && fly.value < 1f) Text("+$got", style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 15.sp, color = Creator.GOLD,
+                shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = .7f), blurRadius = 6f)),
+                modifier = Modifier.align(Alignment.TopCenter).graphicsLayer { translationY = -fly.value * 34.dp.toPx(); alpha = 1f - fly.value * fly.value })
+        }
+        Text(if (opened) "завтра\nснова" else "сундук\nсоздателя", style = T.small.copy(fontSize = 10.sp, color = Creator.GOLD.copy(alpha = if (opened) .55f else .9f), lineHeight = 11.sp))
     }
 }
