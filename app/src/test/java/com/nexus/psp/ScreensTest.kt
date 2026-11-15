@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.nexus.psp.data.AppState
@@ -134,6 +136,20 @@ class ScreensTest {
         } } }
         rule.mainClock.advanceTimeBy(3000); rule.waitForIdle()
         rule.onRoot().captureRoboImage("build/shots/j15-creator-guest.png")
+    }
+    /** Подсказка медали выезжает из самой медали (тап по правой). */
+    @Test fun j18_medal_tip() {
+        AppState.autoFetch = false
+        AppState.init(ApplicationProvider.getApplicationContext())
+        com.nexus.psp.data.Cloud.setForTest("7Q4M2K", false)
+        rule.setContent { KapsulaTheme { androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().padding(16.dp)) {
+            com.nexus.psp.ui.screens.CreatorBanner(com.nexus.psp.ui.screens.CreatorCard("Виталий", "", "Делаю KAPSULA", "gold", "KAPSULA", 12, null, "", "bn_creator",
+                { s -> com.nexus.psp.ui.kit.Mascot("head", s) }, null, cheers = 5, own = false))
+        } } }
+        rule.mainClock.advanceTimeBy(1000); rule.waitForIdle()
+        rule.onRoot().performTouchInput { val d = density; click(androidx.compose.ui.geometry.Offset(width - (16 + 14 + 23) * d, (16 + 8 + 23) * d)) }
+        rule.mainClock.advanceTimeBy(400); rule.waitForIdle()
+        rule.onRoot().captureRoboImage("build/shots/j18-medal-tip.png")
     }
     /** Вкладка «Друзья»: заявка, друзья (один играет сейчас, создатель), исходящая. */
     @Test fun j16_friends() = shot("j16-friends", true) { j16Data(); com.nexus.psp.ui.screens.MyTab.start = 1; Nav.go("my") }

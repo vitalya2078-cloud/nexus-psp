@@ -45,6 +45,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.rotate
 import com.nexus.psp.ui.kit.press
+import androidx.compose.foundation.layout.width
+import com.nexus.psp.ui.kit.tap
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -344,14 +349,38 @@ fun CreatorBanner(c: CreatorCard, modifier: Modifier = Modifier) {
                 c.xp?.let { GoldBar(it, Modifier.widthIn(max = 260.dp).fillMaxWidth()) }
                 CheerButton(c) { burst++ }
             }
-            SaveikMascot(Modifier.align(Alignment.Bottom))
             Column(Modifier.align(Alignment.Top), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    BADGES.forEach { (img, name) ->
-                        AssetImage("look/$img.webp", Modifier.size(46.dp).press { AppState.say(name) })
-                    }
-                }
+                Medals(Modifier.zIndex(1f))
                 Playing(c.playing)
+            }
+        }
+        SaveikWalker(c.playing?.optString("t").orEmpty(), Modifier.fillMaxSize())
+    }
+}
+
+/** Три особые медали; по тапу медаль чуть увеличивается и из неё выезжает табличка с названием (на 2 секунды). */
+@Composable
+private fun Medals(modifier: Modifier = Modifier) {
+    var tip by remember { mutableStateOf(-1) }
+    var tick by remember { mutableStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(tip, tick) { if (tip >= 0) { kotlinx.coroutines.delay(2000); tip = -1 } }
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        BADGES.forEachIndexed { i, (img, name) ->
+            val on = tip == i
+            val sc by androidx.compose.animation.core.animateFloatAsState(if (on) 1.14f else 1f, androidx.compose.animation.core.spring(dampingRatio = .55f, stiffness = 400f), label = "medal")
+            Box(Modifier.size(46.dp)) {
+                AssetImage("look/$img.webp", Modifier.fillMaxSize().graphicsLayer { scaleX = sc; scaleY = sc }.tap { tip = i; tick++ })
+                // табличка «вырастает» из медали вниз; у крайней правой — прижата к правому краю, чтобы не обрезалась
+                val last = i == BADGES.lastIndex
+                androidx.compose.animation.AnimatedVisibility(on,
+                    modifier = Modifier.align(if (last) Alignment.TopEnd else Alignment.TopCenter).offset(y = 50.dp).wrapContentSize(unbounded = true, align = if (last) Alignment.TopEnd else Alignment.TopCenter),
+                    enter = androidx.compose.animation.scaleIn(tween(220), initialScale = .2f, transformOrigin = androidx.compose.ui.graphics.TransformOrigin(if (last) .85f else .5f, 0f)) + androidx.compose.animation.fadeIn(tween(160)),
+                    exit = androidx.compose.animation.scaleOut(tween(200), targetScale = .2f, transformOrigin = androidx.compose.ui.graphics.TransformOrigin(if (last) .85f else .5f, 0f)) + androidx.compose.animation.fadeOut(tween(200)),
+                ) {
+                    Text(name, style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 12.sp, color = Color(0xFF2A1A06)), maxLines = 1,
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Brush.verticalGradient(listOf(Color(0xFFFFF0C2), Creator.GOLD, Creator.GOLD2)))
+                            .border(1.dp, Color(0xFFFFF4D2).copy(alpha = .7f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 5.dp))
+                }
             }
         }
     }
@@ -529,34 +558,113 @@ private fun Salute(key: Int, modifier: Modifier) {
     }
 }
 
-private val SAVEIK = listOf(
-    "Привет! Я Сейвик", "Сохраняйся почаще!", "Создатель опять что-то пилит…", "Тут живёт KAPSULA",
-    "Нажми ещё — не жалко", "Скоро будет ещё круче", "Я храню твои сохранения", "Ура, гости!",
-)
+/** Где Сейвик может остановиться и что там делает. */
+private enum class Spot { MEDALS, GAME, REST, HELLO }
 
-/** Живой Сейвик: тап — подпрыгивает, радуется и говорит фразу. */
+private val SAY_ANY = listOf("Привет! Я Сейвик", "Сохраняйся почаще!", "Создатель опять что-то пилит…", "Тут живёт KAPSULA", "Скоро будет ещё круче", "Я храню твои сохранения")
+
+/**
+ * Живой Сейвик: плывёт по низу баннера (правая половина — не закрывает имя и кнопки), останавливается и «изучает»:
+ * показывает на медали, рассматривает игру в лупу, отдыхает, машет. Тап — поворачивается, подпрыгивает и говорит.
+ * Всё только на телефоне смотрящего и только пока баннер на экране; маршрут каждый раз свой. «Уменьшить движение» — стоит на месте.
+ */
 @Composable
-private fun SaveikMascot(modifier: Modifier = Modifier) {
-    val jump = remember { androidx.compose.animation.core.Animatable(0f) }
-    var say by remember { mutableStateOf<String?>(null) }
-    var k by remember { mutableStateOf(0) }
-    val scope = rememberCoroutineScope()
-    val idle = loop(2600)
-    Column(modifier.widthIn(max = 150.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.height(28.dp), contentAlignment = Alignment.BottomCenter) {
-            say?.let {
-                Text(it, style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 10.5.sp, color = Color(0xFF2A1A06), textAlign = androidx.compose.ui.text.style.TextAlign.Center),
-                    maxLines = 2, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Creator.GOLD).padding(horizontal = 8.dp, vertical = 3.dp))
+private fun SaveikWalker(game: String, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier) {
+        val size = 60.dp
+        val w = maxWidth.value
+        val minX = maxOf(w * .5f, w - 380f).coerceAtMost(w - 170f)
+        val maxX = w - size.value - 10f
+        val medalsX = w - 14f - 150f
+        val gameX = w - 14f - 120f
+        val rnd = remember { kotlin.random.Random(System.nanoTime()) }
+        val x = remember { androidx.compose.animation.core.Animatable(minX + (maxX - minX) * rnd.nextFloat()) }
+        val jump = remember { androidx.compose.animation.core.Animatable(0f) }
+        var face by remember { mutableStateOf(1f) }
+        var moving by remember { mutableStateOf(false) }
+        var pose by remember { mutableStateOf("wave") }
+        var spot by remember { mutableStateOf(Spot.HELLO) }
+        var say by remember { mutableStateOf<String?>(null) }
+        var gen by remember { mutableStateOf(0) }
+        val scope = rememberCoroutineScope()
+        val calm = S.calm
+
+        // прогулка: новая цель → плывёт → «изучает» → снова
+        if (!calm) androidx.compose.runtime.LaunchedEffect(gen) {
+            kotlinx.coroutines.delay(if (gen == 0) 600L else 2200L)
+            while (true) {
+                val next = listOf(Spot.MEDALS, Spot.GAME, Spot.REST, Spot.REST, Spot.HELLO).filter { it != spot || it == Spot.REST }.random(rnd)
+                val tx = when (next) {
+                    Spot.MEDALS -> medalsX - 30f + 40f * rnd.nextFloat()
+                    Spot.GAME -> gameX - 20f + 30f * rnd.nextFloat()
+                    else -> minX + (maxX - minX) * rnd.nextFloat()
+                }.coerceIn(minX, maxX)
+                val dx = tx - x.value
+                if (kotlin.math.abs(dx) > 8f) {
+                    face = if (dx > 0) 1f else -1f
+                    pose = "hug"; moving = true
+                    x.animateTo(tx, tween((kotlin.math.abs(dx) / 55f * 1000f).toInt().coerceIn(900, 4200), easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                    moving = false
+                }
+                spot = next
+                pose = when (next) { Spot.MEDALS -> "point"; Spot.GAME -> "search"; Spot.REST -> "wait"; Spot.HELLO -> "wave" }
+                // к медалям и игре — повернуться к ним
+                if (next == Spot.MEDALS || next == Spot.GAME) face = 1f
+                if (next == Spot.HELLO) face = if (x.value > (minX + maxX) / 2) -1f else 1f
+                kotlinx.coroutines.delay(3000L + rnd.nextLong(2000L))
             }
         }
-        val bob = if (S.calm) 0f else 2.5f * sin(idle * 2 * PI).toFloat()
-        Box(Modifier.graphicsLayer { translationY = (bob - jump.value * 26f) * density }.press {
-            k++
-            say = SAVEIK[(k - 1) % SAVEIK.size]
-            scope.launch {
-                jump.animateTo(1f, tween(180)); jump.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = .35f, stiffness = 500f))
-                kotlinx.coroutines.delay(2200); if (say == SAVEIK[(k - 1) % SAVEIK.size]) say = null
+
+        // покачивание (только слой — без перерисовки баннера)
+        val tr = rememberInfiniteTransition(label = "saveik")
+        val bob = tr.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing)), label = "bob")
+        val step = tr.animateFloat(0f, 1f, infiniteRepeatable(tween(700, easing = LinearEasing)), label = "step")
+
+        val bubble = @Composable {
+            androidx.compose.animation.AnimatedVisibility(say != null,
+                enter = androidx.compose.animation.scaleIn(tween(200), initialScale = .4f, transformOrigin = androidx.compose.ui.graphics.TransformOrigin(.5f, 1f)) + androidx.compose.animation.fadeIn(tween(150)),
+                exit = androidx.compose.animation.fadeOut(tween(250))) {
+                Text(say ?: "", style = TextStyle(fontFamily = com.nexus.psp.ui.kit.Russo, fontSize = 10.5.sp, color = Color(0xFF2A1A06), textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                    maxLines = 2, modifier = Modifier.widthIn(max = 170.dp).clip(RoundedCornerShape(10.dp)).background(Creator.GOLD).padding(horizontal = 8.dp, vertical = 3.dp))
             }
-        }) { Mascot(if (say != null) "joy" else "wave", 66.dp) }
+        }
+        Column(Modifier.align(Alignment.BottomStart).offset { androidx.compose.ui.unit.IntOffset(((x.value - 55f) * density).toInt(), (-4 * density).toInt()) }.width(size + 110.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.height(30.dp), contentAlignment = Alignment.BottomCenter) { bubble() }
+            Box(Modifier.size(size)
+                .graphicsLayer {
+                    val b = if (calm) 0f else sin(bob.value * 2 * PI).toFloat()
+                    val st = if (moving) sin(step.value * 2 * PI).toFloat() else 0f
+                    val j = jump.value
+                    // j < 0 — присел перед прыжком, j > 0 — в воздухе
+                    translationY = (2.5f * b - kotlin.math.abs(st) * 3f - maxOf(j, 0f) * 26f) * density
+                    rotationZ = st * 5f
+                    val squash = if (j < 0) 1f + j * .18f else 1f + j * .06f
+                    scaleY = squash; scaleX = face * (2f - squash)
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(.5f, 1f)
+                }
+                .tap {
+                    if (say != null && jump.isRunning) return@tap
+                    gen++ // прогулка начнётся заново после реакции
+                    scope.launch {
+                        x.stop(); moving = false
+                        face = if (x.value > (minX + maxX) / 2) -1f else 1f
+                        pose = "joy"
+                        say = when (spot) {
+                            Spot.MEDALS -> listOf("Эти медали — мои любимые", "Блестят же!").random(rnd)
+                            Spot.GAME -> if (game.isNotEmpty()) "Ого, $game!" else "Что тут у нас…"
+                            else -> SAY_ANY.random(rnd)
+                        }
+                        jump.animateTo(-1f, tween(110))
+                        jump.animateTo(1f, tween(230, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                        jump.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = .55f, stiffness = 260f))
+                        kotlinx.coroutines.delay(1800); say = null
+                    }
+                }) {
+                androidx.compose.animation.Crossfade(pose, animationSpec = tween(260), label = "pose") { ps ->
+                    AssetImage("mascot-$ps.webp", Modifier.fillMaxSize())
+                }
+            }
+        }
     }
 }
