@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.unit.sp
 import com.nexus.psp.R
 import com.nexus.psp.data.AppState
@@ -56,32 +57,43 @@ import com.nexus.psp.ui.kit.T
 import com.nexus.psp.ui.kit.press
 import com.nexus.psp.ui.kit.tap
 
-/** Шапка v2: бренд, вкладки; справа — поиск, загрузки (кольцо), колокольчик, быстрая панель, профиль. */
+/**
+ * Шапка v2: бренд, вкладки; справа — статус, значки, профиль.
+ * Подстраивается под ширину экрана: когда места мало, по очереди убираются слово «KAPSULA», часы с зарядом,
+ * значки консолей и библиотеки, загрузки. Вкладки, поиск, колокольчик, быстрая панель и профиль остаются всегда.
+ */
 @Composable
 fun Header() {
-    Row(
-        Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.displayCutout).height(60.dp).padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(Modifier.tap { Nav.go("games") }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            LogoMark(40.dp)
-            Text("KAPSULA", style = T.label.copy(fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.5.sp))
-        }
-        Row(Modifier.padding(start = 28.dp), horizontalArrangement = Arrangement.spacedBy(26.dp)) {
-            TabLabel("Игры", Nav.tab == "games") { Nav.go("games") }
-            TabLabel("Моё", Nav.tab == "my") { Nav.go("my") }
-            TabLabel("Управление", Nav.tab == "ctl") { Nav.go("ctl") }
-        }
-        Spacer(Modifier.weight(1f))
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (S.headClock) HeadStatus()
-            IconBtn(R.drawable.sl_pad) { Nav.open(Ov.Consoles) }
-            IconBtn(R.drawable.sl_list) { Nav.open(Ov.Library) }
-            IconBtn(R.drawable.sl_search) { Nav.open(Ov.Search) }
-            DownloadsBtn()
-            BellBtn()
-            IconBtn(R.drawable.sl_grid) { Nav.open(Ov.Quick) }
-            com.nexus.psp.ui.kit.Avatar(38.dp, Modifier.padding(start = 4.dp).clip(CircleShape).press { Nav.closeAll(); Nav.go("my") })
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.displayCutout)) {
+        val w = maxWidth
+        val word = w >= 900.dp
+        val status = S.headClock && w >= 790.dp
+        val extra = w >= 680.dp
+        val dl = w >= 600.dp
+        Row(
+            Modifier.fillMaxWidth().height(60.dp).padding(horizontal = if (w >= 700.dp) 16.dp else 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(Modifier.tap { Nav.go("games") }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LogoMark(40.dp)
+                if (word) Text("KAPSULA", style = T.label.copy(fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.5.sp), maxLines = 1)
+            }
+            Row(Modifier.padding(start = if (w >= 700.dp) 24.dp else 14.dp), horizontalArrangement = Arrangement.spacedBy(if (w >= 700.dp) 24.dp else 16.dp)) {
+                TabLabel("Игры", Nav.tab == "games") { Nav.go("games") }
+                TabLabel("Моё", Nav.tab == "my") { Nav.go("my") }
+                TabLabel("Управление", Nav.tab == "ctl") { Nav.go("ctl") }
+            }
+            Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(if (w >= 700.dp) 4.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (status) HeadStatus()
+                if (extra) IconBtn(R.drawable.sl_pad) { Nav.open(Ov.Consoles) }
+                if (extra) IconBtn(R.drawable.sl_list) { Nav.open(Ov.Library) }
+                IconBtn(R.drawable.sl_search) { Nav.open(Ov.Search) }
+                if (dl) DownloadsBtn()
+                BellBtn()
+                IconBtn(R.drawable.sl_grid) { Nav.open(Ov.Quick) }
+                com.nexus.psp.ui.kit.Avatar(38.dp, Modifier.padding(start = 4.dp).clip(CircleShape).press { Nav.closeAll(); Nav.go("my") })
+            }
         }
     }
 }

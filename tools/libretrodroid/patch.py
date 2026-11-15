@@ -161,23 +161,10 @@ shutil.copy(os.path.join(here, 'kapsula_crash.cpp'), os.path.join(root, 'cpp', '
 edit('cpp/CMakeLists.txt', '        kapsula_vk.cpp\n', '        kapsula_vk.cpp\n        kapsula_crash.cpp\n')
 print('crash patched')
 
-# ---- плавность: частота экрана кратная 60 (120 Гц → каждый кадр игры дважды, ровно по вертикальной синхронизации) ----
-edit('cpp/fpssync.h', '    bool useVSync;\n',
-     '    bool useVSync;\n    // KAPSULA: экран в N раз быстрее игры (120 Гц при 60 к/с) — кадр игры на каждый N-й кадр экрана\n'
-     '    unsigned divider = 1;\n    unsigned tick = 0;\n')
-edit('cpp/fpssync.cpp', '    this->useVSync = std::abs(contentRefreshRate - screenRefreshRate) < FPS_TOLERANCE;\n',
-     '    this->useVSync = false;\n'
-     '    for (unsigned n = 1; n <= 3; n++) {\n'
-     '        if (std::abs(contentRefreshRate * n - screenRefreshRate) < FPS_TOLERANCE * n) { this->useVSync = true; this->divider = n; break; }\n'
-     '    }\n')
-edit('cpp/fpssync.cpp', 'unsigned FPSSync::advanceFrames() {\n    if (useVSync) return 1;\n',
-     'unsigned FPSSync::advanceFrames() {\n    if (useVSync) return (tick++ % divider == 0) ? 1 : 0;\n')
-edit('cpp/fpssync.cpp', '    return useVSync ? contentRefreshRate / screenRefreshRate : 1.0;\n',
-     '    return useVSync ? contentRefreshRate * divider / screenRefreshRate : 1.0;\n')
-edit('cpp/fpssync.cpp', '    LOGI("Starting game with fps %f on a screen with refresh rate %f. Using vsync: %d", contentRefreshRate, screenRefreshRate, useVSync);\n',
-     '    LOGI("Starting game with fps %f on a screen with refresh rate %f. Using vsync: %d (every %u)", contentRefreshRate, screenRefreshRate, useVSync, divider);\n')
 
-# частота экрана поменялась во время игры (система переключила 90 → 120 Гц) — пересобрать синхронизацию кадров
+# ---- страховка скорости (любые телефоны): если телефон назвал частоту экрана, которая не совпадает с настоящей,
+# движок в режиме «по обновлениям экрана» разгоняет игру. Приложение замечает это по счётчику кадров и просит
+# перейти на подгонку таймером (setScreenRefreshRate(1) — режим по таймеру всегда даёт правильную скорость).
 edit('cpp/libretrodroid.h', '    void setRumbleEnabled(bool enabled);\n',
      '    void setRumbleEnabled(bool enabled);\n    void setScreenRefreshRate(float rate);\n')
 edit('cpp/libretrodroid.cpp', 'void LibretroDroid::afterGameLoad() {\n',

@@ -182,7 +182,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private var jank: Jank? = null
     @Volatile private var autoAt = 0L
     private var lastCore = -1L
-    private var displayWatch: android.hardware.display.DisplayManager.DisplayListener? = null
+    private var tooFast = 0
+    private var timerPacing = false
     private var hz60 = false
     @Volatile private var glTid = 0
 
@@ -281,6 +282,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             ui.hasState = withContext(Dispatchers.IO) { stateFile(0).exists() }
             refreshSlots()
             if (hz60) perf.await60Hz()
+            netCheck()
             startCore()
         }
     }
@@ -308,18 +310,11 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         val view = GLRetroView(this, data)
         retro = view
         view.queueEvent { glTid = Process.myTid() }
-        if (hz60) view.holder.addCallback(object : android.view.SurfaceHolder.Callback {
-            override fun surfaceCreated(h: android.view.SurfaceHolder) { perf.askSurface(h.surface) }
-            override fun surfaceChanged(h: android.view.SurfaceHolder, f: Int, w: Int, hh: Int) {}
-            override fun surfaceDestroyed(h: android.view.SurfaceHolder) {}
-        })
-        if (hz60) root.post { perf.pinFrameRate(listOf(root as View) + (0 until root.childCount).map { root.getChildAt(it) }) }
-        displayWatch = perf.watchRefresh { hz -> if (ui.phase == "ready") retro?.queueEvent { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(hz) } }
         root.addView(view, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         lifecycle.addObserver(view)
         // при возврате в приложение LibretroDroid сам снимает ядро с паузы — если открыто меню паузы, возвращаем паузу
         lifecycle.addObserver(LifecycleEventObserver { _, e ->
-            if (e == Lifecycle.Event.ON_RESUME) root.post { if (corePaused) { view.onPause(); LibretroDroid.pause() } }
+            if (e == Lifecycle.Event.ON_RESUME) root.post { if (corePaused) pauseQueue.execute { try { view.onPause(); LibretroDroid.pause() } catch (x: Throwable) { } } }
         })
         lifecycleScope.launch {
             view.getGLRetroEvents().collect {
@@ -331,7 +326,6 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                         // через пару секунд игры — какие потоки самые занятые, их и держим на больших ядрах
                         lifecycleScope.launch(Dispatchers.IO) { delay(4000); perf.startHints(glTid) }
                         ui.builtin?.let { toast("Кнопки уже под «$it». Поменять — пауза → «Кнопки»") }
-                        perf.refreshRate().let { hz -> retro?.queueEvent { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(hz) } }
                         if (ui.guideOpen) { setCorePaused(true); guidePausedCore = true }
                         maybeAskGenre()
                         if (isPsp) { startAutoPoll(); startRA() } else if (platform == "ps1") applyPs1Pad()
@@ -354,14 +348,16 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 // FPS — кадры, которые посчитала игра (на экране 90/120 Гц обновлений экрана больше, чем кадров игры)
                 val core = try { RA.nFrames() } catch (e: Throwable) { -1L }
                 val f = if (core >= 0 && lastCore >= 0) (core - lastCore).toInt() else frames
-                val draws = frames
                 lastCore = core; ui.fps = f; frames = 0; if (isPsp) autoResTick(ui.fps)
-                // страховка: без ускорения игра дала заметно больше 60 кадров — телефон назвал частоту экрана,
-                // которую мы просили, а не настоящую. Сообщаем движку измеренную (сколько раз экран реально обновился)
-                if (ui.phase == "ready" && !ui.paused && !ui.fast && core >= 0 && f > 66 && draws > 0) {
-                    Log.i(TAG, "игра быстрее нормы: $f к/с при $draws обновлениях экрана — синхронизация по измеренной частоте")
-                    retro?.queueEvent { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(draws.toFloat()) }
-                }
+                // страховка скорости: без ускорения игра 2 секунды подряд даёт больше 66 кадров — телефон назвал не ту
+                // частоту экрана. Переводим движок на подгонку таймером (всегда правильная скорость), один раз за игру
+                if (ui.phase == "ready" && !ui.paused && !ui.fast && core >= 0 && f > 66) {
+                    if (++tooFast >= 2 && !timerPacing) {
+                        timerPacing = true
+                        Log.i(TAG, "игра быстрее нормы ($f к/с) — подгонка кадров по таймеру")
+                        retro?.queueEvent { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(1f) }
+                    }
+                } else tooFast = 0
                 if (ui.phase == "ready" && !ui.paused && !ui.fast) jank?.second(f, autoAt)
                 // диагностика Vulkan — только в журнал (для разработчика), игроку не показываем
                 if (vkOn && frames == 0 && ui.fps > 0) try { Vk.nStats()?.let { Log.i(TAG, "vulkan $it fps=${ui.fps}") } } catch (e: Throwable) { }
@@ -405,7 +401,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         // HD-текстуры этой игры
         if (gx.optBoolean("tex") && serial != null) v["ppsspp_texture_replacement"] = "enabled"
         // игра по сети
-        gx.optJSONObject("net")?.let { n -> v.putAll(NetPlay.vars(n.optString("mode"), n.optString("ip"), NetPlay.mac(this))) }
+        gx.optJSONObject("net")?.takeIf { !netSkip }?.let { n -> v.putAll(NetPlay.vars(n.optString("mode"), n.optString("ip"), NetPlay.mac(this))) }
         // графика: Vulkan — только если телефон подходит и прошлый запуск на нём не упал
         // PSP — всегда OpenGL (Vulkan скрыт: на PSP он не нужен, а мост отнимал кадры); у кого был включён — молча OpenGL
         vkCrashed = false
@@ -649,12 +645,44 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     }
 
     // ---------- пауза ----------
+    /**
+     * Пауза ядра — не на главном потоке: GLSurfaceView.onPause/onResume ждут поток игры, а он может стоять
+     * (игра по сети ждёт соединения, тяжёлая подгрузка). Тогда главный поток зависал бы, и Android показывал
+     * «Приложение не отвечает». Очередь из одного потока сохраняет порядок пауз и снятий с паузы.
+     */
+    // ---------- игра по сети: проверка перед запуском ----------
+    private var netSkip = false
+    /**
+     * Нет сети — или второй игрок (режим «подключиться») не отвечает за 2 секунды: запускаем без сети и говорим об этом.
+     * Иначе ядро при запуске могло долго ждать соединения, и игра висела на загрузке.
+     */
+    private suspend fun netCheck() {
+        val n = gx.optJSONObject("net") ?: return
+        val mode = n.optString("mode", "off"); if (mode != "host" && mode != "join") return
+        val ok = withContext(Dispatchers.IO) {
+            val cm = getSystemService(android.net.ConnectivityManager::class.java)
+            val net = cm?.activeNetwork; val caps = net?.let { cm.getNetworkCapabilities(it) }
+            val local = caps != null && (caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET))
+            // точка доступа на этом телефоне сетью Wi-Fi не считается — тогда смотрим, есть ли адрес в локальной сети
+            val hotspot = !local && try { java.net.NetworkInterface.getNetworkInterfaces()?.toList()?.any { i -> i.isUp && !i.isLoopback && i.inetAddresses.toList().any { it is java.net.Inet4Address && it.isSiteLocalAddress } } == true } catch (e: Exception) { false }
+            if (!local && !hotspot) return@withContext "Для игры по сети нужен Wi-Fi или точка доступа — запускаю без сети"
+            if (mode == "join") {
+                val ip = n.optString("ip")
+                val reach = try { java.net.Socket().use { it.connect(java.net.InetSocketAddress(ip, 27312), 2000); true } } catch (e: Exception) { false }
+                if (!reach) return@withContext "Второй игрок ($ip) не отвечает — запускаю без сети. Проверь, что он уже в игре и вы в одной сети"
+            }
+            null
+        }
+        if (ok != null) { netSkip = true; toast(ok) }
+    }
+
     private fun setCorePaused(p: Boolean) {
         val v = retro ?: return
         if (p == corePaused) return
         corePaused = p
-        if (p) { v.onPause(); LibretroDroid.pause() } else { LibretroDroid.resume(); v.onResume() }
+        pauseQueue.execute { try { if (p) { v.onPause(); LibretroDroid.pause() } else { LibretroDroid.resume(); v.onResume() } } catch (e: Throwable) { Log.w(TAG, "пауза: $e") } }
     }
+    private val pauseQueue = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     fun setPaused(p: Boolean) {
         if (ui.phase != "ready") return
@@ -1500,7 +1528,6 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         if (raStarted) try { RA.nUnload() } catch (e: Throwable) { }
         perf.close()
         jank?.save(this, "${title} · ${platform} · ${if (vkOn) "Vulkan" else "OpenGL"} · экран ${perf.refreshRate()} Гц (умеет ${perf.modes()}) · ${vars.optString("ppsspp_internal_resolution")}")
-        displayWatch?.let { try { getSystemService(android.hardware.display.DisplayManager::class.java).unregisterDisplayListener(it) } catch (e: Throwable) { } }
         // обычный выход после того, как Vulkan показал картинку, — не сбой
         if (vkOn && vkSeen && isFinishing) Vk.confirm(this)
         if (tilt) getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(tiltListener)

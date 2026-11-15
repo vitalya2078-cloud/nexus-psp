@@ -155,6 +155,8 @@ fun QuickPanel() {
                 Tile(R.drawable.sd_grid, "Экранный геймпад", mapOf("touch" to "KAPSULA Touch", "classic" to "Классика", "pad" to "Геймпад")[S.ctlMode] ?: "", false) { Nav.replace(Ov.Pad) },
                 Tile(R.drawable.sd_folder, "Добавить игру", "ISO, CSO, CHD, PBP", false) { Nav.back(); Act.addFile() },
                 Tile(R.drawable.sd_search, "Найти игры", "в папке телефона", false) { Nav.back(); Act.findGames() },
+                Tile(R.drawable.sd_device, "Консоли", "Все приставки", false) { Nav.replace(Ov.Consoles) },
+                Tile(R.drawable.sd_list, "Библиотека", "Все игры", false) { Nav.replace(Ov.Library) },
                 Tile(R.drawable.sd_gear, "Настройки", "Все параметры", false) { Nav.replace(Ov.Settings) },
             )
             FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 4) {

@@ -25,11 +25,9 @@ class Perf(private val a: Activity) {
         if (Build.VERSION.SDK_INT < 23) return false
         val d = display() ?: return false
         val cur = d.mode
-        // 60 Гц, а если такого режима нет — 120 (кратно 60: движок покажет каждый кадр игры дважды, тоже ровно)
-        val same = d.supportedModes.filter { it.physicalWidth == cur.physicalWidth && it.physicalHeight == cur.physicalHeight }
-        fun near(hz: Float) = same.firstOrNull { kotlin.math.abs(it.refreshRate - hz) < 1f }
-        val m = near(60f) ?: near(120f) ?: return false
-        if (multipleOf60(cur.refreshRate)) return true
+        val m = d.supportedModes.filter { it.physicalWidth == cur.physicalWidth && it.physicalHeight == cur.physicalHeight }
+            .minByOrNull { kotlin.math.abs(it.refreshRate - 60f) }?.takeIf { kotlin.math.abs(it.refreshRate - 60f) < 1f } ?: return false
+        if (kotlin.math.abs(cur.refreshRate - 60f) < 1f) return true
         a.window.attributes = a.window.attributes.apply { preferredDisplayModeId = m.modeId }
         Log.i(tag, "экран ${cur.refreshRate} Гц → прошу ${m.refreshRate} Гц")
         return true
@@ -40,51 +38,11 @@ class Perf(private val a: Activity) {
     /** Частоты экрана, которые умеет телефон (для журнала плавности). */
     fun modes(): String = try { display()?.supportedModes?.map { it.refreshRate.toInt() }?.distinct()?.sorted()?.joinToString("/") ?: "?" } catch (e: Exception) { "?" }
 
-    /**
-     * Android 15+: при касании система сама поднимает частоту экрана (touch boost) — в игре палец на экране всегда,
-     * поэтому экран держался на 90 Гц, что бы мы ни просили. Отключаем это для окна игры и просим 60 к/с у каждого слоя
-     * (картинка игры, кнопки, меню): система выбирает частоту по «голосам» слоёв.
-     */
-    fun pinFrameRate(views: List<android.view.View>) {
-        if (Build.VERSION.SDK_INT < 35) return
-        try {
-            a.window.setFrameRateBoostOnTouchEnabled(false)
-            a.window.setFrameRatePowerSavingsBalanced(true)
-            views.forEach { it.setRequestedFrameRate(60f) }
-            Log.i(tag, "touch boost выключен, слоёв с 60 к/с: ${views.size}")
-        } catch (e: Throwable) { Log.w(tag, "частота окна: $e") }
-    }
-
-    /**
-     * Ещё одна просьба о частоте — у самой картинки игры (Android 11+). Её прошивки уважают охотнее, чем просьбу окна:
-     * «содержимое идёт с 60 к/с» — система выбирает 60 или 120 Гц.
-     */
-    fun askSurface(s: android.view.Surface?) {
-        if (s == null || Build.VERSION.SDK_INT < 30) return
-        try {
-            if (Build.VERSION.SDK_INT >= 31) s.setFrameRate(60f, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE, android.view.Surface.CHANGE_FRAME_RATE_ALWAYS)
-            else s.setFrameRate(60f, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE)
-        } catch (e: Throwable) { Log.w(tag, "частота картинки: $e") }
-    }
-
-    /** Следить за частотой экрана: поменялась — сообщить движку, чтобы он пересобрал синхронизацию кадров. */
-    fun watchRefresh(onChange: (Float) -> Unit): android.hardware.display.DisplayManager.DisplayListener? = try {
-        val dm = a.getSystemService(android.hardware.display.DisplayManager::class.java)
-        object : android.hardware.display.DisplayManager.DisplayListener {
-            override fun onDisplayAdded(id: Int) {}
-            override fun onDisplayRemoved(id: Int) {}
-            override fun onDisplayChanged(id: Int) { if (id == (display()?.displayId ?: id)) onChange(refreshRate()) }
-        }.also { dm.registerDisplayListener(it, android.os.Handler(android.os.Looper.getMainLooper())) }
-    } catch (e: Throwable) { null }
-
-    companion object {
-        fun multipleOf60(hz: Float) = kotlin.math.abs(hz - 60f) < 1.5f || kotlin.math.abs(hz - 120f) < 2f
-    }
 
     /** Ждём, пока экран действительно переключится (движок читает частоту один раз при запуске). */
     suspend fun await60Hz(timeoutMs: Long = 900) {
         val t0 = System.currentTimeMillis()
-        while (!multipleOf60(refreshRate()) && System.currentTimeMillis() - t0 < timeoutMs) kotlinx.coroutines.delay(50)
+        while (kotlin.math.abs(refreshRate() - 60f) >= 1f && System.currentTimeMillis() - t0 < timeoutMs) kotlinx.coroutines.delay(50)
         Log.i(tag, "частота экрана при запуске: ${refreshRate()} Гц")
     }
 

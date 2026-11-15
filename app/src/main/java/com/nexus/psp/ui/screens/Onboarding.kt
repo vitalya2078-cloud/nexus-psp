@@ -38,6 +38,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nexus.psp.R
 import com.nexus.psp.data.AppState
 import com.nexus.psp.data.AppState.S
@@ -79,17 +80,9 @@ fun Onboarding(onDone: () -> Unit) {
                         listOf("Выбери консоли — KAPSULA настроит под них библиотеку.", "Можно поменять в любой момент в настройках.", "Образ своего диска или бесплатная homebrew-игра: ISO, CSO, CHD или PBP.")[st],
                         style = T.body, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
                     )
-                    Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (st == 0) ConsolePicker(cons)
+                    else Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         when (st) {
-                            0 -> PLATFORMS.forEach { p ->
-                                val on = p.id in cons
-                                Opt(on, Modifier.weight(1f), { if (on) cons.remove(p.id) else cons.add(p.id) }) {
-                                    AssetImage(p.conImg, Modifier.fillMaxWidth().height(if (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp < 380) 52.dp else 78.dp))
-                                    ConsolePill(p.short, p.color)
-                                    Text(p.full, style = T.h3)
-                                    Text(if (p.ready) "Работает" else "Скоро подключим", style = T.small.copy(color = if (p.ready) K.ok else K.ink3))
-                                }
-                            }
                             1 -> listOf(Triple("touch", "Сенсорный экран", "Кнопки KAPSULA Touch поверх игры"), Triple("pad", "Геймпад", "Bluetooth или USB — экранные кнопки скроются")).forEach { (id, t, d) ->
                                 Opt(how == id, Modifier.weight(1f), { how = id }) {
                                     SolarIcon(if (id == "pad") R.drawable.sl_pad else R.drawable.ph_hand, 24.dp, K.acc)
@@ -119,6 +112,31 @@ fun Onboarding(onDone: () -> Unit) {
                 Spacer(Modifier.weight(1f))
                 if (step > 0) { KButton("Назад") { step-- }; Spacer(Modifier.width(8.dp)) }
                 if (step < 2) KButton("Далее", R.drawable.sl_right, BtnKind.Main) { step++ }
+            }
+        }
+    }
+}
+
+/**
+ * Выбор консолей: компактные плитки по семьям, переносятся по ширине экрана — помещаются все консоли
+ * на любом телефоне (раньше каждая получала долю ширины и при 16 консолях сплющивалась в полоску).
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun ConsolePicker(cons: MutableList<String>) {
+    // без заголовков семей — компактнее: на невысоком экране видно больше консолей сразу (порядок — по семьям)
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        PLATFORMS.forEach { p ->
+            val on = p.id in cons
+            Row(
+                Modifier.width(158.dp).height(50.dp).clip(RoundedCornerShape(14.dp)).background(if (on) p.color.copy(alpha = .14f) else K.s1)
+                    .border(1.5.dp, if (on) p.color else K.line, RoundedCornerShape(14.dp))
+                    .press { if (on) cons.remove(p.id) else cons.add(p.id) }.padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AssetImage(p.conImg, Modifier.width(42.dp).height(32.dp))
+                Text(p.short, style = T.label.copy(fontSize = 13.5.sp), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (p.exp) Text("тест", style = T.small.copy(fontSize = 10.5.sp, color = K.warn))
             }
         }
     }
