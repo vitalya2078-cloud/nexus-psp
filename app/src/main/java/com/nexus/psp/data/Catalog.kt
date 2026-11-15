@@ -23,6 +23,8 @@ val PLATFORMS = listOf(
         biosHint = "Работает и без него. Свой BIOS — чуть лучше совместимость"),
     Platform("ps2", "PS2", "PS2", Color(0xFF8E96C4), 2, "DVD-диск", "ic-dvd.png", "con-ps2.png", core = "armsx2", exts = listOf("iso", "chd", "cso", "zso"), analog = true, exp = true, family = "Sony",
         biosHint = "Нужен BIOS с твоей PS2 (например scph39001.bin)"),
+    // Денди (Famicom): без логотипов и названий Nintendo в интерфейсе — своя картинка приставки
+    Platform("nes", "Денди", "Денди (Famicom)", Color(0xFFD98A8A), 0, "Картридж", "ic-cd.png", "con-dendy.png", core = "fceumm", exts = listOf("nes", "unf", "unif"), family = "Денди"),
     Platform("md", "Mega Drive", "Sega Mega Drive", Color(0xFF9AA3B5), 0, "Картридж", "ic-cd.png", "con-md.png", core = "clownmdemu", exts = listOf("md", "gen", "smd", "bin"), family = "Sega"),
     Platform("sms", "Master System", "Sega Master System", Color(0xFFB59A9A), 0, "Картридж", "ic-cd.png", "con-sms.png", core = "gearsystem", exts = listOf("sms", "sg"), family = "Sega"),
     Platform("gg", "Game Gear", "Sega Game Gear", Color(0xFF8FA7A0), 0, "Картридж", "ic-cd.png", "con-gg.png", core = "gearsystem", exts = listOf("gg"), family = "Sega"),

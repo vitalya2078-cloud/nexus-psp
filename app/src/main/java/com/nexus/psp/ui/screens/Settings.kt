@@ -370,6 +370,7 @@ private fun LegalDialog(onClose: () -> Unit) {
         Triple("Ядро PS2", "Основано на ARMSX2 (форк PCSX2) — © команда ARMSX2 и PCSX2. GNU GPL версии 3.", "GPL-3.0.txt"),
         Triple("Ядро Dreamcast", "Основано на Flycast — © Flycast team. GNU GPL версии 2.", "GPL-2.0.txt"),
         Triple("Ядро Saturn", "Основано на YabaSanshiro — © devMiyax и участники Yabause. GNU GPL версии 2.", "GPL-2.0.txt"),
+        Triple("Ядро Денди", "Основано на FCEUmm (FCE Ultra mappers modified) — © участники FCE Ultra и FCEUmm. GNU GPL версии 2.", "GPL-2.0.txt"),
         Triple("Ядро Mega Drive", "Основано на ClownMDEmu — © Clownacy. GNU AGPL версии 3.", "GPL-3.0.txt"),
         Triple("Ядро Master System / Game Gear", "Основано на Gearsystem — © Ignacio Sanchez. GNU GPL версии 3.", "GPL-3.0.txt"),
         Triple("Ядро PC Engine", "Основано на Geargrafx — © Ignacio Sanchez. GNU GPL версии 3.", "GPL-3.0.txt"),

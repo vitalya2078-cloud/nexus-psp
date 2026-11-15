@@ -249,7 +249,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         controls.onMoved = { key, x, y -> saveCtl { o -> o.put("keyPos", (o.optJSONObject("keyPos") ?: JSONObject()).put(key, org.json.JSONArray(listOf(x.toDouble(), y.toDouble())))) } }
         loadCtl(s)
         applyLayout(if (s.optString("ctlMode") == "classic") "classic" else lays.first().id)
-        if (s.optString("ctlMode", "touch") == "touch" && (ctlOwn || ui.builtin != null) && !guideSeen()) ui.guideOpen = true
+        if (s.optString("ctlMode", "touch") == "touch" && (ctlOwn || ui.builtin != null || platform == "nes") && !guideSeen()) ui.guideOpen = true
         hideWithPad = s.optBoolean("hide", true)
         val mode = s.optString("ctlMode", "touch")
         root.addView(controls, full)
@@ -575,7 +575,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     /** Первый запуск игры без своих кнопок и без встроенного пресета — спросить жанр (один раз). */
     private fun maybeAskGenre() {
-        if (ui.ctlMode != "touch" || ctlOwn || ui.builtin != null) return
+        // у Денди свой джойстик (крестовина, A, B, турбо) — жанровые раскладки со стиком и L/R ему не подходят
+        if (ui.ctlMode != "touch" || ctlOwn || ui.builtin != null || platform == "nes") return
         lifecycleScope.launch {
             val asked = withContext(Dispatchers.IO) { GameConfig(this@GameActivity, gameId).read().optBoolean("genreAsked") }
             if (asked) return@launch
@@ -1477,6 +1478,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private fun otherVariables(): Array<Variable> {
         val core = com.nexus.psp.data.PL[platform]?.core ?: return emptyArray()
         val v = mutableMapOf<String, String>()
+        if (core == "fceumm") v["fceumm_turbo_enable"] = "Both"
         boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> if (k.startsWith(core + "_")) v[k] = o.optString(k) } }
         return v.map { Variable(it.key, it.value) }.toTypedArray()
     }

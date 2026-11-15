@@ -72,6 +72,7 @@ class GameLayoutsTest {
         val cx = w / 2f - 46f * 2; val cy = h - 14f * 2 - 40f
         touch(v, MotionEvent.ACTION_DOWN, cx, cy, 0); touch(v, MotionEvent.ACTION_UP, cx, cy, 50)
         shot("g_ac_more", v)
+        val n = view(); n.captions = true; n.platform = "nes"; n.layName = "touch:nes"; n.setLayout(com.nexus.psp.emulator.ControlLayout.layout("touch", "nes")); shot("nes_pad", n)
         for (b in listOf("g_mh", "g_loco", "g_patapon", "g_tekken")) { val x = view(); x.layName = b; x.setLayout(Templates.build(b, "psp")); shot(b, x) }
         assertNotNull(more)
     }

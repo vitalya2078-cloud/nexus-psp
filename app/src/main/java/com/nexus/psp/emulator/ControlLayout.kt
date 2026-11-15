@@ -128,8 +128,25 @@ object ControlLayout {
         ) + utilRow()
     }
 
+    /**
+     * Денди: крупная крестовина, B и A — красные, как на джойстике, над ними турбо (ядро: Y — турбо B, X — турбо A).
+     * Кнопки подписаны буквами — это кнопки самого джойстика Денди.
+     */
+    private fun nes(): List<Btn> = listOf(
+        Btn("dpad", "dpad", 132f, "l44 b40", dpad = true),
+        Btn("b", null, 74f, "r128 b40", ROSE, key = "fb", label = "B"),
+        Btn("a", null, 74f, "r30 b72", ROSE, key = "fr", label = "A"),
+        Btn("tb", "turbo", 50f, "r150 b136", key = "fl", cap = "Турбо B"),
+        Btn("ta", "turbo", 50f, "r52 b168", key = "ft", cap = "Турбо A"),
+        Btn("select", "select", 38f, "c-24 t12", key = "select", cap = "Select"),
+        Btn("start", "start", 38f, "c24 t12", key = "start", cap = "Start"),
+        Btn("pause", "pause", 40f, "c0 b14", act = "pause"),
+    )
+
     /** mode: touch | classic; plat: psp | ps1 | ps2. */
     fun layout(mode: String, plat: String): List<Btn> {
+        // у Денди один джойстик — и в «Классике», и в Touch
+        if (plat == "nes") return nes()
         if (mode == "classic") return classic(plat)
         val ps = plat != "psp"
         val pause = Btn("pause", "pause", 40f, "c0 b14", act = "pause")

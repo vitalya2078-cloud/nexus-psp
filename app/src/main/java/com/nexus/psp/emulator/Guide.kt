@@ -22,7 +22,8 @@ object Guide {
             else listOf(LaySpec("touch", "Основная", "touch"))
         return specs.map { sp ->
             val btns = Templates.build(sp.base, plat)
-            GuideMode(sp, btns, rows(btns, ctl, "${sp.id}:$plat"), tips(btns, specs, ctl, "${sp.id}:$plat"))
+            val rows = rows(btns, ctl, "${sp.id}:$plat").let { r -> if (plat == "nes") r.map { it.copy(keys = it.keys.map { k -> NES[k] ?: k }) } else r }
+            GuideMode(sp, btns, rows, tips(btns, specs, ctl, "${sp.id}:$plat"))
         }
     }
 
@@ -72,6 +73,9 @@ object Guide {
         if (out.size < 3 && btns.any { it.stick == "float" }) out += "stick" to "Стик появляется там, где коснулся левой половины экрана"
         return out.take(3)
     }
+
+    /** Кнопки джойстика Денди (в ядре B — низ, A — право, турбо — X/Y). */
+    private val NES = mapOf("fb" to "B", "fr" to "A", "fl" to "Турбо B", "ft" to "Турбо A")
 
     /** Как назвать кнопку консоли словами (в подсказках). */
     val KEY_NAMES = mapOf("ft" to "△", "fr" to "○", "fb" to "×", "fl" to "□", "l1" to "L", "r1" to "R", "l2" to "L2", "r2" to "R2",

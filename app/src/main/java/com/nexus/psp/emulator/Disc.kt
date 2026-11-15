@@ -68,6 +68,8 @@ object Disc {
             "md", "gen" -> at(0x100, "SEGA") || size >= 128 * 1024
             "smd" -> size % 512 == 0L && size >= 64 * 1024
             "chd" -> at(0, "MComprHD")
+            "nes" -> at(0, "NES\u001A")
+            "unf", "unif" -> at(0, "UNIF")
             "pbp" -> at(1, "PBP")
             "cso" -> at(0, "CISO")
             "zso" -> at(0, "ZISO")

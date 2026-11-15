@@ -30,4 +30,16 @@ class PlausibleTest {
         val notes = "just some notes".toByteArray()
         assertFalse(Disc.plausible("cue", notes.size.toLong(), notes))
     }
+
+    @Test fun dendyCartridge() {
+        val rom = ByteArray(40 * 1024); "NES\u001A".toByteArray(Charsets.ISO_8859_1).copyInto(rom, 0)
+        assertTrue(Disc.plausible("nes", rom.size.toLong(), rom))
+        val txt = "not a game, just notes\n".repeat(2000).toByteArray()
+        assertFalse(Disc.plausible("nes", txt.size.toLong(), txt))
+        org.junit.Assert.assertEquals("nes", com.nexus.psp.data.PLATFORMS.first { "nes" in it.exts }.id)
+        val pad = com.nexus.psp.emulator.ControlLayout.layout("touch", "nes")
+        org.junit.Assert.assertEquals("fb", pad.first { it.id == "b" }.key)
+        org.junit.Assert.assertEquals("fr", pad.first { it.id == "a" }.key)
+        org.junit.Assert.assertTrue(pad.none { it.id in setOf("l1", "r1", "l2", "r2") || it.stick != null })
+    }
 }

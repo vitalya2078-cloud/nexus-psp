@@ -253,6 +253,10 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
         val sw = max(2 * dp, diameter(b) * .055f)
         ring.strokeWidth = sw; ring.color = col; ring.alpha = if (b.color == null && !on) 235 else 255
         c.drawCircle(cx, cy, r - sw / 2, ring)
+        if (iconOf(b) == null && b.label != null && b.w == null) {
+            text.color = ivory; text.alpha = 235; text.letterSpacing = 0f; text.textSize = r * .78f
+            c.drawText(b.label, cx, cy + text.textSize * .36f, text)
+        }
         iconOf(b)?.let { name ->
             // фигуры — цветом места; пиктограммы — белым
             drawIcon(c, name, cx, cy, r * (if (name in GLYPHS) .5f else .62f), if (name in GLYPHS) col else ivory)

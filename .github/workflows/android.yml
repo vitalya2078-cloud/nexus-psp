@@ -45,7 +45,7 @@ jobs:
           curl -fsSL --retry 4 -o core.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/ppsspp_libretro_android.so.zip
           unzip -p core.zip ppsspp_libretro_android.so > app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so
           # Остальные консоли (все ядра — GPL/AGPL/BSD, без «только некоммерческих»)
-          for c in pcsx_rearmed armsx2 clownmdemu gearsystem flycast yabasanshiro geargrafx geolith mednafen_ngp mednafen_wswan stella prosystem gearlynx; do
+          for c in pcsx_rearmed armsx2 clownmdemu gearsystem fceumm flycast yabasanshiro geargrafx geolith mednafen_ngp mednafen_wswan stella prosystem gearlynx; do
             curl -fsSL --retry 4 -o core-$c.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/${c}_libretro_android.so.zip
             unzip -p core-$c.zip ${c}_libretro_android.so > app/src/main/jniLibs/arm64-v8a/lib${c}_libretro_android.so
           done
