@@ -209,6 +209,11 @@ class MainActivity : ComponentActivity() {
         // вернулись из настроек «Доступ ко всем файлам» — перечитать места
         AppState.storageTick++
         // «незаметный перезапуск»: игра сохранилась и просит запустить себя заново с новыми настройками
+        // новая версия на GitHub (раз в 12 часов, в фоне)
+        lifecycleScope.launch {
+            val v = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.data.Update.check(applicationContext) }
+            if (v != null) com.nexus.psp.data.Update.announce(applicationContext, v)
+        }
         // игра не запустилась и игрок нажал «Карточка игры» — открыть её
         java.io.File(filesDir, "open_card.txt").takeIf { it.exists() }?.let { f ->
             val id = try { f.readText().trim() } catch (e: Exception) { "" }; f.delete()

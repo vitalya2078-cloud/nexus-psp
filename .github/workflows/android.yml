@@ -80,6 +80,8 @@ jobs:
         run: |
           cp app/build/outputs/apk/release/app-release.apk kapsula.apk
           gh release delete latest --yes --cleanup-tag || true
+          # версия в названии выпуска — по ней приложение узнаёт, что вышло обновление
+          VER=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
           gh release create latest kapsula.apk --prerelease --target "$GITHUB_SHA" \
-            --title "KAPSULA — последняя сборка" \
+            --title "KAPSULA $VER" \
             --notes "Сборка ${GITHUB_SHA::7} из ветки ${GITHUB_REF_NAME}"

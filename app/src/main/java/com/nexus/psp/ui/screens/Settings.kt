@@ -204,6 +204,24 @@ private fun About() {
     val ctx = LocalContext.current
     val ver = try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { "" }
     Opt("KAPSULA", sub = "Версия $ver") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
+    val scopeU = androidx.compose.runtime.rememberCoroutineScope()
+    var checking by remember { mutableStateOf(false) }
+    Opt("Обновления", "KAPSULA сама проверяет новую версию на GitHub раз в 12 часов") {
+        KButton(if (checking) "Проверяю…" else "Проверить", small = true) {
+            if (!checking) { checking = true; scopeU.launch {
+                val latest = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.data.Update.latest() }
+                checking = false
+                when {
+                    latest == null -> AppState.say("Не получилось проверить. Нужен интернет")
+                    com.nexus.psp.data.Update.newer(latest, com.nexus.psp.BuildConfig.VERSION_NAME) -> {
+                        com.nexus.psp.data.Update.announce(ctx, latest)
+                        AppState.say("Вышла KAPSULA $latest", action = "Скачать") { com.nexus.psp.data.Update.download(ctx) }
+                    }
+                    else -> AppState.say("У тебя последняя версия")
+                }
+            } }
+        }
+    }
     Opt("Эмуляторы", sub = "PSP, PS1, PS2, Sega, NEC, SNK, Bandai, Atari") { }
     Opt("Конфиденциальность", sub = "Всё твоё остаётся на телефоне и никуда не уходит") { }
     // авторы и тексты лицензий открытых компонентов — по условиям этих лицензий; на виду только нейтральная строка
