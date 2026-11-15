@@ -15,7 +15,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class PresetsTest {
-    private fun genreOf(vararg n: String) = GamePresets.find(*n)?.second?.getJSONArray("layouts")?.getJSONObject(0)?.getString("base")
+    private fun genreOf(vararg n: String) = GamePresets.find("psp", *n)?.second?.getJSONArray("layouts")?.getJSONObject(0)?.getString("base")
 
     @Test fun findsByFileAndDiscTitle() {
         assertEquals("foot", genreOf("Grand Theft Auto - Vice City Stories (Europe) (En,Fr,De,Es,It)"))
@@ -28,12 +28,12 @@ class PresetsTest {
         assertEquals("sport", genreOf("World Soccer Winning Eleven 2014 (Japan)"))
         assertEquals("g_gow", genreOf("God of War - Ghost of Sparta (USA)"))
         assertEquals("rpg", genreOf("Persona 3 Portable"))
-        assertNull(GamePresets.find("Last Frontier"))
+        assertNull(GamePresets.find("psp", "Last Frontier"))
         assertTrue(GamePresets.size >= 100)
     }
 
     @Test fun vcsHasThreeLayoutsWithSwitches() {
-        val o = GamePresets.find("Grand Theft Auto - Vice City Stories")!!.second
+        val o = GamePresets.find("psp", "Grand Theft Auto - Vice City Stories")!!.second
         val ids = (0 until o.getJSONArray("layouts").length()).map { o.getJSONArray("layouts").getJSONObject(it).getString("id") }
         assertEquals(listOf("foot", "drive", "heli"), ids)
         // «Сесть» (△) переключает на транспорт, «Выйти» — обратно

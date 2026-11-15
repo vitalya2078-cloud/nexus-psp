@@ -42,7 +42,7 @@ object GameLayouts {
     private const val P_TOP = "r126 b176"
     private const val P_LEFT = "r196 b84"
 
-    fun build(base: String): List<Btn>? = when (base) {
+    fun build(base: String): List<Btn>? = if (base.startsWith("r_")) GamePresets.retroLayout(base) else when (base) {
         // ---------- Assassin's Creed: Bloodlines ----------
         // Одна раскладка для погони и боя: в Assassin's Creed одни и те же сочетания работают и там, и там —
         // игра сама понимает по ситуации (R+× — бег/паркур или уклон, R+□ — убийство или контратака, R+○ — схватить или бросок).

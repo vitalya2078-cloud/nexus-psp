@@ -32,18 +32,28 @@ object Disc {
      * PSP или PS1: CSO/ELF/PRX — PSP; CUE/M3U/BIN/IMG — PS1; ISO — по метке тома («PSP GAME» / «PLAYSTATION»);
      * PBP — PS1-игры в формате PSP («PSISOIMG» в данных); CHD — CD-образ (PS1) или DVD (PSP).
      */
-    fun platform(file: File): String = try {
-        when (val ext = file.extension.lowercase()) {
-            "cue" -> cueTracks(file).firstOrNull()?.takeIf { it.exists() }?.let { discPlatform(it) } ?: "ps1"
-            "m3u" -> m3uItems(file).firstOrNull()?.takeIf { it.exists() }?.let { platform(it) } ?: "ps1"
-            "bin", "img" -> binPlatform(file)
-            "iso" -> discPlatform(file)
+    fun platform(file: File): String = platformOf(file) ?: "psp"
+
+    /**
+     * Консоли, которые игрок выбрал при знакомстве. Нужны, когда по файлу консоль не понять
+     * (CHD-образ DVD меньше 1,9 ГБ бывает и PSP, и PS2). Пусто — не выбирал.
+     */
+    @Volatile var chosen: Set<String> = emptySet()
+
+    /** Консоль по содержимому; ext — расширение, если имя файла его не содержит (файл из выбранной папки). null — не прочитался. */
+    fun platformOf(file: File, ext: String = file.extension.lowercase()): String? = try {
+        when (ext) {
+            "cue" -> cueTracks(file).firstOrNull()?.takeIf { it.exists() }?.let { discPlatform(it, "bin") } ?: "ps1"
+            "m3u" -> m3uItems(file).firstOrNull()?.takeIf { it.exists() }?.let { platformOf(it) } ?: "ps1"
+            "bin", "img" -> binPlatform(file, ext)
+            "iso" -> discPlatform(file, "iso")
             "pbp" -> if (pbpIsPs1(file)) "ps1" else "psp"
             "chd" -> chdPlatform(file)
-            // остальные форматы однозначны (у CSO — PSP раньше PS2 в списке)
+            "cso" -> CsoSource(RandomAccessFile(file, "r")).use { s -> sectorsPlatform(s) ?: "psp" }
+            // остальные форматы однозначны
             else -> com.nexus.psp.data.PLATFORMS.firstOrNull { ext in it.exts }?.id ?: "psp"
         }
-    } catch (e: Exception) { "psp" }
+    } catch (e: Exception) { null }
 
     /** Сколько байт начала файла нужно для проверки (метка тома ISO в сыром образе — на ~37 КБ). */
     const val HEAD = 40 * 1024
@@ -96,29 +106,35 @@ object Disc {
     /** Начало файла для проверки. */
     fun head(f: File): ByteArray = try { RandomAccessFile(f, "r").use { r -> ByteArray(minOf(HEAD.toLong(), r.length()).toInt()).also { r.readFully(it) } } } catch (e: Exception) { ByteArray(0) }
 
-    /** Образ диска (ISO 2048 или сырой 2352): Saturn, Mega CD, PS1/PS2, PSP — по первым секторам. */
-    private fun discPlatform(f: File): String {
+    /** Образ диска (ISO 2048 или сырой 2352): Saturn, Mega CD, Dreamcast, PS1/PS2, PSP — по первым секторам. */
+    private fun discPlatform(f: File, ext: String): String {
         val raw = RawSource.open(f) ?: return "psp"
         raw.use { s ->
             val s0 = String(s.read(0, 1), 0, 32, Charsets.US_ASCII)
             if (s0.startsWith("SEGA SEGASATURN")) return "saturn"
             if (s0.startsWith("SEGADISCSYSTEM") || s0.startsWith("SEGA SEGAKATANA")) return if (s0.contains("KATANA")) "dc" else "md"
-            val pvd = s.read(16, 1)
-            if (String(pvd, 1, 5, Charsets.US_ASCII) != "CD001") return if (f.extension.equals("iso", true)) "psp" else "ps1"
-            val sys = String(pvd, 8, 32, Charsets.US_ASCII).trim()
-            if (sys.startsWith("PSP GAME")) return "psp"
-            if (sys.startsWith("PLAYSTATION")) {
-                val root = Entry(le32(pvd, 156 + 2).toLong(), le32(pvd, 156 + 10), true)
-                val cnf = file(s, root, "SYSTEM.CNF")?.let { String(it, Charsets.US_ASCII) } ?: ""
-                return if (cnf.contains("BOOT2", true)) "ps2" else "ps1"
-            }
-            return if (f.extension.equals("iso", true)) "psp" else "ps1"
+            return sectorsPlatform(s) ?: if (ext == "iso") "psp" else "ps1"
         }
     }
 
+    /** По метке тома ISO 9660: «PSP GAME» — PSP; «PLAYSTATION» — PS2, если в SYSTEM.CNF есть BOOT2, иначе PS1. null — метки нет. */
+    private fun sectorsPlatform(s: Sectors): String? {
+        val pvd = s.read(16, 1)
+        if (String(pvd, 1, 5, Charsets.US_ASCII) != "CD001") return null
+        val sys = String(pvd, 8, 32, Charsets.US_ASCII).trim()
+        if (sys.startsWith("PSP GAME")) return "psp"
+        if (sys.startsWith("PLAYSTATION")) {
+            val root = Entry(le32(pvd, 156 + 2).toLong(), le32(pvd, 156 + 10), true)
+            val cnf = file(s, root, "SYSTEM.CNF")?.let { String(it, Charsets.US_ASCII) } ?: ""
+            return if (cnf.contains("BOOT2", true)) "ps2" else "ps1"
+        }
+        return null
+    }
+
     /** BIN: образ CD (кратен 2352) или картридж: Mega Drive («SEGA» в заголовке), Master System («TMR SEGA»), иначе маленький — Atari 2600. */
-    private fun binPlatform(f: File): String {
-        if (f.length() % 2352 == 0L && f.length() >= 2352L * 17) return discPlatform(f)
+    private fun binPlatform(f: File, ext: String = "bin"): String {
+        if (f.length() % 2352 == 0L && f.length() >= 2352L * 17) return discPlatform(f, ext)
+        if (ext == "img") return discPlatform(f, ext)
         RandomAccessFile(f, "r").use { r ->
             val h = ByteArray(minOf(0x8000L, r.length()).toInt()); r.readFully(h)
             if (h.size > 0x104 && String(h, 0x100, 4, Charsets.US_ASCII) == "SEGA") return "md"
@@ -127,7 +143,11 @@ object Disc {
         }
     }
 
-    /** CHD: GD-ROM — Dreamcast; CD — PS1 (чаще всего); DVD — PS2, если образ больше 1,9 ГБ, иначе PSP. Консоль можно сменить в карточке игры. */
+    /**
+     * CHD: GD-ROM — Dreamcast; CD — по типу дорожек: MODE2 — PS1 (PS2 на CD тоже MODE2, но редкость), MODE1 — Saturn;
+     * DVD — PS2, если образ больше 1,9 ГБ (UMD меньше), иначе PSP; если игрок PSP не выбирал, а PS2 выбрал — PS2.
+     * Консоль всегда можно сменить в карточке игры.
+     */
     private fun chdPlatform(f: File): String = RandomAccessFile(f, "r").use { r ->
         val h = ByteArray(124); r.readFully(h)
         if (String(h, 0, 8, Charsets.US_ASCII) != "MComprHD") return "psp"
@@ -135,17 +155,26 @@ object Disc {
         val logical = if (ver >= 5) be64(h, 32) else 0L
         var off = if (ver >= 5) be64(h, 48) else if (ver >= 3) be64(h, 36) else return "psp"
         var n = 0
+        var cd: String? = null
         while (off > 0 && off < r.length() && n++ < 64) {
             val m = ByteArray(16); r.seek(off); r.readFully(m)
             when (String(m, 0, 4, Charsets.US_ASCII)) {
                 "CHGD" -> return "dc"
-                "CHT2", "CHTR", "CHCD" -> return "ps1"
-                "DVD " -> return if (logical > 1_900_000_000L) "ps2" else "psp"
+                "CHT2", "CHTR", "CHCD" -> if (cd == null) {
+                    val len = ((m[5].toInt() and 0xFF) shl 16) or ((m[6].toInt() and 0xFF) shl 8) or (m[7].toInt() and 0xFF)
+                    val t = ByteArray(minOf(len, 256)); r.seek(off + 16); r.readFully(t)
+                    val txt = String(t, Charsets.US_ASCII)
+                    cd = if (txt.contains("MODE1", true) && "saturn" in PLAT_CD) "saturn" else "ps1"
+                }
+                "DVD " -> return if (logical > 1_900_000_000L || ("psp" !in chosen && "ps2" in chosen)) "ps2" else "psp"
             }
             off = be64(m, 8)
         }
-        "psp"
+        cd ?: "psp"
     }
+
+    /** Консоли с CD в формате CHD (кроме PS1). */
+    private val PLAT_CD = setOf("saturn")
 
     private fun isPsx(s: Sectors): Boolean {
         val pvd = s.read(16, 1)

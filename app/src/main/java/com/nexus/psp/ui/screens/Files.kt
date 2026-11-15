@@ -219,7 +219,7 @@ fun ScanScreen() {
                         checked++
                         if (k.name.lowercase() in parts) continue
                         Storage.maybeBios(k)?.let { p -> bioses.add(BiosHit(k, p)) }
-                        val plat = Storage.platformOf(ctx, k) ?: continue
+                        val plat = Storage.platformOf(ctx, k, kids) ?: continue
                         // мелкие BIN без CUE — скорее всего не игры (кроме картриджей)
                         if (k.ext == "bin" && k.size < 8 * 1024 && plat == "a26") continue
                         val inLib = k.name.lowercase() in known

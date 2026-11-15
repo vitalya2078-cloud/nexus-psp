@@ -47,6 +47,18 @@ class ControlsShotTest {
         }
     }
 
+    /** Свои джойстики ретро-консолей: подписи включены, чтобы видеть, что делает каждая кнопка. */
+    @Test fun retroPads() {
+        for (p in ControlLayout.NAMES.keys) shot("pad_$p") { v ->
+            v.captions = true; v.platform = p; v.layName = "touch:$p"; v.setLayout(ControlLayout.layout("touch", p))
+        }
+        // игры с подписанными действиями
+        for ((p, n) in listOf("neogeo" to "Metal Slug", "md" to "Street Fighter II", "nes" to "Contra")) shot("preset_$p") { v ->
+            val base = com.nexus.psp.emulator.GamePresets.find(p, n)!!.second.getJSONArray("layouts").getJSONObject(0).getString("base")
+            v.captions = true; v.platform = p; v.layName = "main:$p"; v.setLayout(com.nexus.psp.emulator.Templates.build(base, p))
+        }
+    }
+
     @Test fun touchWithIcons() {
         shot("c_touch_default") { v -> v.layName = "touch:psp"; v.setLayout(ControlLayout.layout("touch", "psp")) }
         shot("c_touch_icons") { v ->

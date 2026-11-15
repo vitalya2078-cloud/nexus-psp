@@ -61,14 +61,14 @@ import org.json.JSONObject
 
 /** Настройки кнопок игры: свои (из её настроек) → встроенная раскладка из базы → обычный геймпад. */
 fun ctlOfGame(c: android.content.Context, g: Game): JSONObject? =
-    com.nexus.psp.data.GameConfig(c, g.id).read().optJSONObject("ctl") ?: GamePresets.find(g.t, AppState.meta[g.id]?.title)?.second
+    com.nexus.psp.data.GameConfig(c, g.id).read().optJSONObject("ctl") ?: GamePresets.find(g.p, g.t, AppState.meta[g.id]?.title)?.second
 
 /** Ярлык на обложке: «★ Своя» — у игры своя раскладка из базы, иначе значок жанра. */
 @Composable
 private fun GuideBadge(g: Game, modifier: Modifier) {
     val title2 = AppState.meta[g.id]?.title
-    val own = GamePresets.ownOf(g.t, title2)
-    val genre = GamePresets.genreOf(g.t, title2)?.let { Templates.genre(it) }
+    val own = GamePresets.ownOf(g.p, g.t, title2)
+    val genre = GamePresets.genreOf(g.p, g.t, title2)?.let { Templates.genre(it) }
     Row(
         modifier.clip(RoundedCornerShape(9.dp)).background(Color(0xE6101116)).padding(horizontal = 7.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -113,7 +113,7 @@ fun ControlsTab() {
             item { SearchField(q, "Название игры — посмотреть её управление", Modifier.fillMaxWidth()) { q = it } }
             if (q.trim().length >= 2) {
                 val found = GamePresets.entries.filter { it.name.contains(q.trim(), true) }.take(12)
-                if (found.isEmpty()) item { Text("Такой игры в базе нет — у неё будет раскладка по жанру, который выберешь при первом запуске.", style = T.small) }
+                if (found.isEmpty()) item { Text("Такой игры в базе нет. Для PSP, PS1 и PS2 KAPSULA спросит жанр при первом запуске, у остальных консолей — родной джойстик.", style = T.small) }
                 found.forEach { e -> item(key = "f" + e.name) { FoundRow(e) } }
             }
             item { Text("ОСНОВЫ", style = T.caps, modifier = Modifier.padding(top = 8.dp)) }
@@ -143,6 +143,7 @@ private fun FoundRow(e: GamePresets.Entry) {
     ) {
         CtlIcon(Templates.genre(e.genre)?.icon ?: "fb", 20.dp, K.ink2)
         Text(e.name, style = T.label.copy(fontSize = 14.sp), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        com.nexus.psp.data.PL[e.plat]?.let { pl -> Text(if (e.plat == "psp") "PSP · PS1 · PS2" else pl.short, style = T.num.copy(fontSize = 12.sp, color = pl.color)) }
         Text(if (e.own) "★ Своя" else (Templates.genre(e.genre)?.name ?: ""), style = T.num.copy(fontSize = 12.sp, color = if (e.own) K.warn else K.ink3))
     }
 }
@@ -226,7 +227,7 @@ fun GuideScreen(id: String?, preset: String?) {
     val ctx = LocalContext.current
     val g = id?.let { AppState.byId[it] }
     val title = g?.t ?: preset ?: "Управление"
-    val plat = g?.p ?: "psp"
+    val plat = g?.p ?: preset?.let { GamePresets.platOf(it) } ?: "psp"
     val ctl = remember(id, preset) { if (g != null) ctlOfGame(ctx, g) else preset?.let { GamePresets.byName(it) } }
     val modes = remember(id, preset) { Guide.modes(ctl, plat) }
     Full {

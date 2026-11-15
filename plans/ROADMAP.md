@@ -681,3 +681,17 @@
 - Шапка подстраивается под ширину экрана: на узких телефонах прячутся надпись KAPSULA, часы/батарея, лишние значки
   (Консоли и Библиотека — в быстрой панели). Тесты снимков на ширинах 640–1100 dp.
 - Новая картинка Денди (синий фон, чистая вырезка).
+
+## 0.36.0
+- Свой джойстик у каждой ретро-консоли (как у Денди, в Touch и «Классике»): Mega Drive (A B C, X Y Z, Mode), Master System, Game Gear,
+  Saturn (A B C, X Y Z, L R), Dreamcast (стик, A B X Y, курки), PC Engine (I, II, турбо, Run), Neo Geo (A B C D цветами, Монетка),
+  Neo Geo Pocket, WonderSwan (Поворот, Y1–Y4 в «⋯»), Atari 2600 (Огонь, Reset, сложность в «⋯»), Atari 7800, Lynx.
+  Соответствие кнопок сверено с исходниками ядер. Гайд называет кнопки так, как на джойстике консоли. Новые значки: монетка, поворот, сброс.
+- Консоль игры — по содержимому для всех форматов: файлы из выбранных папок читаются как обычные; CSO — PSP или PS2 по метке диска;
+  CHD — Dreamcast, CD (MODE1 — Saturn, MODE2 — PS1), DVD (по размеру и выбранным при знакомстве консолям); PS2 на CD в BIN.
+  В карточке игры выбор консоли сразу на виду. Тесты на поддельных образах всех консолей.
+- Пресеты игр по консолям: запись базы привязана к консоли. PS1/PS2 (GTA III / Vice City / San Andreas, Spyro, Jak, Devil May Cry и др.);
+  Mega Drive (Sonic, Streets of Rage, Golden Axe, Street Fighter II, Contra: Hard Corps, Aladdin, Earthworm Jim, Shinobi),
+  Master System / Game Gear, Денди (Contra, Battletoads, Chip 'n Dale, DuckTales, Mega Man, Ninja Gaiden, Castlevania и др.,
+  без игр Nintendo), PC Engine, Saturn (файтинги Capcom), Dreamcast (Sonic Adventure), Neo Geo (Metal Slug, KOF, Garou, Samurai Shodown,
+  Last Blade), Neo Geo Pocket. Раскладка ретро-игры — родной джойстик, кнопки подписаны действиями.

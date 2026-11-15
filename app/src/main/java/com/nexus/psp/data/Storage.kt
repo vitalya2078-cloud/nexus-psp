@@ -95,7 +95,7 @@ object Storage {
     }
 
     /** Консоль файла: у обычных файлов — по содержимому, у документов папок — по расширению. */
-    fun platformOf(c: Context, n: FNode): String? {
+    fun platformOf(c: Context, n: FNode, kids: List<FNode>? = null): String? {
         if (n.isDir || n.ext !in GameLibrary.EXT) return null
         // содержимое должно быть похоже на игру: README.md, описания и случайные .bin не проходят
         val head = when (n) {
@@ -103,11 +103,24 @@ object Storage {
             is FNode.D -> try { c.contentResolver.openInputStream(n.uri)?.use { i -> val b = ByteArray(Disc.HEAD); var o = 0; while (o < b.size) { val r = i.read(b, o, b.size - o); if (r < 0) break; o += r }; b.copyOf(o) } } catch (e: Exception) { null } ?: return null
         }
         if (!Disc.plausible(n.ext, n.size, head)) return null
-        return if (n is FNode.F) Disc.platform(n.file) else when (n.ext) {
+        if (n is FNode.F) return Disc.platform(n.file)
+        // файл из выбранной папки: читаем содержимое через дескриптор — так же, как обычный файл
+        val target = if (n.ext == "cue") kids?.firstOrNull { k -> !k.isDir && cueParts(c, n).firstOrNull()?.equals(k.name, true) == true } ?: n else n
+        val ext = if (target === n) n.ext else target.ext
+        if (n.ext == "cue" && target === n) return "ps1"
+        return byDescriptor(c, target, ext) ?: when (n.ext) {
             "cue", "m3u", "bin", "img" -> "ps1"; "iso", "chd", "pbp", "cso" -> "psp"
             else -> PLATFORMS.firstOrNull { n.ext in it.exts }?.id
         }
     }
+
+    /** Консоль файла-документа: открываем его и читаем как обычный файл (/proc/self/fd). null — не получилось. */
+    private fun byDescriptor(c: Context, n: FNode, ext: String): String? = try {
+        c.contentResolver.openFileDescriptor(n.uri, "r")?.use { pfd ->
+            val f = java.io.File("/proc/self/fd/" + pfd.fd)
+            if (!f.canRead()) null else Disc.platformOf(f, if (ext == "cue") "bin" else ext)
+        }
+    } catch (e: Exception) { null }
 
     /** Имена дорожек из CUE (читается и у обычных файлов, и у документов). */
     fun cueParts(c: Context, n: FNode): List<String> = try {

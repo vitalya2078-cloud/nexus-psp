@@ -22,7 +22,7 @@ object Guide {
             else listOf(LaySpec("touch", "Основная", "touch"))
         return specs.map { sp ->
             val btns = Templates.build(sp.base, plat)
-            val rows = rows(btns, ctl, "${sp.id}:$plat").let { r -> if (plat == "nes") r.map { it.copy(keys = it.keys.map { k -> NES[k] ?: k }) } else r }
+            val rows = rows(btns, ctl, "${sp.id}:$plat").let { r -> ControlLayout.NAMES[plat]?.let { nm -> r.map { it.copy(keys = it.keys.map { k -> nm[k] ?: k }) } } ?: r }
             GuideMode(sp, btns, rows, tips(btns, specs, ctl, "${sp.id}:$plat"))
         }
     }
@@ -32,7 +32,7 @@ object Guide {
     /** Название действия кнопки: свой значок → своя подпись → подпись по значку → кнопка консоли. */
     fun name(b: Btn, ctl: JSONObject? = null, lay: String = ""): String {
         str(ctl, "keyIcon", "$lay:${b.id}")?.let { ic -> CtlIcons.CAPS[ic]?.let { return it } }
-        return b.cap ?: b.icon?.let { CtlIcons.CAPS[it] } ?: when {
+        return b.cap ?: b.icon?.let { CtlIcons.CAPS[it] } ?: b.label?.takeIf { b.w == null } ?: when {
             b.dpad -> "Крестовина"
             b.stick != null -> if (b.right) "Правый стик" else "Движение"
             else -> KEY_NAMES[b.key ?: b.id] ?: (b.key ?: b.id)
@@ -75,7 +75,6 @@ object Guide {
     }
 
     /** Кнопки джойстика Денди (в ядре B — низ, A — право, турбо — X/Y). */
-    private val NES = mapOf("fb" to "B", "fr" to "A", "fl" to "Турбо B", "ft" to "Турбо A")
 
     /** Как назвать кнопку консоли словами (в подсказках). */
     val KEY_NAMES = mapOf("ft" to "△", "fr" to "○", "fb" to "×", "fl" to "□", "l1" to "L", "r1" to "R", "l2" to "L2", "r2" to "R2",

@@ -50,10 +50,10 @@ class GameLayoutsTest {
         v.onTouchEvent(MotionEvent.obtain(0, t, action, x, y, 0))
 
     @Test fun presetsFoundByTitle() {
-        val ac = GamePresets.find("Assassin's Creed - Bloodlines (USA)")
+        val ac = GamePresets.find("psp", "Assassin's Creed - Bloodlines (USA)")
         assertNotNull(ac); assertEquals("g_ac", ac!!.second.getJSONArray("layouts").getJSONObject(0).getString("base"))
-        assertEquals("g_mh", GamePresets.find("Monster Hunter Freedom Unite")!!.second.getJSONArray("layouts").getJSONObject(0).getString("base"))
-        assertEquals("g_loco", GamePresets.find("LocoRoco 2")!!.second.getJSONArray("layouts").getJSONObject(0).getString("base"))
+        assertEquals("g_mh", GamePresets.find("psp", "Monster Hunter Freedom Unite")!!.second.getJSONArray("layouts").getJSONObject(0).getString("base"))
+        assertEquals("g_loco", GamePresets.find("psp", "LocoRoco 2")!!.second.getJSONArray("layouts").getJSONObject(0).getString("base"))
     }
 
     @Test fun allGameBasesBuild() {

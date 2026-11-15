@@ -250,7 +250,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         controls.onMoved = { key, x, y -> saveCtl { o -> o.put("keyPos", (o.optJSONObject("keyPos") ?: JSONObject()).put(key, org.json.JSONArray(listOf(x.toDouble(), y.toDouble())))) } }
         loadCtl(s)
         applyLayout(if (s.optString("ctlMode") == "classic") "classic" else lays.first().id)
-        if (s.optString("ctlMode", "touch") == "touch" && (ctlOwn || ui.builtin != null || platform == "nes") && !guideSeen()) ui.guideOpen = true
+        if (s.optString("ctlMode", "touch") == "touch" && (ctlOwn || ui.builtin != null || ControlLayout.hasPad(platform)) && !guideSeen()) ui.guideOpen = true
         hideWithPad = s.optBoolean("hide", true)
         val mode = s.optString("ctlMode", "touch")
         root.addView(controls, full)
@@ -494,7 +494,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         val own = s.optJSONObject("ctl")
         val src = when {
             own != null -> { ctlOwn = true; own }
-            else -> GamePresets.find(title, boot.optString("title2"))?.let { (name, o) -> ui.builtin = name; o } ?: s
+            else -> GamePresets.find(platform, title, boot.optString("title2"))?.let { (name, o) -> ui.builtin = name; o } ?: s
         }
         readCtl(src)
     }
@@ -572,7 +572,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     /** Первый запуск игры без своих кнопок и без встроенного пресета — спросить жанр (один раз). */
     private fun maybeAskGenre() {
         // у Денди свой джойстик (крестовина, A, B, турбо) — жанровые раскладки со стиком и L/R ему не подходят
-        if (ui.ctlMode != "touch" || ctlOwn || ui.builtin != null || platform == "nes") return
+        if (ui.ctlMode != "touch" || ctlOwn || ui.builtin != null || ControlLayout.hasPad(platform)) return
         lifecycleScope.launch {
             val asked = withContext(Dispatchers.IO) { GameConfig(this@GameActivity, gameId).read().optBoolean("genreAsked") }
             if (asked) return@launch
@@ -636,8 +636,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     fun deletePreset(name: String) = writePresets(myPresets().filter { it.first != name })
     fun renamePreset(old: String, new: String) { if (new.isBlank()) return; writePresets(myPresets().map { if (it.first == old) new.trim() to it.second else it }) }
     fun applyMyPreset(name: String) { myPresets().firstOrNull { it.first == name }?.let { applyCtl(JSONObject(it.second.toString()), "Пресет «$name» применён") } }
-    fun applyBuiltin() { GamePresets.find(title, boot.optString("title2"))?.let { (n, o) -> applyCtl(JSONObject(o.toString()), "Пресет «$n» применён") } }
-    fun hasBuiltin() = GamePresets.find(title, boot.optString("title2")) != null
+    fun applyBuiltin() { GamePresets.find(platform, title, boot.optString("title2"))?.let { (n, o) -> applyCtl(JSONObject(o.toString()), "Пресет «$n» применён") } }
+    fun hasBuiltin() = GamePresets.find(platform, title, boot.optString("title2")) != null
 
     private fun fail(msg: String) {
         ui.error = msg; ui.phase = "error"; ui.paused = false

@@ -54,6 +54,8 @@ class Settings(private val sp: SharedPreferences) {
     private fun i(k: String, d: Int) = pref(k, d, { kk, dd -> sp.getInt(kk, dd) }, { kk, v -> putInt(kk, v) })
 
     var con by s("con", "all")
+    /** Консоли, выбранные при знакомстве (через запятую). */
+    var cons by s("cons", "")
     var theme by s("theme", "dark")
     var big by b("big", false)
     var contrast by b("contrast", false)

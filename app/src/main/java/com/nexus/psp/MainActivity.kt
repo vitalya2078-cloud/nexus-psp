@@ -180,6 +180,7 @@ class MainActivity : ComponentActivity() {
         com.nexus.psp.data.CrashLog.install(applicationContext, "main")
         Thread { com.nexus.psp.emulator.NativeCrash.collectExitReasons(applicationContext) }.start()
         AppState.init(this)
+        com.nexus.psp.emulator.Disc.chosen = com.nexus.psp.data.AppState.S.cons.split(',').filter { it.isNotBlank() }.toSet()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply { layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES }

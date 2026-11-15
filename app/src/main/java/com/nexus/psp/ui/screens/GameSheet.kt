@@ -173,13 +173,11 @@ private fun About(g: Game) {
     val alt = com.nexus.psp.data.PLATFORMS.filter { ext in it.exts || (ext in setOf("cue", "bin", "img", "chd", "iso", "m3u") && it.exts.any { e -> e in setOf("cue", "chd", "iso", "bin") }) }
     if (alt.size > 1) {
         val ctx = androidx.compose.ui.platform.LocalContext.current
-        var open by remember { mutableStateOf(false) }
-        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Не та консоль?", style = T.small)
-            KButton(if (open) "Скрыть" else "Сменить", small = true) { open = !open }
-        }
-        if (open) androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            alt.forEach { a -> com.nexus.psp.ui.kit.Chip(a.short, a.id == p.id) { com.nexus.psp.emulator.GameLibrary.setPlatform(ctx, g.file, a.id); AppState.loadReal(); AppState.say("Теперь это игра для ${a.short}"); open = false } }
+        // выбор сразу на виду: одно касание — и игра запускается нужным эмулятором
+        Sub("Для какой консоли игра")
+        Text("Определили по файлу. Если ошиблись — выбери нужную.", style = T.small)
+        androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            alt.forEach { a -> com.nexus.psp.ui.kit.Chip(a.short, a.id == p.id, dot = a.color) { if (a.id != p.id) { com.nexus.psp.emulator.GameLibrary.setPlatform(ctx, g.file, a.id); AppState.loadReal(); AppState.say("Теперь это игра для ${a.short}") } } }
         }
     }
     val m = AppState.meta[g.id]

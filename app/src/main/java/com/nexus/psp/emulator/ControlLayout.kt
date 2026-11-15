@@ -143,10 +143,102 @@ object ControlLayout {
         Btn("pause", "pause", 40f, "c0 b14", act = "pause"),
     )
 
-    /** mode: touch | classic; plat: psp | ps1 | ps2. */
+    // ---------- свои джойстики ретро-консолей ----------
+    // Какая кнопка экрана какую кнопку ядра нажимает — сверено с исходниками ядер (описания кнопок libretro):
+    // clownmdemu, Gearsystem, Yabasanshiro, Flycast, Geargrafx, Geolith, Beetle NGP/WonderSwan, Stella, ProSystem, Gearlynx.
+
+    /** Кнопка RetroPad → как она подписана на джойстике самой консоли (для гайда и подсказок). */
+    val NAMES: Map<String, Map<String, String>> = mapOf(
+        "nes" to mapOf("fb" to "B", "fr" to "A", "fl" to "Турбо B", "ft" to "Турбо A"),
+        "md" to mapOf("fl" to "A", "fb" to "B", "fr" to "C", "l1" to "X", "ft" to "Y", "r1" to "Z", "select" to "Mode"),
+        "sms" to mapOf("fb" to "1", "fr" to "2", "start" to "Pause"),
+        "gg" to mapOf("fb" to "1", "fr" to "2"),
+        "saturn" to mapOf("fb" to "A", "fr" to "B", "l1" to "C", "fl" to "X", "ft" to "Y", "r1" to "Z", "l2" to "L", "r2" to "R"),
+        "dc" to mapOf("fb" to "A", "fr" to "B", "fl" to "X", "ft" to "Y", "l2" to "L", "r2" to "R"),
+        "pce" to mapOf("fr" to "I", "fb" to "II", "start" to "Run", "l2" to "Турбо II", "r2" to "Турбо I"),
+        "neogeo" to mapOf("fb" to "A", "fr" to "B", "fl" to "C", "ft" to "D", "select" to "Монетка"),
+        "ngp" to mapOf("fb" to "A", "fr" to "B", "start" to "Option"),
+        "ws" to mapOf("fr" to "A", "fb" to "B", "r2" to "Y1", "r1" to "Y2", "l2" to "Y3", "l1" to "Y4", "select" to "Поворот"),
+        "a26" to mapOf("fb" to "Огонь", "start" to "Reset", "l1" to "Сложность A", "l2" to "Сложность B"),
+        "a78" to mapOf("fb" to "1", "fr" to "2", "ft" to "Reset", "start" to "Pause"),
+        "lynx" to mapOf("fr" to "A", "fb" to "B", "l1" to "Option 1", "r1" to "Option 2", "start" to "Pause"),
+    )
+
+    /** У консоли свой джойстик (один и в Touch, и в «Классике»; жанровые шаблоны PSP к ней не подходят). */
+    fun hasPad(plat: String) = plat in NAMES
+
+    private const val GREY = 0xFFB9BCC6
+    private fun dpad() = Btn("dpad", "dpad", 132f, "l44 b40", dpad = true)
+    private fun pauseB() = Btn("pause", "pause", 40f, "c0 b14", act = "pause")
+    /** Круглая кнопка с буквой или цифрой, как на джойстике консоли. */
+    private fun rb(id: String, key: String, label: String, size: Float, pos: String, color: Long? = null, more: Boolean = false, cap: String? = null) =
+        Btn(id, null, size, pos, color, key = key, label = label, more = more, cap = cap)
+    /** Маленькая кнопка-значок (Select, Start, Монетка…). */
+    private fun ib(id: String, icon: String, key: String, cap: String, pos: String) = Btn(id, icon, 38f, pos, key = key, cap = cap)
+    private fun shoulder(id: String, key: String, label: String, pos: String) = Btn(id, key, 40f, pos, w = 150f, label = label, key = key)
+    /** Две большие кнопки справа (как у Денди): нижняя левее, верхняя правее. */
+    private fun two(lo: Triple<String, String, String>, hi: Triple<String, String, String>, color: Long? = null) = listOf(
+        rb(lo.first, lo.second, lo.third, 74f, "r128 b40", color), rb(hi.first, hi.second, hi.third, 74f, "r30 b72", color),
+    )
+
+    private fun pad(plat: String): List<Btn>? = when (plat) {
+        "nes" -> nes()
+        // Mega Drive, 6 кнопок: снизу A B C, над ними X Y Z (поменьше — нужны файтингам)
+        "md" -> listOf(dpad(),
+            rb("a", "fl", "A", 66f, "r214 b40"), rb("b", "fb", "B", 66f, "r122 b58"), rb("c", "fr", "C", 66f, "r30 b76"),
+            rb("x", "l1", "X", 46f, "r224 b126"), rb("y", "ft", "Y", 46f, "r132 b144"), rb("z", "r1", "Z", 46f, "r40 b162"),
+            ib("select", "select", "select", "Mode", "c-24 t12"), ib("start", "start", "start", "Start", "c24 t12"), pauseB())
+        "sms" -> listOf(dpad()) + two(Triple("b1", "fb", "1"), Triple("b2", "fr", "2")) +
+            listOf(ib("start", "start", "start", "Pause", "c24 t12"), pauseB())
+        "gg" -> listOf(dpad()) + two(Triple("b1", "fb", "1"), Triple("b2", "fr", "2")) +
+            listOf(ib("start", "start", "start", "Start", "c24 t12"), pauseB())
+        // Saturn: A B C снизу, X Y Z сверху, L и R — плечи
+        "saturn" -> listOf(dpad(),
+            rb("a", "fb", "A", 62f, "r214 b40", ROSE), rb("b", "fr", "B", 62f, "r128 b56", AMBER), rb("c", "l1", "C", 62f, "r42 b72", GREEN),
+            rb("x", "fl", "X", 46f, "r222 b122", BLUE), rb("y", "ft", "Y", 46f, "r136 b138", GREY), rb("z", "r1", "Z", 46f, "r50 b154", GREY),
+            shoulder("l2", "l2", "L", "l16 t14"), shoulder("r2", "r2", "R", "r16 t14"),
+            ib("start", "start", "start", "Start", "c0 t12"), pauseB())
+        // Dreamcast: стик, крестовина, A B X Y ромбом, курки L и R
+        "dc" -> listOf(shoulder("l2", "l2", "L", "l16 t14"), shoulder("r2", "r2", "R", "r16 t14"),
+            Btn("dpad", "dpad", 80f, "l22 t84", dpad = true), Btn("ls", null, 128f, "l80 b46", stick = "float"),
+            rb("y", "ft", "Y", 58f, "r96 b172", GREEN), rb("b", "fr", "B", 58f, "r34 b112", BLUE),
+            rb("a", "fb", "A", 58f, "r96 b52", ROSE), rb("x", "fl", "X", 58f, "r158 b112", AMBER),
+            ib("start", "start", "start", "Start", "c0 t12"), pauseB())
+        // PC Engine: II слева, I справа (как на джойстике), переключатели турбо над ними
+        "pce" -> listOf(dpad()) + two(Triple("b2", "fb", "II"), Triple("b1", "fr", "I")) + listOf(
+            Btn("t2", "turbo", 46f, "r150 b136", key = "l2", cap = "Турбо II"), Btn("t1", "turbo", 46f, "r52 b168", key = "r2", cap = "Турбо I"),
+            ib("select", "select", "select", "Select", "c-24 t12"), ib("start", "start", "start", "Run", "c24 t12"), pauseB())
+        // Neo Geo: четыре кнопки дугой, цвета как на джойстике
+        "neogeo" -> listOf(dpad(),
+            rb("a", "fb", "A", 64f, "r250 b34", ROSE), rb("b", "fr", "B", 64f, "r170 b52", AMBER),
+            rb("c", "fl", "C", 64f, "r96 b84", GREEN), rb("d", "ft", "D", 64f, "r28 b124", BLUE),
+            ib("select", "coin", "select", "Монетка", "c-24 t12"), ib("start", "start", "start", "Start", "c24 t12"), pauseB())
+        "ngp" -> listOf(dpad()) + two(Triple("a", "fb", "A"), Triple("b", "fr", "B")) +
+            listOf(ib("start", "start", "start", "Option", "c24 t12"), pauseB())
+        // WonderSwan: крестовина — X1–X4, Y1–Y4 нужны вертикальным играм — в панели «⋯»
+        "ws" -> listOf(dpad()) + two(Triple("b", "fb", "B"), Triple("a", "fr", "A")) + listOf(
+            ib("select", "rotate", "select", "Поворот", "c-24 t12"), ib("start", "start", "start", "Start", "c24 t12"),
+            rb("y1", "r2", "Y1", 40f, "c0 t0", more = true), rb("y2", "r1", "Y2", 40f, "c0 t0", more = true),
+            rb("y3", "l2", "Y3", 40f, "c0 t0", more = true), rb("y4", "l1", "Y4", 40f, "c0 t0", more = true),
+            moreBtn(), pauseB())
+        // Atari 2600: джойстик и одна кнопка огня; переключатели сложности — в «⋯»
+        "a26" -> listOf(dpad(), Btn("fire", null, 92f, "r56 b48", ROSE, key = "fb", cap = "Огонь"),
+            ib("select", "select", "select", "Select", "c-24 t12"), ib("start", "reset", "start", "Reset", "c24 t12"),
+            rb("da", "l1", "A", 40f, "c0 t0", more = true, cap = "Сложность A"), rb("db", "l2", "B", 40f, "c0 t0", more = true, cap = "Сложность B"),
+            moreBtn(), pauseB())
+        "a78" -> listOf(dpad()) + two(Triple("b1", "fb", "1"), Triple("b2", "fr", "2"), ROSE) + listOf(
+            ib("select", "select", "select", "Select", "c-48 t12"), ib("start", "start", "start", "Pause", "c0 t12"),
+            ib("reset", "reset", "ft", "Reset", "c48 t12"), pauseB())
+        "lynx" -> listOf(dpad()) + two(Triple("b", "fb", "B"), Triple("a", "fr", "A")) + listOf(
+            rb("o1", "l1", "1", 44f, "r150 b136", cap = "Option 1"), rb("o2", "r1", "2", 44f, "r52 b168", cap = "Option 2"),
+            ib("start", "start", "start", "Pause", "c24 t12"), pauseB())
+        else -> null
+    }
+
+    /** mode: touch | classic; plat: psp | ps1 | ps2 | ретро-консоли. */
     fun layout(mode: String, plat: String): List<Btn> {
-        // у Денди один джойстик — и в «Классике», и в Touch
-        if (plat == "nes") return nes()
+        // у ретро-консолей один свой джойстик — и в «Классике», и в Touch
+        pad(plat)?.let { return it }
         if (mode == "classic") return classic(plat)
         val ps = plat != "psp"
         val pause = Btn("pause", "pause", 40f, "c0 b14", act = "pause")
