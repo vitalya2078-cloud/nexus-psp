@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KAPSULA: жетон — монета с ободком и звёздочкой (вырезы — прозрачные) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="100" android:viewportHeight="100">
+  <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+      android:pathData="M50,6a44,44 0 1 1 -0.1,0zM50,17a33,33 0 1 0 0.1,0zM50,23a27,27 0 1 1 -0.1,0zM50,30l5.6,13.1l14.2,1.3l-10.8,9.4l3.2,13.9l-12.2,-7.3l-12.2,7.3l3.2,-13.9l-10.8,-9.4l14.2,-1.3z"/>
+</vector>

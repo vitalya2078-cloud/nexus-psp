@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1920px;height:1080px;overflow:hidden;font-family:Manrope,sans-serif;color:#F2F1EC;
+ background:radial-gradient(1100px 700px at 78% 30%,rgba(232,120,60,.30),transparent 60%),radial-gradient(900px 600px at 15% 95%,rgba(127,167,217,.18),transparent 60%),#0B0C0F;position:relative}
+.grain{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent 30%)}
+.left{position:absolute;left:110px;top:205px;width:640px}
+.logo{display:flex;align-items:center;gap:18px;margin-bottom:56px}
+.mark{width:84px;height:46px;border:5px solid #F2F1EC;border-radius:23px;position:relative}
+.mark:after{content:"";position:absolute;left:34px;top:-5px;width:5px;height:46px;background:#F2F1EC}
+.mark:before{content:"";position:absolute;left:12px;top:10px;border-left:15px solid #7FA7D9;border-top:10px solid transparent;border-bottom:10px solid transparent}
+.word{font-weight:800;font-size:34px;letter-spacing:9px}
+h1{font-weight:800;font-size:76px;line-height:1.04;letter-spacing:-1.5px}
+h1 span{color:#7FA7D9}
+.sub{margin-top:26px;font-size:26px;line-height:1.45;color:rgba(242,241,236,.72);font-weight:600}
+.feats{margin-top:46px;display:flex;flex-direction:column;gap:18px}
+.f{display:flex;align-items:center;gap:16px;font-size:22px;font-weight:700}
+.dot{width:40px;height:40px;border-radius:12px;background:rgba(127,167,217,.16);border:1px solid rgba(127,167,217,.35);display:grid;place-items:center}
+.dot i{width:10px;height:10px;border-radius:5px;background:#7FA7D9}
+.phone{position:absolute;border-radius:58px;background:#050507;padding:18px;box-shadow:0 40px 90px rgba(0,0,0,.65),0 0 0 2px rgba(255,255,255,.08) inset}
+.phone img{display:block;width:100%;border-radius:42px}
+.phone .cam{position:absolute;left:30px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;background:#16171b;box-shadow:0 0 0 2px #0d0e11}
+.p1{left:800px;top:150px;width:1080px}
+.p2{left:660px;top:640px;width:700px;border-radius:44px;padding:13px}
+.p2 img{border-radius:30px}
+.p2 .cam{left:20px;width:11px;height:11px;margin-top:-5px}
+.tag{position:absolute;left:1400px;top:745px;padding:14px 22px;border-radius:18px;background:rgba(19,20,25,.82);border:1px solid rgba(255,255,255,.1);font-size:20px;font-weight:700;backdrop-filter:blur(8px)}
+.tag small{display:block;font-size:15px;color:rgba(242,241,236,.6);font-weight:600;margin-top:4px}
+.tag2{left:1400px;top:855px}
+</style></head><body><div class="grain"></div>
+<div class="left">
+ <div class="logo"><div class="mark"></div><div class="word">KAPSULA</div></div>
+ <h1>Твоя игровая полка — <span>в&nbsp;кармане</span></h1>
+ <div class="sub">Эмулятор с красивой библиотекой: обложки и фоны находятся сами, а кнопки подстраиваются под каждую игру.</div>
+ <div class="feats">
+  <div class="f"><div class="dot"><i></i></div>Продолжай с того места, где вышел</div>
+  <div class="f"><div class="dot"><i></i></div>Экранные кнопки под жанр и игру</div>
+  <div class="f"><div class="dot"><i></i></div>4 слота сохранений и скриншоты</div>
+ </div>
+</div>
+<div class="phone p1"><img src="home.png"><div class="cam"></div></div>
+<div class="phone p2"><img src="ingame.png"><div class="cam"></div></div>
+<div class="tag">Значки действий вместо кнопок джойстика<small>KAPSULA Touch</small></div>
+<div class="tag tag2">Свои места, турбо и комбо<small>Редактор поверх игры</small></div>
+</body></html>

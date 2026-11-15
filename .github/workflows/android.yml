@@ -3,11 +3,14 @@ name: Build NEXUS PSP APK
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "ccr-30f02f17-ph3ie4" ]
+    paths-ignore: [ "telegram/**", ".github/workflows/telegram.yml", "plans/**", "promo/**" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,16 +35,87 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
-      - name: Restore stable signing key
+      - name: Prepare LibretroDroid sources (KAPSULA patch)
+        run: tools/libretrodroid/setup.sh
+
+      - name: Fetch PPSSPP libretro core and system files
         run: |
-          base64 --decode nexus-debug.keystore.b64 > nexus-debug.keystore
+          set -euo pipefail
+          mkdir -p app/src/main/jniLibs/arm64-v8a app/src/main/assets/ppsspp
+          curl -fsSL --retry 4 -o core.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/ppsspp_libretro_android.so.zip
+          unzip -p core.zip ppsspp_libretro_android.so > app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so
+          # Остальные консоли (все ядра — GPL/AGPL/BSD, без «только некоммерческих»)
+          for c in pcsx_rearmed armsx2 clownmdemu gearsystem fceumm flycast yabasanshiro geargrafx geolith mednafen_ngp mednafen_wswan stella prosystem gearlynx; do
+            curl -fsSL --retry 4 -o core-$c.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/${c}_libretro_android.so.zip
+            unzip -p core-$c.zip ${c}_libretro_android.so > app/src/main/jniLibs/arm64-v8a/lib${c}_libretro_android.so
+          done
+          # PS2 (ARMSX2, GPL-3.0): служебные файлы эмулятора — из исходников ARMSX2
+          git clone -q --depth 1 --filter=blob:none --sparse https://github.com/ARMSX2/ARMSX2.git armsx2-src
+          (cd armsx2-src && git sparse-checkout set bin/resources)
+          mkdir -p app/src/main/assets/pcsx2
+          (cd armsx2-src/bin/resources && zip -qr -9 ../../../app/src/main/assets/pcsx2/resources.zip . -x "*.psd")
+          ls -la app/src/main/assets/pcsx2 app/src/main/jniLibs/arm64-v8a
+          curl -fsSL --retry 4 -o app/src/main/assets/ppsspp/PPSSPP.zip https://buildbot.libretro.com/assets/system/PPSSPP.zip
+          CORE_SHA=$(sha256sum app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so | cut -c1-16)
+          echo "PPSSPP libretro · buildbot nightly $(date -u +%Y-%m-%d) · sha256 ${CORE_SHA}" | tee app/src/main/assets/ppsspp/CORE.txt
+          ls -la app/src/main/jniLibs/arm64-v8a app/src/main/assets/ppsspp
+
+      - name: Restore release signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.KAPSULA_KEYSTORE_B64 }}
+          KEY_PASS: ${{ secrets.KAPSULA_KEY_PASS }}
+        run: |
+          # ключ — только в секретах; без него выпуск не собираем (не публикуем неподписанный или чужой APK)
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEY_PASS" ]; then echo "::error::Нет секретов KAPSULA_KEYSTORE_B64 / KAPSULA_KEY_PASS"; exit 1; fi
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/kapsula.jks"
+          echo "KAPSULA_KEYSTORE=$RUNNER_TEMP/kapsula.jks" >> "$GITHUB_ENV"
+          echo "KAPSULA_KEY_PASS=$KEY_PASS" >> "$GITHUB_ENV"
 
       - name: Build APK
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Build KAPSULA Admin (only for the owner, not published)
+        run: gradle --no-daemon :admin:assembleRelease
+
+      - name: Upload KAPSULA Admin APK (private artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: kapsula-admin-apk
+          path: admin/build/outputs/apk/release/admin-release.apk
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Check APK signature
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | tee sig.txt
+          grep -qi "b3c5cd37224b4ece08b4075c4f215f53f3535af134b19a29172c747ad65f2313" <(tr -d ':' < sig.txt | tr 'A-F' 'a-f') || { echo "::error::APK подписан не ключом KAPSULA"; exit 1; }
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: nexus-psp-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: kapsula-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      - name: Publish APK as direct download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk kapsula.apk
+          gh release delete latest --yes --cleanup-tag || true
+          # версия в названии выпуска — по ней приложение узнаёт, что вышло обновление
+          VER=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          gh release create latest kapsula.apk --prerelease --target "$GITHUB_SHA" \
+            --title "KAPSULA $VER" \
+            --notes "Сборка ${GITHUB_SHA::7} из ветки ${GITHUB_REF_NAME}"
+
+      - name: Mirror to GitVerse
+        # зеркало для тех, у кого GitHub не открывается; если не вышло — выпуск на GitHub всё равно есть
+        continue-on-error: true
+        env:
+          GV_TOKEN: ${{ secrets.GITVERSE_TOKEN }}
+          GV_REPO: ${{ secrets.GITVERSE_REPO }}
+        run: |
+          git fetch --unshallow origin || true
+          VER=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts) APK=kapsula.apk python3 tools/gitverse_mirror.py

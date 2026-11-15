@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KAPSULA Touch: значок кнопки (tools/ctl_icons.py) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="100" android:viewportHeight="100">
+  <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M38.04,77.06C18.99,61.11 8.84,52.16 8.34,50.89C7.56,48.88 8.06,48.35 20.72,37.45C48.77,13.31 46.02,15.35 47.82,17.34C48.58,18.18 48.81,19.99 48.95,26.07L49.11,33.73L69.35,34.03C87.75,34.30 89.69,34.42 90.65,35.38C91.58,36.31 91.73,37.88 91.89,48.93C92.08,62.37 91.80,64.15 89.27,65.30C88.27,65.76 81.54,65.97 68.31,65.97L48.82,65.97L48.82,73.62C48.82,81.50 48.36,83.13 46.12,83.13C45.66,83.13 42.03,80.40 38.04,77.06Z"/>
+</vector>

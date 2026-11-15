@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KAPSULA Touch: значок кнопки -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="100" android:viewportHeight="100">
+  <path android:strokeColor="#FFFFFFFF" android:strokeWidth="7" android:strokeLineJoin="round" android:fillColor="#00000000" android:pathData="M38,22h24a5,5 0,0 1,5 5v46a5,5 0,0 1,-5 5h-24a5,5 0,0 1,-5 -5v-46a5,5 0,0 1,5 -5z"/>
+  <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M20,38a32,32 0,0 1,14 -22M80,62a32,32 0,0 1,-14 22"/>
+  <path android:fillColor="#FFFFFFFF" android:pathData="M10,40L28,40L19,26zM90,60L72,60L81,74z"/>
+</vector>
