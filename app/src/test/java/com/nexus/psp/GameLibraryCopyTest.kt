@@ -19,7 +19,7 @@ class GameLibraryCopyTest {
         val progress = mutableListOf<Double>()
 
         val copied = GameLibrary.copyStreamToFile(
-            ByteArrayInputStream(bytes), target, bytes.size.toLong(), progress::add
+            ByteArrayInputStream(bytes), target, bytes.size.toLong(), { progress.add(it) }
         )
 
         assertEquals(bytes.size.toLong(), copied)
