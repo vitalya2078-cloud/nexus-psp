@@ -396,11 +396,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         if (v["ppsspp_auto_frameskip"] != "disabled" && v["ppsspp_frameskip"].let { it == null || it == "disabled" }) {
             v["ppsspp_auto_frameskip"] = "enabled"; v["ppsspp_frameskip"] = "1"
         }
-        // игра в памяти — сама включается на телефонах с 6+ ГБ ОЗУ (если игрок не выбрал иначе)
-        if (!v.containsKey("ppsspp_cache_iso")) {
-            val mi = android.app.ActivityManager.MemoryInfo(); getSystemService(android.app.ActivityManager::class.java)?.getMemoryInfo(mi)
-            if (mi.totalMem >= 5_800L * 1024 * 1024) v["ppsspp_cache_iso"] = "enabled"
-        }
+        // Не загружаем весь ISO в RAM автоматически: общий объём ОЗУ не показывает,
+        // сколько памяти свободно сейчас и насколько велик конкретный образ.
+        // Если игрок явно выбрал настройку для игры, сохраняем его выбор.
+        if (!v.containsKey("ppsspp_cache_iso")) v["ppsspp_cache_iso"] = "disabled"
         // HD-текстуры этой игры
         if (gx.optBoolean("tex") && serial != null) v["ppsspp_texture_replacement"] = "enabled"
         // игра по сети
