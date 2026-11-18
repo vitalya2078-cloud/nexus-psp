@@ -66,7 +66,9 @@ object Disc {
         fun at(o: Int, s: String) = head.size >= o + s.length && String(head, o, s.length, Charsets.ISO_8859_1) == s
         fun cd(): Boolean = at(0x8001, "CD001") || at(16 * 2352 + 24 + 1, "CD001") || at(16 * 2352 + 16 + 1, "CD001") || at(0, "SEGA SEGASATURN") || at(16, "SEGA SEGASATURN") || at(0, "SEGADISCSYSTEM") || at(16, "SEGADISCSYSTEM")
         val textOk = ext in setOf("cue", "m3u", "gdi", "ccd")
-        if (size < 1024 && !textOk) return false
+        // SAF-провайдеры Android иногда не сообщают размер документа (0 или -1).
+        // В таком случае определяем формат по заголовку; отклоняем только известный малый размер.
+        if (size in 1L..1023L && !textOk) return false
         // текст (нет нулевых байт в начале, почти все символы печатные) — не игра
         if (!textOk) {
             val n = minOf(head.size, 4096)
