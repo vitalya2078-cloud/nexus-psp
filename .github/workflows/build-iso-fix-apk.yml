@@ -1,0 +1,94 @@
+name: Build KAPSULA ISO Fix Test APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["fix/iso-import-compatibility"]
+    paths: [".github/workflows/build-iso-fix-apk.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: fix/iso-import-compatibility
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android build components
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+
+      - name: Prepare LibretroDroid sources
+        run: tools/libretrodroid/setup.sh
+
+      - name: Fetch PPSSPP libretro core and system files
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/jniLibs/arm64-v8a app/src/main/assets/ppsspp
+          curl -fsSL --retry 4 -o core.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/ppsspp_libretro_android.so.zip
+          unzip -p core.zip ppsspp_libretro_android.so > app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so
+          for c in pcsx_rearmed armsx2 clownmdemu gearsystem fceumm flycast yabasanshiro geargrafx geolith mednafen_ngp mednafen_wswan stella prosystem gearlynx; do
+            curl -fsSL --retry 4 -o core-$c.zip https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/${c}_libretro_android.so.zip
+            unzip -p core-$c.zip ${c}_libretro_android.so > app/src/main/jniLibs/arm64-v8a/lib${c}_libretro_android.so
+          done
+          git clone -q --depth 1 --filter=blob:none --sparse https://github.com/ARMSX2/ARMSX2.git armsx2-src
+          (cd armsx2-src && git sparse-checkout set bin/resources)
+          mkdir -p app/src/main/assets/pcsx2
+          (cd armsx2-src/bin/resources && zip -qr -9 ../../../app/src/main/assets/pcsx2/resources.zip . -x "*.psd")
+          curl -fsSL --retry 4 -o app/src/main/assets/ppsspp/PPSSPP.zip https://buildbot.libretro.com/assets/system/PPSSPP.zip
+          CORE_SHA=$(sha256sum app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so | cut -c1-16)
+          echo "PPSSPP libretro · test build · sha256 ${CORE_SHA}" > app/src/main/assets/ppsspp/CORE.txt
+
+      - name: Restore KAPSULA signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.KAPSULA_KEYSTORE_B64 }}
+          KEY_PASS: ${{ secrets.KAPSULA_KEY_PASS }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEY_PASS" ]; then
+            echo "::error::Missing KAPSULA signing secrets"
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/kapsula.jks"
+          echo "KAPSULA_KEYSTORE=$RUNNER_TEMP/kapsula.jks" >> "$GITHUB_ENV"
+          echo "KAPSULA_KEY_PASS=$KEY_PASS" >> "$GITHUB_ENV"
+
+      - name: Run unit tests
+        run: gradle --no-daemon :app:testDebugUnitTest
+
+      - name: Build signed APK
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Verify APK signature
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | tee sig.txt
+          grep -qi "b3c5cd37224b4ece08b4075c4f215f53f3535af134b19a29172c747ad65f2313" <(tr -d ':' < sig.txt | tr 'A-F' 'a-f')
+
+      - name: Upload test APK (no release publishing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: kapsula-iso-fix-test-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
+          if-no-files-found: error
