@@ -18,6 +18,14 @@ class PlausibleTest {
         assertTrue(Disc.plausible("bin", rom.size.toLong(), rom))
     }
 
+    @Test fun pspIsoWithUnknownProviderSizeIsAcceptedByHeader() {
+        val iso = ByteArray(40 * 1024)
+        "PSP GAME".toByteArray().copyInto(iso, 0x8008)
+        assertTrue(Disc.plausible("iso", 0L, iso))
+        assertTrue(Disc.plausible("iso", -1L, iso))
+        assertFalse(Disc.plausible("iso", 0L, ByteArray(0)))
+    }
+
     @Test fun randomTextBinRejected() {
         val txt = "hello world, this is a log file\n".repeat(500).toByteArray()
         assertFalse(Disc.plausible("bin", txt.size.toLong(), txt))
