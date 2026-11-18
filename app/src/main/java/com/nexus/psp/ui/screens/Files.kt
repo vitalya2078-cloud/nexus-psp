@@ -134,23 +134,32 @@ fun FilesScreen(mode: String) {
                         if (shown.isEmpty()) Text(if (q.isBlank()) "Тут пусто" else "Ничего не нашлось", style = T.small, modifier = Modifier.padding(top = 16.dp))
                         LazyColumn(Modifier.weight(1f).padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             items(shown, key = { it.key }) { n ->
-                                // консоль файла читается в фоне: у обычных файлов — по содержимому
-                                val plat by produceState<String?>(null, n.key) { if (!bios && !n.isDir) value = withContext(Dispatchers.IO) { Storage.platformOf(ctx, n) } }
-                                // игра — только если содержимое похоже на игру (консоль определилась)
+                                // файл проверяется в фоне (содержимое и консоль); не игровое расширение — отказ сразу, без чтения
+                                val game = !n.isDir && !bios
+                                val quick: Storage.Check? = if (game && n.ext !in com.nexus.psp.emulator.GameLibrary.EXT) Storage.Check.No(Storage.NOT_SUPPORTED) else null
+                                val check by produceState(quick, n.key) { if (game && quick == null) value = withContext(Dispatchers.IO) { Storage.check(ctx, n) } }
+                                val ck = check
+                                // проверка ещё идёт — не ругаемся, а просим секунду
+                                val pending = game && ck == null
+                                val unsure = ck as? Storage.Check.Unsure
+                                val plat = (ck as? Storage.Check.Game)?.plat ?: unsure?.plat
                                 val fits = n.isDir || bios || plat != null
                                 val on = sel.any { it.key == n.key }
                                 Row(Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.acc.copy(alpha = .14f) else androidx.compose.ui.graphics.Color.Transparent)
                                     .press {
                                         when {
                                             n.isDir -> { path.add(n); q = "" }
-                                            !fits -> AppState.say("Это не игра — такой формат KAPSULA не открывает")
+                                            pending -> AppState.say("Проверяю файл — секунду")
+                                            !fits -> AppState.say((ck as? Storage.Check.No)?.why ?: Storage.NOT_SUPPORTED)
                                             bios -> { sel.clear(); sel.add(n) }
                                             on -> sel.removeAll { it.key == n.key }
-                                            else -> sel.add(n)
+                                            else -> { sel.add(n); unsure?.let { AppState.say(it.why, R.drawable.sl_alert) } }
                                         }
                                     }.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    SolarIcon(if (n.isDir) R.drawable.sl_folder else if (fits) R.drawable.ph_disc else R.drawable.sl_text, 20.dp, if (n.isDir) K.ink2 else if (fits) K.acc else K.ink3)
-                                    Text(n.name, style = T.label.copy(fontSize = 13.5.sp, color = if (fits) K.ink else K.ink3), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                    SolarIcon(if (n.isDir) R.drawable.sl_folder else if (fits || pending) R.drawable.ph_disc else R.drawable.sl_text, 20.dp, if (n.isDir) K.ink2 else if (fits) K.acc else K.ink3)
+                                    Text(n.name, style = T.label.copy(fontSize = 13.5.sp, color = if (fits || pending) K.ink else K.ink3), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                    if (pending) androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = K.ink3, strokeWidth = 2.dp)
+                                    if (unsure != null) Pill("не проверен", color = K.warn)
                                     if (!n.isDir && fits && !bios) plat?.let { p -> Pill(PL[p]?.short ?: p, dot = PL[p]?.color) }
                                     if (!n.isDir) Text(mb(n.size), style = T.small, modifier = Modifier.width(70.dp))
                                     if (!n.isDir && fits) Box(Modifier.size(22.dp).clip(CircleShape).border(2.dp, if (on) K.acc else K.line2, CircleShape).background(if (on) K.acc else androidx.compose.ui.graphics.Color.Transparent), contentAlignment = Alignment.Center) {
@@ -173,10 +182,10 @@ fun FilesScreen(mode: String) {
                                 val r = withContext(Dispatchers.IO) { com.nexus.psp.emulator.BiosFiles.add(ctx, biosPlat, picked.first().uri) }
                                 if (r.startsWith("ok:")) { AppState.say("BIOS на месте: " + r.removePrefix("ok:"), R.drawable.ph_check); AppState.storageTick++; Nav.back() } else AppState.say(r.removePrefix("bad:"), R.drawable.sl_alert)
                             } else {
-                                // к CUE — его дорожки из той же папки
-                                val extra = withContext(Dispatchers.IO) { picked.filter { it.ext == "cue" }.flatMap { c -> Storage.cueParts(ctx, c) }.mapNotNull { nm -> siblings.firstOrNull { it.name.equals(nm, true) } } }
+                                // к CUE — его дорожки из той же папки (нужны при копировании; файлы телефона играются на месте, дорожки и так рядом)
+                                val extra = withContext(Dispatchers.IO) { picked.filter { it.ext == "cue" && it is FNode.D }.flatMap { c -> Storage.cueParts(ctx, c) }.mapNotNull { nm -> siblings.firstOrNull { it.name.equals(nm, true) } } }
                                 val all = (picked + extra).distinctBy { it.key }
-                                Act.importUris?.invoke(all.map { it.uri }); sel.clear(); Nav.back()
+                                Act.addNodes(all); sel.clear(); Nav.back()
                             }
                         }
                     }
@@ -188,7 +197,8 @@ fun FilesScreen(mode: String) {
 
 // ---------- поиск игр по телефону ----------
 
-private class Hit(val node: FNode, val plat: String, val inLib: Boolean)
+/** Найденная игра; why — не удалось проверить до конца (образ добавится, проверим при запуске). */
+private class Hit(val node: FNode, val plat: String, val inLib: Boolean, val why: String? = null)
 private class BiosHit(val node: FNode, val plat: String)
 
 /** «Найти игры»: по кнопке — обходим доступные места, показываем найденное по консолям, добавляем выбранное. */
@@ -219,11 +229,14 @@ fun ScanScreen() {
                         checked++
                         if (k.name.lowercase() in parts) continue
                         Storage.maybeBios(k)?.let { p -> bioses.add(BiosHit(k, p)) }
-                        val plat = Storage.platformOf(ctx, k, kids) ?: continue
+                        if (k.ext !in com.nexus.psp.emulator.GameLibrary.EXT) continue
+                        // игра или образ диска, который не удалось проверить до конца (его тоже показываем — с пометкой)
+                        val ck = Storage.check(ctx, k, kids)
+                        val plat = (ck as? Storage.Check.Game)?.plat ?: (ck as? Storage.Check.Unsure)?.plat ?: continue
                         // мелкие BIN без CUE — скорее всего не игры (кроме картриджей)
                         if (k.ext == "bin" && k.size < 8 * 1024 && plat == "a26") continue
                         val inLib = k.name.lowercase() in known
-                        hits.add(Hit(k, plat, inLib))
+                        hits.add(Hit(k, plat, inLib, (ck as? Storage.Check.Unsure)?.why))
                         if (!inLib) pick.add(k.key)
                     }
                 }
@@ -294,7 +307,7 @@ private fun ScanResults(hits: List<Hit>, bioses: List<BiosHit>, pick: MutableLis
                         Box(Modifier.size(36.dp, 48.dp).clip(RoundedCornerShape(8.dp))) { Cover(realGame("scan_" + h.node.name, h.node.name.substringBeforeLast('.'), h.node.name, "", 0.0, h.plat), 120, 160, modifier = Modifier.fillMaxSize()) }
                         Column(Modifier.weight(1f)) {
                             Text(prettyName(h.node.name.substringBeforeLast('.')), style = T.label.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("${h.node.ext.uppercase()} · ${mb(h.node.size)}", style = T.small, maxLines = 1)
+                            Text("${h.node.ext.uppercase()} · ${mb(h.node.size)}" + (if (h.why != null) " · не проверен, проверим при запуске" else ""), style = T.small.copy(color = if (h.why != null) K.warn else K.ink3), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         if (h.inLib) Pill("в библиотеке", icon = R.drawable.ph_check, color = K.ok)
                         else Box(Modifier.size(22.dp).clip(CircleShape).border(2.dp, if (on) K.acc else K.line2, CircleShape).background(if (on) K.acc else androidx.compose.ui.graphics.Color.Transparent), contentAlignment = Alignment.Center) {
@@ -328,13 +341,14 @@ private fun ScanResults(hits: List<Hit>, bioses: List<BiosHit>, pick: MutableLis
             Text("Выбрано: ${chosen.size} · ${mb(chosen.sumOf { it.node.size })}", style = T.label.copy(fontSize = 13.5.sp), modifier = Modifier.weight(1f))
             KButton("Добавить", R.drawable.ph_check, BtnKind.Main, small = true) {
                 scope.launch {
-                    val uris = withContext(Dispatchers.IO) {
+                    val nodes = withContext(Dispatchers.IO) {
                         chosen.flatMap { h ->
                             val parent = siblings.values.firstOrNull { l -> l.any { it.key == h.node.key } } ?: emptyList()
-                            listOf(h.node) + if (h.node.ext == "cue") Storage.cueParts(ctx, h.node).mapNotNull { nm -> parent.firstOrNull { it.name.equals(nm, true) } } else emptyList()
-                        }.distinctBy { it.key }.map { it.uri }
+                            // дорожки CUE нужны только при копировании; файлы телефона играются на месте
+                            listOf(h.node) + if (h.node.ext == "cue" && h.node is FNode.D) Storage.cueParts(ctx, h.node).mapNotNull { nm -> parent.firstOrNull { it.name.equals(nm, true) } } else emptyList()
+                        }.distinctBy { it.key }
                     }
-                    Act.importUris?.invoke(uris); Nav.back()
+                    Act.addNodes(nodes); Nav.back()
                 }
             }
         }

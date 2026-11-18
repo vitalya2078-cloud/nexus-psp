@@ -74,7 +74,8 @@ import com.nexus.psp.ui.kit.tap
 @Composable
 fun ActButton(g: Game, small: Boolean = false, modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
-    KButton("Играть", R.drawable.sb_play, BtnKind.Main, small, modifier = modifier) { Act.play(ctx, g.id) }
+    if (g.missing) KButton("Нет файла", R.drawable.sl_alert, BtnKind.Soft, small, modifier = modifier) { Act.missing(g) }
+    else KButton("Играть", R.drawable.sb_play, BtnKind.Main, small, modifier = modifier) { Act.play(ctx, g.id) }
 }
 
 /** Плашка формата файла на обложке (ISO, CSO…). */
@@ -219,7 +220,7 @@ fun CtxMenu() {
             if (e != null) {
                 CtxItem(if (AppState.favs[id] == true) R.drawable.sb_heart else R.drawable.sl_heart, if (AppState.favs[id] == true) "Убрать из избранного" else "В избранное") { AppState.toggleFav(id) }
                 AppState.cols.forEach { (c, ids) -> CtxItem(if (id in ids) R.drawable.ph_check else R.drawable.sl_folder, if (id in ids) "В коллекции «$c»" else "Добавить в «$c»") { AppState.toggleCol(c, id) } }
-                CtxItem(R.drawable.sl_trash, "Удалить с телефона", danger = true) { Ctx.id = null; AppState.uninstall(id) }
+                CtxItem(R.drawable.sl_trash, if (AppState.keepsFile(id)) "Убрать из библиотеки" else "Удалить с телефона", danger = true) { Ctx.id = null; AppState.uninstall(id) }
             }
         }
     }

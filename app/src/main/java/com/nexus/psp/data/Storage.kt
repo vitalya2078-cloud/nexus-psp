@@ -59,6 +59,8 @@ object Storage {
     fun places(c: Context): List<Place> {
         val out = ArrayList<Place>()
         if (allFiles(c)) {
+            // своя папка KAPSULA — первой: игры из неё появляются в библиотеке сами
+            GameLibrary.folder().takeIf { it.isDirectory }?.let { out += Place(GameLibrary.FOLDER, FNode.F(it), "folder") }
             val root = Environment.getExternalStorageDirectory()
             out += Place("Телефон", FNode.F(root), "phone")
             File(root, Environment.DIRECTORY_DOWNLOADS).takeIf { it.isDirectory }?.let { out += Place("Загрузки", FNode.F(it), "dl") }
@@ -94,24 +96,64 @@ object Storage {
             .sortedWith(compareBy<FNode>({ !it.isDir }, { it.name.lowercase() }))
     }
 
-    /** Консоль файла: у обычных файлов — по содержимому, у документов папок — по расширению. */
-    fun platformOf(c: Context, n: FNode, kids: List<FNode>? = null): String? {
-        if (n.isDir || n.ext !in GameLibrary.EXT) return null
+    /**
+     * Итог проверки файла для проводника и поиска:
+     *  - [Game] — содержимое похоже на игру, консоль определена;
+     *  - [Unsure] — образ диска, который не удалось проверить до конца (не прочитался, нет привычной метки).
+     *    Его можно добавить: эмулятор откроет файл сам, а при неудаче запуска будет понятная причина;
+     *  - [No] — не игра, why — почему (показываем игроку вместо общего «не игра»).
+     */
+    sealed class Check {
+        data class Game(val plat: String) : Check()
+        data class Unsure(val plat: String, val why: String) : Check()
+        data class No(val why: String) : Check()
+    }
+
+    const val NOT_SUPPORTED = "Такой формат KAPSULA не открывает"
+
+    /** Консоль по расширению — когда содержимое прочитать не удалось. */
+    fun platformByExt(ext: String): String = when (ext) {
+        "cue", "m3u", "bin", "img" -> "ps1"
+        "iso", "chd", "pbp", "cso" -> "psp"
+        else -> PLATFORMS.firstOrNull { ext in it.exts }?.id ?: "psp"
+    }
+
+    /** Проверка файла: похож ли он на игру и для какой консоли. */
+    fun check(c: Context, n: FNode, kids: List<FNode>? = null): Check {
+        if (n.isDir || n.ext !in GameLibrary.EXT) return Check.No(NOT_SUPPORTED)
+        val disc = n.ext in Disc.DISC_EXT
+        fun unread(why: String) = if (disc) Check.Unsure(platformByExt(n.ext), why) else Check.No(why)
         // содержимое должно быть похоже на игру: README.md, описания и случайные .bin не проходят
-        val head = when (n) {
-            is FNode.F -> Disc.head(n.file)
-            is FNode.D -> try { c.contentResolver.openInputStream(n.uri)?.use { i -> val b = ByteArray(Disc.HEAD); var o = 0; while (o < b.size) { val r = i.read(b, o, b.size - o); if (r < 0) break; o += r }; b.copyOf(o) } } catch (e: Exception) { null } ?: return null
+        val head: ByteArray = when (n) {
+            is FNode.F -> if (!n.file.canRead()) return unread("Нет доступа к файлу — проверим при запуске") else Disc.head(n.file)
+            is FNode.D -> readHead(c, n) ?: return unread("Файл не удалось прочитать — проверим при запуске")
         }
-        if (!Disc.plausible(n.ext, n.size, head)) return null
+        when (Disc.verdict(n.ext, n.size, head)) {
+            Disc.Verdict.OK -> {}
+            Disc.Verdict.TEXT -> return Check.No("Это текстовый файл, а не образ игры")
+            Disc.Verdict.SMALL -> return Check.No("Файл слишком маленький для игры")
+            Disc.Verdict.NO_MARK -> return unread("Внутри не нашлась метка диска. Если игра не запустится — образ повреждён")
+        }
+        return Check.Game(platformOf(c, n, kids, verified = true) ?: platformByExt(n.ext))
+    }
+
+    /** Начало документа выбранной папки: сначала поток, если провайдер его не даёт — файловый дескриптор. */
+    private fun readHead(c: Context, n: FNode): ByteArray? {
+        fun read(i: java.io.InputStream): ByteArray { val b = ByteArray(Disc.HEAD); var o = 0; while (o < b.size) { val r = i.read(b, o, b.size - o); if (r < 0) break; o += r }; return b.copyOf(o) }
+        return try { c.contentResolver.openInputStream(n.uri)?.use { read(it) } } catch (e: Exception) { null }
+            ?: try { c.contentResolver.openFileDescriptor(n.uri, "r")?.let { pfd -> android.os.ParcelFileDescriptor.AutoCloseInputStream(pfd).use { read(it) } } } catch (e: Exception) { null }
+    }
+
+    /** Консоль файла: у обычных файлов — по содержимому, у документов папок — по расширению. null — не игра. */
+    fun platformOf(c: Context, n: FNode, kids: List<FNode>? = null, verified: Boolean = false): String? {
+        if (n.isDir || n.ext !in GameLibrary.EXT) return null
+        if (!verified) return (check(c, n, kids) as? Check.Game)?.plat
         if (n is FNode.F) return Disc.platform(n.file)
         // файл из выбранной папки: читаем содержимое через дескриптор — так же, как обычный файл
         val target = if (n.ext == "cue") kids?.firstOrNull { k -> !k.isDir && cueParts(c, n).firstOrNull()?.equals(k.name, true) == true } ?: n else n
         val ext = if (target === n) n.ext else target.ext
         if (n.ext == "cue" && target === n) return "ps1"
-        return byDescriptor(c, target, ext) ?: when (n.ext) {
-            "cue", "m3u", "bin", "img" -> "ps1"; "iso", "chd", "pbp", "cso" -> "psp"
-            else -> PLATFORMS.firstOrNull { n.ext in it.exts }?.id
-        }
+        return byDescriptor(c, target, ext) ?: platformByExt(n.ext)
     }
 
     /** Консоль файла-документа: открываем его и читаем как обычный файл (/proc/self/fd). null — не получилось. */

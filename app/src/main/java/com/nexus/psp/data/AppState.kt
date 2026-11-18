@@ -273,11 +273,16 @@ object AppState {
             val a = JSONArray(GameLibrary.list(app))
             for (i in 0 until a.length()) {
                 val f = a.getJSONObject(i)
-                val g0 = realGame(f.getString("id"), f.getString("name"), f.getString("file"), f.getString("path"), f.getDouble("size"), f.optString("plat", "psp"))
+                val g0 = realGame(f.getString("id"), f.getString("name"), f.getString("file"), f.getString("path"), f.getDouble("size"), f.optString("plat", "psp"), f.optBoolean("missing"))
                 val m = Covers.load(app, g0.id); meta[g0.id] = m
                 val g = if (m.title != null) g0.copy(t = m.title) else g0
                 byId[g.id] = g; found.add(g.id)
-                if (lib[g.id] == null) lib[g.id] = Lib()
+                if (lib[g.id] == null) {
+                    lib[g.id] = Lib()
+                    // новая игра из папки KAPSULA (положили файл туда) — сообщаем, как при добавлении
+                    if (f.optBoolean("linked") && !f.optBoolean("missing") && GameLibrary.inFolder(java.io.File(g.path)) && sp.getBoolean("libSeen", false))
+                        alerts.add(0, Alert("«${g.t}» появилась из папки ${GameLibrary.FOLDER}", "", true, g.id))
+                }
             }
         } catch (e: Exception) { }
         byId.keys.filter { it !in found }.forEach { byId.remove(it); meta.remove(it) }
@@ -285,6 +290,7 @@ object AppState {
         favs.keys.filter { it !in found }.forEach { favs.remove(it) }
         if (cols.values.any { l -> l.any { it !in found } }) cols = LinkedHashMap(cols.mapValues { (_, v) -> v.filter { it in found } })
         consumeSession()
+        if (!sp.getBoolean("libSeen", false)) sp.edit().putBoolean("libSeen", true).apply()
         save()
         // обложки: игры, которые ещё не обрабатывались или ждали интернета
         byId.values.forEach { g -> val m = meta[g.id]; if (m == null || m.tried == 0L || (m.cover == null && m.tried == 1L) || (m.extra == 0L && m.tried > 1L)) fetchMeta(g.id) }
@@ -401,12 +407,16 @@ object AppState {
     // ---------- действия ----------
     fun say(text: String, icon: Int? = null, action: String? = null, onAction: (() -> Unit)? = null) { toast = Toast(text, icon, action, onAction) }
 
+    /** Удаление игры оставляет файл на месте (игра из другой папки телефона): «Убрать из библиотеки». */
+    fun keepsFile(id: String): Boolean = byId[id]?.let { GameLibrary.keepsFile(app, it.path) } == true
+
     fun uninstall(id: String) {
         val g = byId[id] ?: return
+        val keep = keepsFile(id)
         if (GameLibrary.delete(app, g.path)) {
             lib.remove(id); byId.remove(id); favs.remove(id); meta.remove(id); Covers.remove(app, id)
             cols = LinkedHashMap(cols.mapValues { (_, v) -> v - id })
-            say("«${g.t}» удалена с телефона", R.drawable.sl_trash); save()
+            say(if (keep) "«${g.t}» убрана из библиотеки — файл остался на месте" else "«${g.t}» удалена с телефона", R.drawable.sl_trash); save()
         } else say("Не удалось удалить файл")
     }
 

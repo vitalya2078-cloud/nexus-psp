@@ -51,6 +51,8 @@ val PL = PLATFORMS.associateBy { it.id }
 data class Game(
     val id: String, val t: String, val p: String, val size: Int, val file: String, val path: String,
     val pal: List<Long>, val m: String, val seed: Int,
+    /** Игра на месте, но файла сейчас нет (вынута карта памяти, нет доступа, файл перенесли). */
+    val missing: Boolean = false,
 ) {
     val plat get() = PL[p] ?: PLATFORMS[0]
     val format get() = file.substringAfterLast('.', "").uppercase()
@@ -69,9 +71,9 @@ private val MOTIFS = listOf("sun", "planet", "waves", "city", "hills", "shards")
 fun prettyName(raw: String): String =
     raw.replace(Regex("\\[[^]]*]|\\([^)]*\\)"), " ").replace('_', ' ').replace(Regex("\\s+"), " ").trim().ifEmpty { raw }
 
-fun realGame(id: String, name: String, file: String, path: String, sizeMb: Double, plat: String): Game {
+fun realGame(id: String, name: String, file: String, path: String, sizeMb: Double, plat: String, missing: Boolean = false): Game {
     val h = (name.lowercase().hashCode() and 0x7fffffff)
-    return Game(id, prettyName(name), plat, maxOf(1, sizeMb.toInt()), file, path, PALETTES[h % PALETTES.size], MOTIFS[(h / 7) % MOTIFS.size], 7 + h % 997)
+    return Game(id, prettyName(name), plat, maxOf(1, sizeMb.toInt()), file, path, PALETTES[h % PALETTES.size], MOTIFS[(h / 7) % MOTIFS.size], 7 + h % 997, missing)
 }
 
 /** Пример игры для превью экранных кнопок (не попадает в библиотеку). */

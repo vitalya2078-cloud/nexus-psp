@@ -128,7 +128,7 @@ fun LibraryScreen() {
         if (list.isEmpty()) Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val reset: @Composable () -> Unit = { KButton("Сбросить фильтры", small = true) { S.lf = "Все"; S.lc = ""; S.con = "all"; q = "" } }
             when {
-                mine.isEmpty() -> StateCard("mascot-wave", "Библиотека пуста", "Добавь образ игры с телефона — ISO, CSO, CHD или PBP.") {
+                mine.isEmpty() -> StateCard("mascot-wave", "Библиотека пуста", "Добавь образ игры с телефона — ISO, CSO, CHD или PBP. Или положи файлы в папку ${com.nexus.psp.emulator.GameLibrary.FOLDER} в памяти телефона — они появятся сами.") {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { KButton("Найти на телефоне", R.drawable.sl_search, small = true) { Act.findGames() }; KButton("Добавить игру", R.drawable.ph_plus, com.nexus.psp.ui.kit.BtnKind.Main, small = true) { Act.addFile() } }
                 }
                 q.isNotBlank() -> StateCard("mascot-search", "Нет игры «${q.trim()}»", "Проверь название или сбрось фильтры.", action = reset)

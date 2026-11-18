@@ -156,7 +156,11 @@ fun GameSheet(id: String) {
                 ActButton(g)
             }
         }
-        if (askDelete) Confirm("Удалить «${g.t}» с телефона?", "Файл игры удалится из папки KAPSULA. Сохранения внутри игры останутся.", "Удалить", { askDelete = false }) { askDelete = false; Nav.back(); AppState.uninstall(id) }
+        if (askDelete) {
+            // игра из другой папки телефона — файл не трогаем, только убираем из библиотеки
+            if (AppState.keepsFile(id)) Confirm("Убрать «${g.t}» из библиотеки?", "Файл останется на месте: ${g.path.removePrefix("/storage/emulated/0/")}. Сохранения внутри игры тоже останутся.", "Убрать", { askDelete = false }) { askDelete = false; Nav.back(); AppState.uninstall(id) }
+            else Confirm("Удалить «${g.t}» с телефона?", "Файл игры удалится из папки KAPSULA. Сохранения внутри игры останутся.", "Удалить", { askDelete = false }) { askDelete = false; Nav.back(); AppState.uninstall(id) }
+        }
     }
 }
 

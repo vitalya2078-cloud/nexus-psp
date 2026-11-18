@@ -71,6 +71,8 @@ object Act {
     /** Играть: образ запускается в ядре в отдельном процессе (GameActivity). slot — сразу загрузить сохранение. */
     fun play(ctx: Context, id: String, slot: Int = -1) {
         val g = AppState.byId[id] ?: return
+        // игра на месте, а файла нет: подсказываем, вместо ошибки эмулятора
+        if (g.missing || !java.io.File(g.path).exists()) { missing(g); return }
         buzz()
         AppState.markPlayed(id)
         // мгновенное продолжение: без выбранного слота — с места, где вышел
@@ -110,6 +112,12 @@ object Act {
         return boot
     }
 
+    /** Файл игры не найден: где он был и что сделать. */
+    fun missing(g: com.nexus.psp.data.Game) {
+        val where = g.path.removePrefix("/storage/emulated/0/").substringBeforeLast('/', "")
+        AppState.say("Файл «${g.file}» не найден${if (where.isNotEmpty()) " в папке «$where»" else ""}. Верни его на место или включи доступ к файлам", R.drawable.sl_alert, "Убрать") { AppState.uninstall(g.id) }
+    }
+
     /** Добавить игру — свой проводник KAPSULA (системное окно — запасной путь внутри него). */
     fun addFile() { Nav.open(Ov.Files("games")) }
     /** Найти игры — сканирование по кнопке (с разрешением на доступ к файлам). */
@@ -120,6 +128,19 @@ object Act {
     var requestFolder: (() -> Unit)? = null
     /** Скопировать файлы в библиотеку (CUE — после своих BIN). */
     var importUris: ((List<android.net.Uri>) -> Unit)? = null
+    /** Добавить файлы телефона без копирования — играть прямо с места (нужен доступ ко всем файлам). */
+    var linkFiles: ((List<java.io.File>) -> Unit)? = null
+
+    /**
+     * Добавить выбранное в проводнике или поиске: обычные файлы телефона — на месте, без копирования;
+     * документы выбранных папок (без доступа ко всем файлам) — копией, как раньше.
+     */
+    fun addNodes(nodes: List<com.nexus.psp.data.FNode>) {
+        val files = nodes.filterIsInstance<com.nexus.psp.data.FNode.F>().map { it.file }
+        val docs = nodes.filterIsInstance<com.nexus.psp.data.FNode.D>().map { it.uri }
+        if (files.isNotEmpty()) linkFiles?.invoke(files)
+        if (docs.isNotEmpty()) importUris?.invoke(docs)
+    }
 
     fun icon(name: String): Int = when (name) {
         "check" -> R.drawable.ph_check; "x" -> R.drawable.ph_x; "plus" -> R.drawable.ph_plus

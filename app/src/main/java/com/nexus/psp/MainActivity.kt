@@ -55,14 +55,18 @@ class MainActivity : ComponentActivity() {
         AppState.storageTick++
         AppState.say("Папка открыта для KAPSULA", R.drawable.ph_check)
     }
-    private val askRead = registerForActivityResult(ActivityResultContracts.RequestPermission()) { AppState.storageTick++ }
+    // Android 8–10: чтение памяти и запись (чтобы создать папку KAPSULA) — одним окном, это одна группа разрешений
+    private val askRead = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        if (com.nexus.psp.data.Storage.allFiles(this)) GameLibrary.ensureFolder(this)
+        AppState.storageTick++
+    }
 
     private fun requestAllFiles() {
         if (Build.VERSION.SDK_INT >= 30) {
             try { startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName"))) }
             catch (e: Exception) { startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
             AppState.say("Включи «Доступ ко всем файлам» для KAPSULA и вернись назад")
-        } else askRead.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        } else askRead.launch(arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE, android.Manifest.permission.WRITE_EXTERNAL_STORAGE))
     }
 
     /** Своя обложка из галереи для игры coverFor. */
@@ -133,7 +137,9 @@ class MainActivity : ComponentActivity() {
                 val part = name.substringAfterLast('.').lowercase() in setOf("bin", "img")
                 // тот же файл уже в библиотеке — не копируем заново
                 val same = AppState.hasFile(name)
-                if (same != null) {
+                // файл этой игры пропал с прежнего места — копия займёт её место (время в игре сохранится)
+                if (same != null && same.missing) withContext(Dispatchers.IO) { GameLibrary.delete(this@MainActivity, same.path) }
+                else if (same != null) {
                     if (uris.size == 1) AppState.say("«${same.t}» уже в библиотеке", R.drawable.ph_check, "Открыть") { Nav.open(com.nexus.psp.ui.Ov.Game(same.id)) }
                     continue
                 }
@@ -173,6 +179,55 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Добавляет файлы телефона без копирования: игра запускается прямо оттуда, где лежит.
+     * Те же вопросы, что при копировании: файл уже в библиотеке, та же игра в другом формате.
+     */
+    private fun linkQueue(files: List<java.io.File>) {
+        if (AppState.importing != null) { AppState.say("Подожди — уже добавляю игру"); return }
+        lifecycleScope.launch {
+            var added: Game? = null; var count = 0
+            // дорожки, которые перечислены в выбранных CUE, отдельными играми не добавляем — они лежат рядом с CUE
+            val parts = withContext(Dispatchers.IO) { files.filter { it.extension.equals("cue", true) }.flatMap { com.nexus.psp.emulator.Disc.cueTracks(it) }.map { it.absolutePath }.toSet() }
+            for (f in files.filter { it.absolutePath !in parts }) {
+                val name = f.name
+                val same = AppState.hasFile(name)
+                // та же игра, но её файл пропал (перенесли) — запись переезжает на новое место, время в игре сохраняется
+                if (same != null && same.missing) withContext(Dispatchers.IO) { GameLibrary.delete(this@MainActivity, same.path) }
+                else if (same != null) {
+                    if (files.size == 1) AppState.say("«${same.t}» уже в библиотеке", R.drawable.ph_check, "Открыть") { Nav.open(com.nexus.psp.ui.Ov.Game(same.id)) }
+                    continue
+                }
+                var replace: Game? = null
+                val part = f.extension.lowercase() in setOf("bin", "img")
+                val twin = if (part) null else AppState.sameTitle(name)
+                if (twin != null) {
+                    val a = AppState.askUser("«${twin.t}» уже есть", "В библиотеке эта игра в формате ${twin.format}. Новый файл — ${f.extension.uppercase()}.", "Заменить", "Оставить обе", "Не добавлять")
+                    if (a == 0) replace = twin else if (a != 1) continue
+                }
+                try {
+                    val info = withContext(Dispatchers.IO) { com.nexus.psp.emulator.GameLibrary.link(this@MainActivity, f) }
+                    added = AppState.addImported(info); count++
+                    val miss = withContext(Dispatchers.IO) { com.nexus.psp.emulator.GameLibrary.missingParts(f) }
+                    if (miss.isNotEmpty()) AppState.say("Для «${added.t}» не хватает: ${miss.take(3).joinToString()}" + (if (miss.size > 3) " и других" else "") + " — положи их рядом", R.drawable.sl_alert)
+                    val r = replace; val ad = added
+                    if (r != null && ad != null) AppState.replaceWith(r.id, ad.id)
+                } catch (e: Exception) {
+                    AppState.say(e.message ?: "Не удалось добавить «$name»", R.drawable.sl_alert)
+                }
+            }
+            val g = added
+            if (g != null) {
+                if (count == 1) AppState.say("«${g.t}» в библиотеке — играет прямо из своей папки", R.drawable.ph_check, "Играть") { Act.play(this@MainActivity, g.id) }
+                else AppState.say("Добавлено игр: $count — без копирования", R.drawable.ph_check)
+                Act.buzzLong(); Nav.go("games")
+            }
+        }
+    }
+
+    /** Был ли доступ ко всем файлам при прошлом возвращении в приложение (чтобы заметить, что его дали). */
+    private var hadAccess: Boolean? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // системная заставка Android 12+ невидима; показывается фирменная заставка интерфейса
         installSplashScreen()
@@ -192,6 +247,7 @@ class MainActivity : ComponentActivity() {
         Act.pickFolder = { pickTree.launch(null) }
         Act.importAll = { l -> importQueue(l.filter { !it.exists }.map { it.uri }) }
         Act.importUris = { l -> importQueue(l) }
+        Act.linkFiles = { l -> linkQueue(l) }
         Act.requestAllFiles = { requestAllFiles() }
         Act.requestFolder = { grantTree.launch(null) }
         Act.pickCover = { id -> coverFor = id; pickImage.launch("image/*") }
@@ -254,7 +310,15 @@ class MainActivity : ComponentActivity() {
             cp.edit().putBoolean("askedNotify", true).apply()
             ensureNotify { }
         }
-        // после выхода из игры — время в игре, сохранения; файлы могли удалить вручную
+        // доступ ко всем файлам: папка KAPSULA создаётся сама; дали доступ только что — проводник и поиск перечитывают места
+        val access = com.nexus.psp.data.Storage.allFiles(this)
+        if (access) com.nexus.psp.emulator.GameLibrary.ensureFolder(this)
+        if (hadAccess != null && hadAccess != access) {
+            AppState.storageTick++
+            if (access) AppState.say("Готово: клади игры в папку ${com.nexus.psp.emulator.GameLibrary.FOLDER} — они появятся сами", R.drawable.ph_check)
+        }
+        hadAccess = access
+        // после выхода из игры — время в игре, сохранения; файлы могли удалить вручную; новые игры в папке KAPSULA
         AppState.loadReal()
         AppState.consumePendingGlobal()
         // жетоны за время в игре, вход, уровень, новые консоли и игры — считает сервер; без сети — телефон (до следующей связи)

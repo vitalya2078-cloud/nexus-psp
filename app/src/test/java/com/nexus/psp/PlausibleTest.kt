@@ -1,6 +1,7 @@
 package com.nexus.psp
 
 import com.nexus.psp.emulator.Disc
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -41,5 +42,44 @@ class PlausibleTest {
         org.junit.Assert.assertEquals("fb", pad.first { it.id == "b" }.key)
         org.junit.Assert.assertEquals("fr", pad.first { it.id == "a" }.key)
         org.junit.Assert.assertTrue(pad.none { it.id in setOf("l1", "r1", "l2", "r2") || it.stick != null })
+    }
+    /** Начало ISO 9660: метка тома CD001 в 16-м секторе (+ «PSP GAME», если нужно). */
+    private fun isoHead(psp: Boolean = true): ByteArray {
+        val b = ByteArray(Disc.HEAD); b[0x8000] = 1; "CD001".toByteArray().copyInto(b, 0x8001)
+        if (psp) "PSP GAME".padEnd(32).toByteArray().copyInto(b, 0x8008)
+        return b
+    }
+
+    /** Папки Android иногда не сообщают размер (0 или -1): образ проверяется по заголовку, а не отбрасывается. */
+    @Test fun unknownSizeIsoCheckedByHeader() {
+        val iso = isoHead()
+        assertEquals(Disc.Verdict.OK, Disc.verdict("iso", 0, iso))
+        assertEquals(Disc.Verdict.OK, Disc.verdict("iso", -1, iso))
+        assertTrue(Disc.plausible("iso", 0, iso))
+        assertTrue(Disc.plausible("iso", 1_500_000_000L, iso))
+    }
+
+    /** Образ без привычной метки — не «текст» и не «маленький»: его можно добавить с пометкой «не проверен». */
+    @Test fun isoWithoutMarkIsNoMark() {
+        val zeros = ByteArray(Disc.HEAD)
+        assertEquals(Disc.Verdict.NO_MARK, Disc.verdict("iso", 300L * 1024 * 1024, zeros))
+        assertEquals(Disc.Verdict.NO_MARK, Disc.verdict("iso", 0, zeros))
+        assertTrue("iso" in Disc.DISC_EXT && "cso" in Disc.DISC_EXT)
+    }
+
+    @Test fun emptyTinyAndTextFiles() {
+        assertEquals(Disc.Verdict.SMALL, Disc.verdict("iso", 0, ByteArray(0)))
+        assertEquals(Disc.Verdict.SMALL, Disc.verdict("iso", 500, ByteArray(500)))
+        val txt = "hello world, this is a log file\n".repeat(500).toByteArray()
+        assertEquals(Disc.Verdict.TEXT, Disc.verdict("iso", txt.size.toLong(), txt))
+        assertEquals(Disc.Verdict.TEXT, Disc.verdict("iso", 0, txt))
+    }
+
+    /** Картриджи с неизвестным размером: по заголовку — да, без признаков — нет. */
+    @Test fun unknownSizeCartridges() {
+        val rom = ByteArray(Disc.HEAD); "SEGA MEGA DRIVE".toByteArray().copyInto(rom, 0x100)
+        assertEquals(Disc.Verdict.OK, Disc.verdict("md", 0, rom))
+        assertEquals(Disc.Verdict.NO_MARK, Disc.verdict("md", 0, ByteArray(Disc.HEAD)))
+        assertEquals(Disc.Verdict.SMALL, Disc.verdict("nes", 0, ByteArray(100) { 1 }))
     }
 }

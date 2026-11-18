@@ -62,16 +62,42 @@ object Disc {
      * Похоже ли содержимое на игру этого формата. Отсекает README.md, описания, случайные .bin/.iso/.img.
      * head — первые HEAD байт файла (или меньше, если файл короче).
      */
-    fun plausible(ext: String, size: Long, head: ByteArray): Boolean {
+    fun plausible(ext: String, size: Long, head: ByteArray): Boolean = verdict(ext, size, head) == Verdict.OK
+
+    /** Итог проверки содержимого: игра; текстовый файл; слишком маленький; нет признаков игры этого формата. */
+    enum class Verdict { OK, TEXT, SMALL, NO_MARK }
+
+    /**
+     * Образы дисков, которые можно добавить, даже если проверка по заголовку не уверена:
+     * эмулятор откроет файл сам, а при неудачном запуске LaunchCheck объяснит причину.
+     */
+    val DISC_EXT = setOf("iso", "cso", "zso", "chd", "pbp")
+
+    /**
+     * Подробная проверка для plausible. size ≤ 0 — размер неизвестен (папки Android его иногда не сообщают):
+     * тогда решаем только по содержимому.
+     */
+    fun verdict(ext: String, size: Long, head: ByteArray): Verdict {
         fun at(o: Int, s: String) = head.size >= o + s.length && String(head, o, s.length, Charsets.ISO_8859_1) == s
         fun cd(): Boolean = at(0x8001, "CD001") || at(16 * 2352 + 24 + 1, "CD001") || at(16 * 2352 + 16 + 1, "CD001") || at(0, "SEGA SEGASATURN") || at(16, "SEGA SEGASATURN") || at(0, "SEGADISCSYSTEM") || at(16, "SEGADISCSYSTEM")
         val textOk = ext in setOf("cue", "m3u", "gdi", "ccd")
-        if (size < 1024 && !textOk) return false
+        if (size in 1L..1023L && !textOk) return Verdict.SMALL
+        // пустой файл (или ничего не прочиталось при неизвестном размере)
+        if (head.isEmpty() && size <= 0) return Verdict.SMALL
         // текст (нет нулевых байт в начале, почти все символы печатные) — не игра
         if (!textOk) {
             val n = minOf(head.size, 4096)
-            if (n > 0 && (0 until n).none { head[it].toInt() == 0 } && (0 until n).count { val b = head[it].toInt() and 0xFF; b == 9 || b == 10 || b == 13 || b in 32..126 || b >= 0xC0 } > n * 0.95) return false
+            if (n > 0 && (0 until n).none { head[it].toInt() == 0 } && (0 until n).count { val b = head[it].toInt() and 0xFF; b == 9 || b == 10 || b == 13 || b in 32..126 || b >= 0xC0 } > n * 0.95) return Verdict.TEXT
         }
+        // размер неизвестен, а прочиталось совсем мало — для картриджей это не игра (у образов дисков решит метка ниже)
+        val len = if (size > 0) size else head.size.toLong()
+        if (len < 1024 && !textOk && ext !in DISC_EXT) return Verdict.SMALL
+        val ok = rule(ext, len, head, ::at, ::cd)
+        return if (ok) Verdict.OK else Verdict.NO_MARK
+    }
+
+    /** Признаки игры конкретного формата (size — известный размер или сколько прочитано). */
+    private fun rule(ext: String, size: Long, head: ByteArray, at: (Int, String) -> Boolean, cd: () -> Boolean): Boolean {
         return when (ext) {
             "iso", "img" -> cd() || at(0x8008, "PSP GAME")
             "bin" -> cd() || at(0x100, "SEGA") || at(0x7FF0, "TMR SEGA") || at(0x3FF0, "TMR SEGA") || at(0x1FF0, "TMR SEGA") || size in setOf(2048L, 4096L, 8192L, 12288L, 16384L, 32768L)

@@ -61,6 +61,7 @@ import com.nexus.psp.ui.kit.tap
 /** Знакомство при первом запуске (п. 6): консоли → как играть → первая игра. */
 @Composable
 fun Onboarding(onDone: () -> Unit) {
+    val ctx = LocalContext.current
     var step by remember { mutableIntStateOf(0) }
     val cons = remember { mutableStateListOf("psp", "ps1", "ps2") }
     var how by remember { mutableStateOf("touch") }
@@ -92,10 +93,20 @@ fun Onboarding(onDone: () -> Unit) {
                                 }
                             }
                             else -> {
+                                // своя папка: игры кладут туда, они появляются в библиотеке сами (нужен доступ ко всем файлам)
+                                Opt(false, Modifier.weight(1f), {
+                                    finish()
+                                    if (com.nexus.psp.data.Storage.allFiles(ctx)) { com.nexus.psp.emulator.GameLibrary.ensureFolder(ctx); AppState.say("Клади игры в папку ${com.nexus.psp.emulator.GameLibrary.FOLDER} — они появятся сами", R.drawable.ph_check) }
+                                    else Act.requestAllFiles?.invoke()
+                                }) {
+                                    SolarIcon(R.drawable.sl_save, 24.dp, K.acc)
+                                    Text("Папка ${com.nexus.psp.emulator.GameLibrary.FOLDER}", style = T.h3)
+                                    Text("Клади игры в эту папку в памяти телефона — они появятся сами, без копирования", style = T.small)
+                                }
                                 Opt(false, Modifier.weight(1f), { finish(); Act.addFile() }) {
                                     SolarIcon(R.drawable.sl_folder, 24.dp, K.acc)
                                     Text("Выбрать файл", style = T.h3)
-                                    Text("Одна игра — скопируется в KAPSULA", style = T.small)
+                                    Text("Найди игру в проводнике KAPSULA", style = T.small)
                                 }
                                 Opt(false, Modifier.weight(1f), { finish(); Act.findGames() }) {
                                     SolarIcon(R.drawable.sl_search, 24.dp, K.acc)

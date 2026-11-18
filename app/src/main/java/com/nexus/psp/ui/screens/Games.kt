@@ -211,7 +211,7 @@ private fun EmptyShelf() {
         }
         Column(Modifier.weight(1.1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Полка PSP пока пустая", style = T.h1.copy(fontSize = 28.sp))
-            Text("Закинь образ своего UMD — ISO, CSO, CHD или PBP. Игры для PS1, PS2, Sega и других консолей живут на своих полках: значок с джойстиком в шапке.", style = T.body)
+            Text("Закинь образ своего UMD — ISO, CSO, CHD или PBP. Проще всего — положить файлы в папку ${com.nexus.psp.emulator.GameLibrary.FOLDER} в памяти телефона: игры появятся сами. Игры для PS1, PS2, Sega и других консолей живут на своих полках: значок с джойстиком в шапке.", style = T.body)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                 KButton("Добавить игру", R.drawable.ph_plus, BtnKind.Main) { Act.addFile() }
                 KButton("Найти на телефоне", R.drawable.sl_search) { Act.findGames() }

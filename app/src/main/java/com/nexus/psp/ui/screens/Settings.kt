@@ -44,6 +44,7 @@ import com.nexus.psp.ui.Nav
 import com.nexus.psp.ui.OvHead
 import com.nexus.psp.ui.Ov
 import com.nexus.psp.ui.kit.AssetImage
+import com.nexus.psp.ui.kit.BtnKind
 import com.nexus.psp.ui.kit.K
 import com.nexus.psp.ui.kit.KButton
 import com.nexus.psp.ui.kit.Opt
@@ -132,8 +133,16 @@ private fun General() {
 @Composable
 private fun Downloads() {
     val ctx = LocalContext.current
-    Opt("Папка с играми", sub = com.nexus.psp.emulator.CoreFiles.gamesDir(ctx).absolutePath.replace("/storage/emulated/0/", "")) { Text("своя папка — позже", style = T.small) }
-    Opt("Добавить игру", "Файл ISO, CSO, CHD или PBP — скопируется в папку KAPSULA") { KButton("Выбрать файл", R.drawable.ph_plus, small = true) { com.nexus.psp.ui.Act.addFile() } }
+    // перечитать доступ, когда игрок вернулся из системных настроек
+    val access = remember(AppState.storageTick) { com.nexus.psp.data.Storage.allFiles(ctx) }
+    val folder = com.nexus.psp.emulator.GameLibrary.FOLDER
+    if (access) Opt("Папка $folder", "В памяти телефона. Клади сюда игры — они появятся в библиотеке сами и запустятся без копирования") {
+        KButton("Открыть", R.drawable.sl_folder, small = true) { com.nexus.psp.emulator.GameLibrary.ensureFolder(ctx); AppState.storageTick++; com.nexus.psp.ui.Act.addFile() }
+    } else Opt("Папка $folder", "Своя папка для игр: кладёшь файлы — они появляются сами. Нужен «Доступ ко всем файлам»") {
+        KButton("Включить", R.drawable.sl_device, BtnKind.Main, small = true) { com.nexus.psp.ui.Act.requestAllFiles?.invoke() }
+    }
+    Opt("Копии игр", sub = com.nexus.psp.emulator.CoreFiles.gamesDir(ctx).absolutePath.replace("/storage/emulated/0/", "") + " — сюда копируются игры из системного окна и скачанные") { }
+    Opt("Добавить игру", if (access) "Игры из памяти телефона запускаются на месте, без копирования" else "Файл ISO, CSO, CHD или PBP — скопируется в KAPSULA") { KButton("Выбрать файл", R.drawable.ph_plus, small = true) { com.nexus.psp.ui.Act.addFile() } }
     Opt("Найти игры на телефоне", "Выбери папку — KAPSULA найдёт все образы в ней и вложенных папках") { KButton("Выбрать папку", R.drawable.sl_search, small = true) { com.nexus.psp.ui.Act.findGames() } }
     Opt("Обложки из интернета", "По серийному номеру диска, из открытой базы обложек. Сохраняются на телефоне") { Toggle(S.covers) { S.covers = it; if (it) AppState.byId.keys.forEach { id -> AppState.fetchMeta(id) } } }
     Opt("Обложки только по Wi-Fi", "Одна обложка — до 1 МБ") { Toggle(S.coversWifi) { S.coversWifi = it } }
