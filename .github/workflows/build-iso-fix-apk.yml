@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: ["fix/iso-import-compatibility"]
-    paths: [".github/workflows/build-iso-fix-apk.yml"]
+    paths:\n      - ".github/workflows/build-iso-fix-apk.yml"\n      - "app/src/main/java/com/nexus/psp/MainActivity.kt"\n      - "app/src/main/java/com/nexus/psp/emulator/GameLibrary.kt"\n      - "app/src/main/java/com/nexus/psp/data/Storage.kt"\n      - "app/src/main/java/com/nexus/psp/ui/screens/Files.kt"
 
 permissions:
   contents: read
