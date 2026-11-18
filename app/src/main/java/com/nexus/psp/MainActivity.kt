@@ -40,6 +40,14 @@ class MainActivity : ComponentActivity() {
     /** «Найти игры на телефоне»: выбор папки, поиск образов в ней и во вложенных папках. */
     private val pickTree = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
         if (tree == null) return@registerForActivityResult
+        // Поиск продолжается после закрытия системного окна. Сохраняем SAF-доступ,
+        // иначе найденные документы могут отображаться, но уже не читаться при импорте.
+        try {
+            contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (e: Exception) {
+            AppState.say("Не удалось сохранить доступ к выбранной папке")
+            return@registerForActivityResult
+        }
         AppState.scanning = true
         lifecycleScope.launch {
             val list = withContext(Dispatchers.IO) { scanTree(tree) }
