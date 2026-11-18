@@ -5,7 +5,8 @@ name: Test build (no publish)
 on:
   workflow_dispatch:
   push:
-    branches: [ "ccr-5b34eaf4-urzyg1" ]
+    # Все ветки сессий ccr-*, кроме основной линии (её собирает и публикует android.yml).
+    branches: [ "ccr-*", "!ccr-30f02f17-ph3ie4" ]
     paths-ignore: [ "telegram/**", "plans/**", "promo/**", "docs/**" ]
 
 concurrency:
