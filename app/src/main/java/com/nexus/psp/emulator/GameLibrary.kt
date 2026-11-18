@@ -85,10 +85,27 @@ object GameLibrary {
     fun idOf(name: String) = "f_" + name.lowercase().replace(Regex("[^a-z0-9а-яё]+"), "_").trim('_').take(40)
 
     fun displayName(c: Context, uri: Uri): Pair<String, Long> {
-        c.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cur ->
-            if (cur.moveToFirst()) return (cur.getString(0) ?: "game.iso") to (if (cur.isNull(1)) -1L else cur.getLong(1))
-        }
-        return (uri.lastPathSegment ?: "game.iso") to -1L
+        // Разные SAF-провайдеры по-разному реализуют OpenableColumns и могут
+        // выбрасывать исключение для documentUri, построенного из treeUri.
+        try {
+            c.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cur ->
+                if (cur.moveToFirst()) {
+                    val name = cur.getString(0)?.takeIf { it.isNotBlank() }
+                    if (name != null) return name to (if (cur.isNull(1)) -1L else cur.getLong(1))
+                }
+            }
+        } catch (_: Exception) { }
+        // Для SAF берём имя из documentId (например, primary:Games/title.iso),
+        // а не из последнего сегмента URI, который у некоторых провайдеров — числовой ID.
+        val documentName = try {
+            if (android.provider.DocumentsContract.isDocumentUri(c, uri))
+                android.provider.DocumentsContract.getDocumentId(uri).substringAfterLast('/').substringAfterLast(':')
+            else null
+        } catch (_: Exception) { null }
+        val fallback = documentName?.takeIf { it.contains('.') }
+            ?: Uri.decode(uri.lastPathSegment.orEmpty()).substringAfterLast('/').substringAfterLast(':').takeIf { it.contains('.') }
+            ?: "game.iso"
+        return fallback to -1L
     }
 
     /**
@@ -145,7 +162,15 @@ object GameLibrary {
         val part = File(dir, "$name.part")
         val backup = File(dir, ".$name.kapsula-backup")
         try {
-            val input = c.contentResolver.openInputStream(uri) ?: throw IOException("Не удалось открыть выбранный файл")
+            // Некоторые SAF-провайдеры не отдают InputStream напрямую,
+            // но предоставляют читаемый файловый дескриптор.
+            val input = try { c.contentResolver.openInputStream(uri) } catch (_: Exception) { null }
+                ?: try {
+                    c.contentResolver.openFileDescriptor(uri, "r")?.let {
+                        android.os.ParcelFileDescriptor.AutoCloseInputStream(it)
+                    }
+                } catch (_: Exception) { null }
+                ?: throw IOException("Не удалось открыть файл через Android SAF. Проверь доступ к выбранной папке.")
             input.use { copyStreamToFile(it, part, total, onProgress) }
 
             // Восстанавливаем резервную копию, если предыдущий запуск прервался между переименованиями.
