@@ -6,6 +6,9 @@ import android.provider.OpenableColumns
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
 
 /** Свои образы игр пользователя: копия в папке приложения (Android/data/…/files/games). */
 object GameLibrary {
@@ -88,7 +91,51 @@ object GameLibrary {
         return (uri.lastPathSegment ?: "game.iso") to -1L
     }
 
-    /** Копирует файл; onProgress — доля 0..1. Возвращает итоговый файл. */
+    /**
+     * Копирует поток во временный файл и проверяет размер, если источник его сообщил.
+     * 100% прогресса показываем только после успешной проверки.
+     */
+    internal fun copyStreamToFile(input: InputStream, target: File, expectedSize: Long, onProgress: (Double) -> Unit): Long {
+        var copied = 0L
+        try {
+            FileOutputStream(target, false).use { output ->
+                val buffer = ByteArray(1 shl 20)
+                var lastPercent = -1
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    if (count == 0) {
+                        val one = input.read()
+                        if (one < 0) break
+                        output.write(one)
+                        copied++
+                    } else {
+                        output.write(buffer, 0, count)
+                        copied += count
+                    }
+                    if (expectedSize > 0) {
+                        val percent = (copied * 100 / expectedSize).toInt().coerceIn(0, 99)
+                        if (percent != lastPercent) {
+                            lastPercent = percent
+                            onProgress(percent / 100.0)
+                        }
+                    }
+                }
+                output.fd.sync()
+            }
+            if (copied == 0L) throw IOException("Выбранный файл пустой")
+            if (expectedSize > 0 && copied != expectedSize) {
+                throw IOException("Файл скопирован не полностью: получено $copied из $expectedSize байт")
+            }
+            onProgress(1.0)
+            return copied
+        } catch (e: Exception) {
+            target.delete()
+            throw e
+        }
+    }
+
+    /** Копирует файл; исходная версия в библиотеке сохраняется до успешной проверки новой копии. */
     fun importFile(c: Context, uri: Uri, onProgress: (Double) -> Unit): File {
         val (name0, total) = displayName(c, uri)
         val name = name0.replace(Regex("[\\\\/:*?\"<>|]"), "_")
@@ -96,19 +143,34 @@ object GameLibrary {
         val dir = CoreFiles.gamesDir(c)
         val out = File(dir, name)
         val part = File(dir, "$name.part")
-        c.contentResolver.openInputStream(uri)!!.use { inp ->
-            part.outputStream().use { o ->
-                val buf = ByteArray(1 shl 20); var done = 0L; var last = -1
-                while (true) {
-                    val n = inp.read(buf); if (n < 0) break
-                    o.write(buf, 0, n); done += n
-                    if (total > 0) { val pct = (done * 100 / total).toInt(); if (pct != last) { last = pct; onProgress(done.toDouble() / total) } }
+        val backup = File(dir, ".$name.kapsula-backup")
+        try {
+            val input = c.contentResolver.openInputStream(uri) ?: throw IOException("Не удалось открыть выбранный файл")
+            input.use { copyStreamToFile(it, part, total, onProgress) }
+
+            // Восстанавливаем резервную копию, если предыдущий запуск прервался между переименованиями.
+            if (backup.exists()) {
+                if (!out.exists()) {
+                    if (!backup.renameTo(out)) throw IOException("Не удалось восстановить прежнюю копию игры")
+                } else if (!backup.delete()) {
+                    throw IOException("Не удалось очистить временную резервную копию")
                 }
             }
+
+            val hadOriginal = out.exists()
+            if (hadOriginal && !out.renameTo(backup)) {
+                throw IOException("Не удалось сохранить прежнюю копию игры")
+            }
+            if (!part.renameTo(out)) {
+                if (hadOriginal && backup.exists()) backup.renameTo(out)
+                throw IOException("Не удалось сохранить новую копию игры")
+            }
+            if (backup.exists()) backup.delete()
+            return out
+        } catch (e: Exception) {
+            part.delete()
+            throw e
         }
-        if (out.exists()) out.delete()
-        check(part.renameTo(out)) { "Не сохранилось, попробуй ещё раз файл" }
-        return out
     }
 
     /** Удаляет игру вместе с её частями (дорожки CUE, диски M3U). */
