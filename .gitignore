@@ -13,3 +13,4 @@ libretrodroid-src/
 __pycache__/
 *.pyc
 *.whl
+*.apk
