@@ -10,3 +10,6 @@ app/src/main/assets/ppsspp/
 nexus-debug.keystore
 .kotlin/
 libretrodroid-src/
+__pycache__/
+*.pyc
+*.whl
