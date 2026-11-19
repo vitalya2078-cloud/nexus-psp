@@ -246,7 +246,41 @@ private fun Summary() {
             for (i in 0 until b.length()) b.getJSONObject(i).let { KV(it.optString("item"), "${it.optInt("n")}") }
         }
         if (s.optInt("banned") > 0) Text("Заблокировано: ${s.optInt("banned")}", style = F.small)
+        AppStats(tick)
         Btn("Обновить", Modifier.fillMaxWidth()) { tick++ }
+    }
+}
+
+/** Анонимная статистика приложения за 7 дней: суммы по событиям (без игроков). */
+@Composable
+private fun AppStats(tick: Int) {
+    var rows by remember { mutableStateOf<JSONArray?>(null) }
+    LaunchedEffect(tick) { val r = req("stats", JSONObject().put("days", 7)); if (r.ok) rows = r.arr() }
+    val a = rows ?: return
+    val sum = HashMap<String, Long>()
+    val players = sortedMapOf<String, Long>()
+    for (i in 0 until a.length()) a.getJSONObject(i).let { o ->
+        val kind = o.optString("kind"); val n = o.optLong("n")
+        if (kind == "players") players[o.optString("day")] = n else sum["$kind|${o.optString("k")}"] = (sum["$kind|${o.optString("k")}"] ?: 0) + n
+    }
+    Caps("Статистика приложения · 7 дней")
+    Card(Modifier.fillMaxWidth()) {
+        if (a.length() == 0) { Text("Пока нет данных — придут от версии 0.46 и выше", style = F.small); return@Card }
+        if (players.isNotEmpty()) KV("Игроков в день (сред.)", "${players.values.average().toInt()}")
+        @Composable fun group(kind: String, title: String, name: (String) -> String = { it }) {
+            val g = sum.filterKeys { it.startsWith("$kind|") }.mapKeys { it.key.substringAfter('|') }
+            if (g.isEmpty()) return
+            Text(title, style = F.label.copy(fontSize = 14.sp), modifier = Modifier.padding(top = 6.dp))
+            g.entries.sortedByDescending { it.value }.forEach { KV(name(it.key).ifEmpty { "—" }, "${it.value}") }
+        }
+        group("app_open", "Запуски приложения") { "всего" }
+        group("game_start", "Запуски игр по консолям") { it.uppercase() }
+        group("session", "Длина игры, мин")
+        group("screen", "Вкладки") { when (it) { "games" -> "Игры"; "my" -> "Моё"; "ctl" -> "Управление"; else -> it } }
+        group("crash", "Сбои") { when (it) { "game_native" -> "игра: сбой ядра"; "game_anr" -> "игра: не отвечала"; "game_mem" -> "игра: не хватило памяти"
+            "main_native" -> "меню: сбой"; "main_anr" -> "меню: не отвечало"; "main_mem" -> "меню: не хватило памяти"; else -> it } }
+        group("add_fail", "Отказы проводника") { when (it) { "format" -> "не тот формат"; "text" -> "текстовый файл"; "small" -> "слишком маленький"
+            "nomark" -> "нет метки диска"; "unread" -> "не прочитался"; else -> it } }
     }
 }
 

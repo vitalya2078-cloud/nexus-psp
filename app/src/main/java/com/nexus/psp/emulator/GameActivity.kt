@@ -476,7 +476,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             ui.layPill = sp.name to sp.base
             layPillJob?.cancel(); layPillJob = lifecycleScope.launch { delay(1200); ui.layPill = null }
         }
-        controls.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        controls.haptic(android.view.HapticFeedbackConstants.LONG_PRESS)
     }
 
     /** «Пока держишь»: другая раскладка, нажатая кнопка остаётся под пальцем. */
@@ -1198,7 +1198,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 onEvent = { type, _, t, d, b, pts -> runOnUiThread {
                     if (type == 1) {
                         ui.raUnlocked++; ui.raPopup = GameActivity.RaPop(t ?: "", d ?: "", b ?: "", pts)
-                        controls.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                        controls.haptic(android.view.HapticFeedbackConstants.LONG_PRESS)
                         lifecycleScope.launch { delay(5000); ui.raPopup = null }
                     } else if (type == 2) toast("Все достижения игры получены!")
                 } },
@@ -1228,7 +1228,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 if (!r.optBoolean("on") || ui.paused || ui.editing || ui.learning || holdFrom != null || ui.ctlMode != "touch" || ui.phase != "ready") continue
                 autoAt = System.nanoTime()
                 val lay = withContext(Dispatchers.Default) { try { AutoSwitch.detect(r) } catch (e: Throwable) { null } } ?: continue
-                if (lay != layName && specOf(lay) != null) { applyLayout(lay); controls.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK) }
+                if (lay != layName && specOf(lay) != null) { applyLayout(lay); controls.haptic(android.view.HapticFeedbackConstants.CLOCK_TICK) }
             }
         }
     }

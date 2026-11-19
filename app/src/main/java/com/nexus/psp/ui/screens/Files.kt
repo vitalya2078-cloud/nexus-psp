@@ -150,7 +150,7 @@ fun FilesScreen(mode: String) {
                                         when {
                                             n.isDir -> { path.add(n); q = "" }
                                             pending -> AppState.say("Проверяю файл — секунду")
-                                            !fits -> AppState.say((ck as? Storage.Check.No)?.why ?: Storage.NOT_SUPPORTED)
+                                            !fits -> { val why = (ck as? Storage.Check.No)?.why; com.nexus.psp.data.Telemetry.count("add_fail", com.nexus.psp.data.Telemetry.failCode(why)); AppState.say(why ?: Storage.NOT_SUPPORTED) }
                                             bios -> { sel.clear(); sel.add(n) }
                                             on -> sel.removeAll { it.key == n.key }
                                             else -> { sel.add(n); unsure?.let { AppState.say(it.why, R.drawable.sl_alert) } }

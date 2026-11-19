@@ -37,6 +37,9 @@ object NativeCrash {
             for (e in list.sortedBy { it.timestamp }) {
                 val proc = if (e.processName.endsWith(":game")) "game" else "main"
                 val f = File(c.filesDir, "crash_$proc.txt")
+                when (e.reason) {
+                    ApplicationExitInfo.REASON_ANR -> "anr"; ApplicationExitInfo.REASON_CRASH_NATIVE -> "native"; ApplicationExitInfo.REASON_LOW_MEMORY -> "mem"; else -> null
+                }?.let { com.nexus.psp.data.Telemetry.count("crash", "${proc}_$it") }
                 // наш обработчик уже записал это падение подробнее
                 if (f.exists() && f.lastModified() >= e.timestamp - 5_000) continue
                 val what = when (e.reason) {

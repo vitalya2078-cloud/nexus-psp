@@ -233,8 +233,10 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         com.nexus.psp.data.CrashLog.install(applicationContext, "main")
+        com.nexus.psp.data.Telemetry.init(applicationContext)
         Thread { com.nexus.psp.emulator.NativeCrash.collectExitReasons(applicationContext) }.start()
         AppState.init(this)
+        if (savedInstanceState == null) com.nexus.psp.data.Telemetry.count("app_open")
         com.nexus.psp.emulator.Disc.chosen = com.nexus.psp.data.AppState.S.cons.split(',').filter { it.isNotBlank() }.toSet()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

@@ -337,7 +337,17 @@ object Cloud {
             // сразу отправить оформление профиля и покупки, сделанные до регистрации
             return got(state) + (push() ?: emptyList())
         }
-        return push()
+        return push().also { flushStats() }
+    }
+
+    /** Анонимная статистика — пачкой, не чаще раза в 10 минут (сервер проверяет то же). */
+    private fun flushStats() {
+        if (!Telemetry.due()) return
+        val (st, r) = call(JSONObject().put("action", "stats").put("code", code).put("p", JSONObject().put("items", Telemetry.pending())))
+        when {
+            st == 200 -> Telemetry.sent(ok = true)
+            r?.optString("error") == "wait" -> Telemetry.sent(ok = false)
+        }
     }
 
     private fun push(): List<Pair<String, Int>>? {

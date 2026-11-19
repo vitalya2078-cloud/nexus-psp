@@ -93,6 +93,8 @@ class Settings(private val sp: SharedPreferences) {
     var sc by i("sc", 100)
     var hide by b("hide", true)
     var cloud by b("cloud", true)
+    /** Анонимная статистика (счётчики без названий игр и без привязки к игроку). */
+    var stats by b("stats", true)
     var ctlMode by s("ctlMode", "touch")
     var lang by s("lang", "RU")
     var sort by s("sort", "Недавние")
@@ -199,6 +201,7 @@ object AppState {
         sp = app.getSharedPreferences("kapsula", Context.MODE_PRIVATE)
         S = Settings(sp)
         Tokens.init(app)
+        Telemetry.init(app)
         Cloud.init(app)
         load()
         loadReal()
@@ -376,6 +379,7 @@ object AppState {
         try {
             val o = JSONObject(f.readText()); val id = o.getString("id"); val min = o.optInt("minutes")
             lib[id]?.let { e -> lib[id] = e.copy(play = e.play + min, saves = e.saves + o.optInt("saves")) }
+            byId[id]?.let { g -> Telemetry.count("game_start", g.p); Telemetry.count("session", Telemetry.bucket(min)) }
             if (min > 0) { val d = day(Date()); history[d] = (history[d] ?: 0) + min }
         } catch (e: Exception) { }
         f.delete()

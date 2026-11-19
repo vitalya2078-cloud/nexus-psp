@@ -460,6 +460,8 @@ class ControlsView(context: Context, private val listener: Listener) : View(cont
     }
 
     private fun buzz() { if (vibrate) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) }
+    /** Отклик игры (смена раскладки, долгое нажатие) — только если вибрация включена в настройках. */
+    fun haptic(type: Int) { if (vibrate) performHapticFeedback(type) }
 
     private fun press(i: Int, t: Touch, x: Float, y: Float) {
         val b = buttons[i]

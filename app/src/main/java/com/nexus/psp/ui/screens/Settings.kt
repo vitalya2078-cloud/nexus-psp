@@ -128,6 +128,9 @@ private fun General() {
     Opt("Экономия батареи", "При заряде 15% и ниже — пресет «Батарея» до зарядки") { Toggle(S.batterySaver) { S.batterySaver = it } }
     Opt("Продолжать с места выхода", "При выходе из игры место сохраняется само, «Играть» возвращает туда же") { Toggle(S.autoResume) { S.autoResume = it } }
     Opt("Облачные сохранения", "Продолжай на другом телефоне (в планах)") { Toggle(S.cloud) { S.cloud = it } }
+    Opt("Анонимная статистика", "Сколько запусков, на каких консолях, были ли сбои — без названий игр и без твоего ID. Помогает чинить KAPSULA") {
+        Toggle(S.stats) { S.stats = it; if (!it) com.nexus.psp.data.Telemetry.clear() }
+    }
 }
 
 @Composable

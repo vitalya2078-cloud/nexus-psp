@@ -51,7 +51,7 @@ object Nav {
     fun replace(o: Ov) { if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex); open(o) }
     fun back(): Boolean { if (stack.isEmpty()) return false; stack.removeAt(stack.lastIndex); return true }
     fun closeAll() = stack.clear()
-    fun go(t: String) { stack.clear(); tab = t }
+    fun go(t: String) { stack.clear(); if (t != tab) com.nexus.psp.data.Telemetry.count("screen", t); tab = t }
 }
 
 /** Действия, которым нужен Android: запуск игры, вибрация. */
