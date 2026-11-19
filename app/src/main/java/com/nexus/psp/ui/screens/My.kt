@@ -111,6 +111,7 @@ fun MyScreen() {
         else {
             Banner(st, onEdit = { com.nexus.psp.ui.Nav.open(com.nexus.psp.ui.Ov.Look("profile")) }, onShare = { scope.launch { shareProfile(ctx, st) } })
             StatsStrip(st)
+            WeekChallenges()
             if (AppState.byId.size < 3) AddGuide()
             ContinueRow()
             MomentsRow { view = it }

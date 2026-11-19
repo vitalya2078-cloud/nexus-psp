@@ -202,6 +202,7 @@ object AppState {
         S = Settings(sp)
         Tokens.init(app)
         Telemetry.init(app)
+        CloudSaves.init(app)
         Cloud.init(app)
         load()
         loadReal()
@@ -380,6 +381,8 @@ object AppState {
             val o = JSONObject(f.readText()); val id = o.getString("id"); val min = o.optInt("minutes")
             lib[id]?.let { e -> lib[id] = e.copy(play = e.play + min, saves = e.saves + o.optInt("saves")) }
             byId[id]?.let { g -> Telemetry.count("game_start", g.p); Telemetry.count("session", Telemetry.bucket(min)) }
+            CloudSaves.dirty = id
+            Invite.reset(app, id)
             if (min > 0) { val d = day(Date()); history[d] = (history[d] ?: 0) + min }
         } catch (e: Exception) { }
         f.delete()

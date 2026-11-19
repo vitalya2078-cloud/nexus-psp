@@ -192,11 +192,13 @@ object Cloud {
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             fresh.forEach { o ->
                 val at = try { java.time.OffsetDateTime.parse(o.optString("at")).toInstant().toEpochMilli() } catch (e: Exception) { System.currentTimeMillis() }
-                AppState.alerts.add(0, Alert(o.optString("title"), o.optString("body"), true, if (Inbox.isFriend(o.optString("kind"))) FRIENDS else null, at))
+                val tag = when { Inbox.isFriend(o.optString("kind")) -> FRIENDS; o.optString("kind") == "invite" -> o.optJSONObject("data")?.let { Invite.tag(it) }; else -> null }
+                AppState.alerts.add(0, Alert(o.optString("title"), o.optString("body"), true, tag, at))
             }
             for (i in 0 until news.length()) news.getJSONObject(i).let { n -> if (n.optLong("id") > lastNews) { AppState.alerts.add(0, Alert(n.optString("text"), "Новости KAPSULA", true)); lastNews = n.optLong("id") } }
             fresh.lastOrNull()?.let { o ->
                 if (Inbox.isFriend(o.optString("kind"))) AppState.say(o.optString("title"), action = "Открыть") { openFriends() }
+                else if (o.optString("kind") == "invite") o.optJSONObject("data")?.let { d -> AppState.say(o.optString("title"), action = "Присоединиться") { Invite.join(c, Invite.tag(d)) } }
                 else AppState.say(o.optString("title"))
             }
             if (fresh.isNotEmpty() || news.length() > 0) {
@@ -252,11 +254,49 @@ object Cloud {
         }
     }
 
+    // ---------- недельные испытания ----------
+
+    /** Испытания этой недели: {week, until, items:[{id, kind, title, target, reward, progress, claimed}]}. */
+    var week by mutableStateOf<JSONObject?>(null)
+        private set
+
+    /** Загрузить испытания; null — получилось, иначе текст ошибки. */
+    fun loadChallenges(): String? {
+        if (!ready) return "Нет связи с сервером"
+        if (code.isEmpty()) return "Аккаунт ещё создаётся — попробуй через минуту"
+        val (st, r) = call(JSONObject().put("action", "challenges").put("code", code))
+        return when {
+            st == 200 && r != null -> { week = r; null }
+            st == 0 -> "Нет связи с сервером. Проверь интернет"
+            else -> "Сервер не ответил. Попробуй позже"
+        }
+    }
+
+    /** Забрать награду за испытание. Ответ: сколько жетонов (0 — нет) и текст ошибки. */
+    fun claim(id: Long): Pair<Int, String?> {
+        if (!ready || code.isEmpty()) return 0 to "Нет связи с сервером"
+        val (st, r) = call(JSONObject().put("action", "claim").put("code", code).put("id", id))
+        if (st == 200 && r != null) {
+            Tokens.serverBalance(r.optInt("balance"))
+            loadChallenges()
+            return r.optInt("amount") to null
+        }
+        return 0 to when (r?.optString("error")) {
+            "not_yet" -> "Испытание ещё не выполнено — прогресс обновляется после игры"
+            "claimed" -> "Награда уже у тебя"
+            "no_challenge" -> "Это испытание уже закончилось"
+            "banned" -> "Аккаунт заблокирован"
+            else -> if (st == 0) "Нет связи с сервером. Проверь интернет" else "Сервер не ответил. Попробуй позже"
+        }
+    }
+
+    internal fun setWeekForTest(w: JSONObject?) { week = w }
+
     // ---------- покупки без сети ----------
     fun pendingBuy(id: String) { if (ready) sp.edit().putStringSet("buys", (sp.getStringSet("buys", emptySet())!! + id)).apply() }
 
     // ---------- запросы ----------
-    private fun call(body: JSONObject): Pair<Int, JSONObject?> = try {
+    internal fun call(body: JSONObject): Pair<Int, JSONObject?> = try {
         val c = URL(URL_FN).openConnection() as HttpURLConnection
         c.requestMethod = "POST"; c.doOutput = true; c.connectTimeout = 10_000; c.readTimeout = 15_000
         c.setRequestProperty("Content-Type", "application/json; charset=utf-8")

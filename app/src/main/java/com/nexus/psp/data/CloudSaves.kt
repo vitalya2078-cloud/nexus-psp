@@ -32,8 +32,18 @@ object CloudSaves {
     private const val ZIP_TIME = 315_532_800_000L // 1980-01-01: одинаковый zip для одинаковых файлов
     private lateinit var sp: SharedPreferences
 
-    /** После игры — сверить при возвращении на главный экран. */
-    @Volatile var dirty = false
+    /** Игра, из которой только что вышли, — сверить её сейвы при возвращении на главный экран (null — нечего). */
+    @Volatile var dirty: String? = null
+
+    /** После игры: тихо загрузить новые сейвы этой игры; конфликт — спросить. */
+    suspend fun afterGame(c: Context) {
+        val id = dirty ?: return
+        dirty = null
+        if (!AppState.S.cloud || Cloud.code.isEmpty()) return
+        val r = sync(c, onlyId = id)
+        if (r.down > 0) AppState.say("Сохранения взяты из облака")
+        if (r.failed > 0) AppState.say("Сохранения не ушли в облако — попробуем после следующей игры")
+    }
 
     fun init(c: Context) { if (!::sp.isInitialized) sp = c.getSharedPreferences("kapsula_csaves", Context.MODE_PRIVATE) }
 

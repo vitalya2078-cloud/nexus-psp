@@ -66,6 +66,7 @@ fun CloudAccount() {
 @Composable
 private fun RestoreDialog(onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val ctxApp = androidx.compose.ui.platform.LocalContext.current.applicationContext
     var input by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -84,7 +85,14 @@ private fun RestoreDialog(onClose: () -> Unit) {
                     scope.launch {
                         val r = withContext(Dispatchers.IO) { Cloud.restore(input) }
                         busy = false
-                        if (r == null) { AppState.say("Аккаунт восстановлен"); onClose() } else err = r
+                        if (r == null) {
+                            AppState.say("Аккаунт восстановлен"); onClose()
+                            // сохранения игр из облака — на этот телефон (что есть и тут, и там — спросим)
+                            if (AppState.S.cloud) AppState.scope.launch {
+                                val rep = com.nexus.psp.data.CloudSaves.sync(ctxApp)
+                                if (rep.down > 0) AppState.say("Сохранения из облака: ${rep.down}")
+                            }
+                        } else err = r
                     }
                 }
                 KButton("Отмена") { onClose() }

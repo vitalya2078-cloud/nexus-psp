@@ -4,6 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +49,7 @@ import com.nexus.psp.R
 import com.nexus.psp.data.AppState
 import com.nexus.psp.data.AppState.S
 import com.nexus.psp.data.Game
+import com.nexus.psp.ui.kit.BtnKind
 import com.nexus.psp.data.hrs
 import com.nexus.psp.data.size
 import com.nexus.psp.ui.ActButton
@@ -83,6 +86,7 @@ fun GameSheet(id: String) {
     val e = AppState.lib[id]
     var tab by rememberSaveable(id) { mutableStateOf("about") }
     var askDelete by remember { mutableStateOf(false) }
+    var invite by remember { mutableStateOf(false) }
     val drag = remember { Animatable(0f) }
     val enter = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
@@ -150,12 +154,14 @@ fun GameSheet(id: String) {
                     Ellip(g.t, T.label)
                     Text(if (e != null && e.play > 0) "Последний запуск: ${e.last}" else "Ещё не запускалась", style = T.small)
                 }
+                if (com.nexus.psp.data.Invite.supported(g)) KButton(icon = R.drawable.sl_wifi) { invite = true }
                 KButton("Управление", R.drawable.sl_pad, small = true) { Nav.open(Ov.Guide(id = id)) }
                 KButton(icon = R.drawable.sl_sliders) { Nav.open(Ov.GSet(id)) }
                 KButton(icon = R.drawable.sl_trash) { askDelete = true }
                 ActButton(g)
             }
         }
+        if (invite) InviteDialog(g) { invite = false }
         if (askDelete) {
             // игра из другой папки телефона — файл не трогаем, только убираем из библиотеки
             if (AppState.keepsFile(id)) Confirm("Убрать «${g.t}» из библиотеки?", "Файл останется на месте: ${g.path.removePrefix("/storage/emulated/0/")}. Сохранения внутри игры тоже останутся.", "Убрать", { askDelete = false }) { askDelete = false; Nav.back(); AppState.uninstall(id) }
@@ -353,6 +359,45 @@ fun GameSettingsScreen(id: String) {
                 Opt("Счётчик кадров", null) { Toggle(fps) { fps = it; cfg.edit { o -> o.put("fps", it) } } }
                 Text("То же можно менять прямо в игре: пауза → «Настройки».", style = T.small, modifier = Modifier.padding(vertical = 10.dp))
             } else StateCard(null, null, "Общие настройки ${g.plat.short} — в «Настройки → Эмулятор ${g.plat.short}». Включи переключатель выше, чтобы задать этой игре свои: например, ×3 для одной игры и «Батарея» для другой.", tint = K.acc)
+        }
+    }
+}
+
+/** «Позвать в игру»: выбрать друга — ему придёт приглашение, у тебя игра запустится комнатой. Только одна Wi-Fi сеть. */
+@Composable
+private fun InviteDialog(g: Game, onClose: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { if (com.nexus.psp.data.Cloud.friends == null) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.data.Cloud.loadFriends() } }
+    val fr = com.nexus.psp.data.Cloud.friends?.optJSONArray("friends")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } } ?: emptyList()
+    androidx.compose.ui.window.Dialog(onClose) {
+        Column(
+            Modifier.widthIn(max = 460.dp).clip(RoundedCornerShape(22.dp)).background(K.bg).border(1.dp, K.line, RoundedCornerShape(22.dp)).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("Позвать в «${g.t}»", style = T.h3)
+            Text("Друг должен быть в той же Wi-Fi сети, и у него должна быть эта игра. Игра запустится у тебя, другу придёт приглашение. В самой игре выберите режим «по сети / ad-hoc».", style = T.small)
+            if (com.nexus.psp.data.Cloud.code.isEmpty()) Text("Аккаунт ещё создаётся — попробуй через минуту", style = T.small)
+            else if (fr.isEmpty()) Text("Друзей пока нет — добавь их во вкладке «Моё → Друзья»", style = T.small)
+            Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                fr.forEach { o ->
+                    val sid = o.optString("short_id")
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(K.s1).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) { Text(o.optString("nick").ifBlank { "Игрок" }, style = T.label); Text(sid, style = T.small) }
+                        KButton(if (busy == sid) "…" else "Позвать", kind = BtnKind.Main, small = true, enabled = busy == null) {
+                            busy = sid
+                            scope.launch {
+                                val err = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.data.Invite.send(ctx, g, sid) }
+                                busy = null
+                                if (err != null) AppState.say(err)
+                                else { AppState.say("Приглашение отправлено — запускаю комнату"); onClose(); com.nexus.psp.ui.Act.play(ctx, g.id) }
+                            }
+                        }
+                    }
+                }
+            }
+            KButton("Закрыть", small = true) { onClose() }
         }
     }
 }

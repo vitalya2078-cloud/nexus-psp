@@ -326,6 +326,7 @@ class MainActivity : ComponentActivity() {
         // жетоны за время в игре, вход, уровень, новые консоли и игры — считает сервер; без сети — телефон (до следующей связи)
         lifecycleScope.launch {
             val server = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.data.Cloud.sync() }
+            com.nexus.psp.data.CloudSaves.afterGame(applicationContext)
             val got = server ?: com.nexus.psp.data.Tokens.earn()
             if (got.isNotEmpty()) {
                 val sum = got.sumOf { it.second }

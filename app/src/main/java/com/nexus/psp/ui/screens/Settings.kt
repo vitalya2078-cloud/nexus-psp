@@ -127,7 +127,7 @@ private fun General() {
     }
     Opt("Экономия батареи", "При заряде 15% и ниже — пресет «Батарея» до зарядки") { Toggle(S.batterySaver) { S.batterySaver = it } }
     Opt("Продолжать с места выхода", "При выходе из игры место сохраняется само, «Играть» возвращает туда же") { Toggle(S.autoResume) { S.autoResume = it } }
-    Opt("Облачные сохранения", "Продолжай на другом телефоне (в планах)") { Toggle(S.cloud) { S.cloud = it } }
+    CloudSavesOpt()
     Opt("Анонимная статистика", "Сколько запусков, на каких консолях, были ли сбои — без названий игр и без твоего ID. Помогает чинить KAPSULA") {
         Toggle(S.stats) { S.stats = it; if (!it) com.nexus.psp.data.Telemetry.clear() }
     }
@@ -570,6 +570,23 @@ private fun PasswordField(value: String, hint: String, modifier: Modifier = Modi
         }
         Box(Modifier.size(34.dp).clip(androidx.compose.foundation.shape.CircleShape).press { show = !show }, contentAlignment = Alignment.Center) {
             SolarIcon(if (show) R.drawable.sl_eye_off else R.drawable.sl_eye, 18.dp, K.ink3)
+        }
+    }
+}
+
+/** Облачные сохранения: выключатель и «Сверить сейчас». */
+@Composable
+private fun CloudSavesOpt() {
+    val ctx = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    Opt("Облачные сохранения", "Сейвы игр уходят в облако после игры и возвращаются по коду восстановления на другом телефоне. Снимки «Место выхода» — только на телефоне") {
+        Toggle(S.cloud) { S.cloud = it }
+    }
+    if (S.cloud) Opt("Сверить с облаком", "Загрузить новые сейвы и забрать те, что есть только в облаке") {
+        KButton(if (busy) "Сверяю…" else "Сверить", small = true, enabled = !busy) {
+            busy = true
+            scope.launch { val r = com.nexus.psp.data.CloudSaves.sync(ctx.applicationContext); busy = false; AppState.say(r.text) }
         }
     }
 }
