@@ -118,6 +118,7 @@ private fun General() {
     Opt("Оформление", "Тема, цвет, фон главного экрана, аватар и рамки") { KButton("Открыть", small = true) { com.nexus.psp.ui.Nav.replace(com.nexus.psp.ui.Ov.Look()) } }
     CloudAccount()
     Opt("Язык", null) { Seg(listOf("RU", "EN"), if (S.lang == "EN") 1 else 0) { S.lang = if (it == 1) "EN" else "RU"; if (it == 1) AppState.say("Английский перевод появится позже") } }
+    Opt("Маскот", "Живой маскот на главном экране и в сообщениях: здоровается, радуется, грустит вместе с тобой. Выключишь — останутся простые картинки") { Toggle(S.mascot) { S.mascot = it } }
     Opt("Вибрация", "Отклик при выборе и важных действиях") { Toggle(S.vib) { S.vib = it } }
     Opt("Звуки интерфейса", "Тихий щелчок в карусели") { Toggle(S.sound) { S.sound = it } }
     Opt("Часы и заряд в шапке", "Время и батарея на главном экране — системная строка там скрыта") { Toggle(S.headClock) { S.headClock = it } }
@@ -416,6 +417,8 @@ private fun LegalDialog(onClose: () -> Unit) {
         Triple("Шрифт Manrope", "© The Manrope Project Authors. SIL Open Font License 1.1.", "OFL-Manrope.txt"),
         Triple("Шрифт Rubik", "© The Rubik Project Authors. SIL Open Font License 1.1.", "OFL-Rubik.txt"),
         Triple("Шрифт Russo One", "© Jovanny Lemonad. SIL Open Font License 1.1.", "OFL-RussoOne.txt"),
+        Triple("Шрифт Balsamiq Sans", "© The Balsamiq Sans Project Authors. SIL Open Font License 1.1.", "OFL-BalsamiqSans.txt"),
+        Triple("Шрифт M PLUS Rounded 1c", "© The M+ FONTS Project Authors, The Rounded M+ Project Authors. SIL Open Font License 1.1.", "OFL-MPlusRounded.txt"),
     )
     androidx.compose.ui.window.Dialog(onClose, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         Column(

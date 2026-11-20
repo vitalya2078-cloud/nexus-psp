@@ -80,7 +80,7 @@ fun KapsulaApp() {
     val tint by androidx.compose.animation.animateColorAsState(Ambient.color, tween(900), label = "amb")
     val bright = S.bright / 100f
     Box(
-        Modifier.fillMaxSize().background(K.bg)
+        Modifier.fillMaxSize().then(if (K.evening) Modifier.background(Brush.verticalGradient(listOf(Color(0xFF161D33), Color(0xFF0E1222)))) else Modifier.background(K.bg))
             .drawBehind { if (tint.alpha > 0f) drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = if (K.dark) .22f else .1f), Color.Transparent), Offset(size.width * .7f, size.height * .2f), size.maxDimension * .7f), size.maxDimension, Offset(size.width * .7f, size.height * .2f)) }
             .graphicsLayer { if (bright < 1f) alpha = 1f },
     ) {
@@ -95,6 +95,7 @@ fun KapsulaApp() {
             // мягкое затемнение сверху: шапка читается на любом фоне и получает глубину
             if (wall != "none") Box(Modifier.fillMaxWidth().height(150.dp).background(Brush.verticalGradient(listOf(K.bg.copy(alpha = .82f), K.bg.copy(alpha = .35f), Color.Transparent))))
         }
+        if (K.evening) LampLight()
         Column(Modifier.fillMaxSize()) {
             Header()
             AnimatedContent(Nav.tab, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "tab", modifier = Modifier.weight(1f)) { t ->
@@ -115,6 +116,16 @@ fun KapsulaApp() {
     }
     BackHandler(enabled = Nav.stack.isNotEmpty() && Ctx.id == null) { Nav.back() }
     BackHandler(enabled = Nav.stack.isEmpty() && (Nav.tab == "my" || Nav.tab == "ctl") && Ctx.id == null) { Nav.go("games") }
+}
+
+/** «Вечер»: тёплое пятно настольной лампы сверху слева и мягкая виньетка — рисуются один раз, без анимации. */
+@Composable
+private fun LampLight() {
+    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+        val c = Offset(size.width * .1f, -size.height * .06f)
+        drawRect(Brush.radialGradient(listOf(Color(0xFFFFB866).copy(alpha = .2f), Color(0xFFF2A65A).copy(alpha = .07f), Color.Transparent), c, size.maxDimension * .62f))
+        drawRect(Brush.radialGradient(listOf(Color.Transparent, Color(0xFF05070D).copy(alpha = .45f)), Offset(size.width * .45f, size.height * .4f), size.maxDimension * .75f))
+    }
 }
 
 @Composable
@@ -164,15 +175,21 @@ private fun ToastHost(modifier: Modifier) {
     LaunchedEffect(t?.id) { if (t != null) { delay(if (t.action != null) 5000 else 2600); if (AppState.toast?.id == t.id) AppState.toast = null } }
     AnimatedVisibility(t != null, modifier.padding(bottom = 16.dp), enter = fadeIn() + slideInVertically { it / 2 }, exit = fadeOut() + slideOutVertically { it / 2 }) {
         val v = t ?: return@AnimatedVisibility
+        // маскот рядом с сообщением — с реакцией по смыслу (игра добавлена — коробка, жетоны — монетки, ошибка — грусть)
+        val buddy = S.mascot
+        val mood = remember(v.id) { v.mood ?: com.nexus.psp.ui.kit.Buddy.moodFor(v.text, v.icon == com.nexus.psp.R.drawable.sl_alert) }
+        Row(verticalAlignment = Alignment.Bottom) {
+        if (buddy) com.nexus.psp.ui.kit.LiveMascot(mood, 58.dp, Modifier.padding(end = 2.dp), glow = false)
         Row(
-            Modifier.clip(RoundedCornerShape(24.dp)).background(K.ink).padding(start = 18.dp, end = if (v.action != null) 6.dp else 18.dp, top = 6.dp, bottom = 6.dp).height(32.dp),
+            Modifier.padding(bottom = 4.dp).clip(RoundedCornerShape(24.dp)).background(K.ink).padding(start = 18.dp, end = if (v.action != null) 6.dp else 18.dp, top = 6.dp, bottom = 6.dp).height(32.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (v.icon != null) SolarIcon(v.icon, 18.dp, K.bg)
+            if (v.icon != null && !buddy) SolarIcon(v.icon, 18.dp, K.bg)
             Text(v.text, style = T.label.copy(color = K.bg), maxLines = 1)
             if (v.action != null) Box(
                 Modifier.clip(RoundedCornerShape(14.dp)).background(K.bg).tap { AppState.toast = null; v.onAction?.invoke() }.padding(horizontal = 13.dp, vertical = 6.dp),
             ) { Text(v.action, style = T.label.copy(fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold)) }
+        }
         }
     }
 }

@@ -157,12 +157,12 @@ private fun Caps(t: String, top: Dp = 10.dp) = Text(t.uppercase(), style = T.cap
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ThemeTab() {
-    val th = listOf("dark" to "Тёмная", "oled" to "OLED", "light" to "Светлая")
+    val th = listOf("dark" to "Тёмная", "oled" to "OLED", "light" to "Светлая", "evening" to "Вечер")
     Caps("Тема", 2.dp)
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         th.forEach { (id, name) ->
             val on = S.theme == id
-            val (bg, fg) = when (id) { "oled" -> Color(0xFF000000) to Color(0xFFF2F1EC); "light" -> Color(0xFFE7E5E0) to Color(0xFF1C1D20); else -> Color(0xFF0B0C0F) to Color(0xFFF2F1EC) }
+            val (bg, fg) = when (id) { "oled" -> Color(0xFF000000) to Color(0xFFF2F1EC); "light" -> Color(0xFFE7E5E0) to Color(0xFF1C1D20); "evening" -> Color(0xFF1B2238) to Color(0xFFF2A65A); else -> Color(0xFF0B0C0F) to Color(0xFFF2F1EC) }
             Column(
                 Modifier.width(132.dp).clip(RoundedCornerShape(16.dp)).background(bg).border(if (on) 2.5.dp else 1.dp, if (on) K.acc else K.line2, RoundedCornerShape(16.dp))
                     .press { S.theme = id; AppState.applyLook() }.padding(12.dp),
@@ -173,6 +173,9 @@ private fun ThemeTab() {
                 Text(name, style = T.label.copy(color = fg, fontSize = 13.sp))
             }
         }
+    }
+    Opt("Вечер сам по вечерам", "С 19:00 до 7:00 KAPSULA включает тему «Вечер»: ночная синева, тёплый свет лампы и мягкие шрифты. Днём — снова выбранная тема.") {
+        Toggle(S.eveningAuto) { S.eveningAuto = it; AppState.applyLook() }
     }
     Caps("Цвет акцента")
     Text("Цвет кнопок, выделения и ползунков. KAPSULA сама подправит яркость, чтобы всё читалось.", style = T.small)

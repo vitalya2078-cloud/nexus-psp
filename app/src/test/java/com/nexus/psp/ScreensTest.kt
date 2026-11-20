@@ -92,6 +92,15 @@ class ScreensTest {
     @Test fun n07_controls_full() = shot("n07-controls-full", true) { Nav.go("ctl") }
     @Test fun n06_controls_light() = shot("n06-controls-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.go("ctl") }
     @Test fun h10_settings_ach() = shot("h10-settings-ach", true) { Nav.settingsTab = "ach"; Nav.open(Ov.Settings) }
+    // «Уют»: тема «Вечер», «Ретро-меню», полка консоли, маскот в сообщении
+    private fun evening() { AppState.S.theme = "evening"; AppState.applyLook(); com.nexus.psp.ui.kit.Buddy.greeted = false }
+    @Test fun v01_games_evening() = shot("v01-games-evening", true) { evening() }
+    @Test fun v02_game_evening() = shot("v02-game-evening", true) { evening(); Nav.open(Ov.Game(firstId())) }
+    @Test fun v03_settings_evening() = shot("v03-settings-evening", true) { evening(); Nav.settingsTab = "general"; Nav.open(Ov.Settings) }
+    @Test fun v04_toast_evening() = shot("v04-toast-evening", true) { evening(); com.nexus.psp.ui.kit.Buddy.greeted = true; AppState.say("Игра добавлена в библиотеку") }
+    @Test fun v05_shelf_empty_ps1() = shot("v05-shelf-ps1", true) { evening(); AppState.S.shelf = "ps1" }
+    @Test fun v06_empty_evening() = shot("v06-empty-evening", false) { evening() }
+    @Test fun v07_looks_evening() = shot("v07-looks-evening", true) { evening(); Nav.open(Ov.Look("theme")) }
     @Test fun h09_search() = shot("h09-search", true) { Nav.open(Ov.Search) }
     /** Профиль с историей: часы, серия дней, избранное, любимая игра. */
     private fun played() {

@@ -53,7 +53,7 @@ fun ago(at: Long, now: Long = System.currentTimeMillis()): String {
     }
 }
 
-data class Toast(val text: String, val icon: Int? = null, val action: String? = null, val onAction: (() -> Unit)? = null, val id: Long = System.nanoTime())
+data class Toast(val text: String, val icon: Int? = null, val action: String? = null, val onAction: (() -> Unit)? = null, val id: Long = System.nanoTime(), val mood: String? = null)
 
 /** Найденный при сканировании папки образ; exists — такая игра уже есть в библиотеке (не копируется). */
 data class Found(val name: String, val uri: Uri, val sizeMb: Int, val exists: Boolean = false)
@@ -80,6 +80,12 @@ class Settings(private val sp: SharedPreferences) {
     /** Консоли, выбранные при знакомстве (через запятую). */
     var cons by s("cons", "")
     var theme by s("theme", "dark")
+    /** «Вечер» сам с 19:00 до 7:00 (поверх выбранной темы). */
+    var eveningAuto by b("eveningAuto", false)
+    /** Живой маскот на главном экране и в сообщениях. */
+    var mascot by b("mascot", true)
+    /** Консоль главного экрана: all — все мои игры, иначе id платформы. */
+    var shelf by s("shelf", "all")
     var big by b("big", false)
     var contrast by b("contrast", false)
     var calm by b("calm", false)
@@ -210,8 +216,9 @@ object AppState {
     }
 
     fun applyLook() {
-        K.theme = S.theme; K.contrast = S.contrast; T.big = S.big
-        K.accent = accentRaw()?.let { com.nexus.psp.ui.kit.Accent.fit(it, K.s1, S.theme == "light") }
+        val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        K.theme = if (S.eveningAuto && (h >= 19 || h < 7)) "evening" else S.theme; K.contrast = S.contrast; T.big = S.big
+        K.accent = accentRaw()?.let { com.nexus.psp.ui.kit.Accent.fit(it, K.s1, K.theme == "light") }
     }
 
     /** Цвет фона, из которого берётся акцент «из фона» (считается при выборе фона). */
@@ -413,6 +420,8 @@ object AppState {
 
     // ---------- действия ----------
     fun say(text: String, icon: Int? = null, action: String? = null, onAction: (() -> Unit)? = null) { toast = Toast(text, icon, action, onAction) }
+    /** Сообщение с заданной реакцией маскота (позы — Buddy.POSES). */
+    fun sayAs(mood: String, text: String, icon: Int? = null) { toast = Toast(text, icon, mood = mood) }
 
     /** Удаление игры оставляет файл на месте (игра из другой папки телефона): «Убрать из библиотеки». */
     fun keepsFile(id: String): Boolean = byId[id]?.let { GameLibrary.keepsFile(app, it.path) } == true

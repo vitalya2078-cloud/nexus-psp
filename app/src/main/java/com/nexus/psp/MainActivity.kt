@@ -289,6 +289,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // «Вечер» по часам: тема сверяется при каждом возвращении в KAPSULA
+        com.nexus.psp.data.AppState.applyLook()
         // пока KAPSULA на экране — заявки, жетоны и новости проверяются раз в минуту (без перезапуска)
         com.nexus.psp.data.Inbox.foreground = true
         getSystemService(android.app.NotificationManager::class.java)?.cancelAll()

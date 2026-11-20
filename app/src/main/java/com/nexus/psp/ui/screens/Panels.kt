@@ -157,14 +157,13 @@ fun QuickPanel() {
             val tiles = listOf(
                 Tile(R.drawable.sd_pad, "Геймпад", padState(), false) { Nav.settingsTab = "ctl"; Nav.replace(Ov.Settings) },
                 // тема, цвет, фон и профиль — в отдельном экране «Оформление»
-                Tile(R.drawable.sd_brush, "Оформление", (mapOf("dark" to "Тёмная", "oled" to "OLED", "light" to "Светлая")[S.theme] ?: "") +
+                Tile(R.drawable.sd_brush, "Оформление", (mapOf("dark" to "Тёмная", "oled" to "OLED", "light" to "Светлая", "evening" to "Вечер")[K.theme] ?: "") +
                     (if (S.wall.startsWith("wp_") || S.wall == "photo") " · свой фон" else ""), false) { Nav.replace(Ov.Look()) },
                 Tile(R.drawable.ph_hand, "Вибрация", if (S.vib) "Вкл" else "Выкл", S.vib) { S.vib = !S.vib },
                 Tile(R.drawable.sd_music, "Звуки", if (S.sound) "Вкл" else "Выкл", S.sound) { S.sound = !S.sound },
                 Tile(R.drawable.sd_touch, "Экранный геймпад", mapOf("touch" to "KAPSULA Touch", "classic" to "Классика", "pad" to "Геймпад")[S.ctlMode] ?: "", false) { Nav.replace(Ov.Pad) },
                 Tile(R.drawable.sd_folder, "Добавить игру", "ISO, CSO, CHD, PBP", false) { Nav.back(); Act.addFile() },
                 Tile(R.drawable.sd_search, "Найти игры", "в папке телефона", false) { Nav.back(); Act.findGames() },
-                Tile(R.drawable.sd_device, "Консоли", "Все приставки", false) { Nav.replace(Ov.Consoles) },
                 Tile(R.drawable.sd_library, "Библиотека", "Все игры", false) { Nav.replace(Ov.Library) },
                 Tile(R.drawable.sd_gear, "Настройки", "Все параметры", false) { Nav.replace(Ov.Settings) },
             )

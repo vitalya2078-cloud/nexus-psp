@@ -29,7 +29,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -79,114 +81,157 @@ import com.nexus.psp.ui.kit.T
 import com.nexus.psp.ui.kit.press
 import kotlinx.coroutines.launch
 
-/** «Игры»: карусель моей библиотеки, игра в фокусе — по центру, под ней информация и действия (п. 1). */
-@OptIn(ExperimentalFoundationApi::class)
+/** Игры главного экрана: выбранная во вкладке «Игры ▾» консоль (all — все мои игры), недавние — сверху. */
+fun shelfGames(): List<Game> {
+    val sh = S.shelf
+    return AppState.lib.keys.mapNotNull { AppState.byId[it] }.filter { sh == "all" || it.p == sh }.sortedByDescending { AppState.lib[it.id]?.t ?: 0 }
+}
+
+/** «Игры» — «Ретро-меню»: слева список игр выбранной консоли, справа крупная обложка, данные, «Играть» и маскот. */
 @Composable
 fun GamesScreen() {
-    // главная полка — PSP; игры других консолей живут на их полках («Консоли» в шапке)
-    val list = AppState.lib.keys.mapNotNull { AppState.byId[it] }.filter { it.p == "psp" }.sortedByDescending { AppState.lib[it.id]?.t ?: 0 }
+    val list = shelfGames()
+    // добавили игру другой консоли — показываем все игры, чтобы новая не «пропала»
+    val n = AppState.lib.size
+    var seen by remember { mutableStateOf(n) }
+    LaunchedEffect(n) {
+        if (n > seen) AppState.lib.entries.maxByOrNull { it.value.t }?.key?.let { AppState.byId[it] }?.let { if (S.shelf != "all" && it.p != S.shelf) S.shelf = "all" }
+        seen = n
+    }
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
-        if (list.isEmpty()) { EmptyShelf(); return@Column }
-        Carousel(list)
+        when {
+            list.isNotEmpty() -> RetroMenu(list)
+            S.shelf == "all" -> EmptyShelf()
+            else -> ShelfEmpty(S.shelf)
+        }
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Carousel(list: List<Game>) {
+private fun RetroMenu(list: List<Game>) {
     val ctx = LocalContext.current
-    val state = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
-    val focus by remember(list) {
-        derivedStateOf {
-            val li = state.layoutInfo
-            val c = (li.viewportStartOffset + li.viewportEndOffset) / 2
-            li.visibleItemsInfo.minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - c) }?.index ?: 0
-        }
-    }
-    val fg = list.getOrNull(focus.coerceAtMost(list.lastIndex))
-    LaunchedEffect(fg?.id) { fg?.let { Ambient.color = AppState.meta[it.id]?.color?.let { c -> Color(c) } ?: Color(it.pal[2]); Act.buzz() } }
-    // фон игры в фокусе рисуется на весь экран (KapsulaApp) и плавно меняется при перелистывании
-    LaunchedEffect(fg?.id) { Ambient.game = fg }
+    var sel by androidx.compose.runtime.saveable.rememberSaveable(S.shelf) { mutableStateOf(list.first().id) }
+    val fg = list.firstOrNull { it.id == sel } ?: list.first()
+    LaunchedEffect(fg.id) { Ambient.color = AppState.meta[fg.id]?.color?.let { c -> Color(c) } ?: Color(fg.pal[2]); Ambient.game = fg }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { Ambient.game = null } }
-    Box(Modifier.fillMaxSize()) {
-    Column(Modifier.fillMaxSize()) {
-        // воздух между рядом фильтров и обложками
-        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(top = 16.dp, bottom = 4.dp)) {
-            // обложка 3:4 по высоте, но не шире 80% окна: при сворачивании Android на миг меряет окно вертикальным,
-            // и обложка шире экрана давала отрицательный отступ — приложение падало
-            val w = minOf(maxHeight * .94f * .75f, maxWidth * .8f)
-            val side = ((maxWidth - w) / 2).coerceAtLeast(0.dp)
-            LazyRow(
-                state = state, flingBehavior = rememberSnapFlingBehavior(state),
-                contentPadding = PaddingValues(horizontal = side), horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxSize(),
+    val state = rememberLazyListState()
+    BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp)) {
+        val listW = (maxWidth * .4f).coerceIn(220.dp, 380.dp)
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            // список: мини-обложка + название; выбранная — подсвечена, второе касание — играть
+            LazyColumn(
+                state = state,
+                modifier = Modifier.width(listW).fillMaxHeight().clip(RoundedCornerShape(22.dp)).background(K.s1.copy(alpha = .78f))
+                    .border(1.dp, if (K.evening) K.acc.copy(alpha = .16f) else K.line, RoundedCornerShape(22.dp)),
+                contentPadding = PaddingValues(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                itemsIndexed(list, key = { _, g -> g.id }) { i, g ->
-                    val on = i == focus
-                    val sc by animateFloatAsState(if (on) 1f else .8f, tween(220), label = "cc")
-                    val e = AppState.lib[g.id]
-                    Box(
-                        Modifier.width(w).fillMaxHeight().graphicsLayer { scaleX = sc; scaleY = sc; alpha = if (on) 1f else .7f }
-                            .clip(RoundedCornerShape(20.dp)).border(if (on) 2.dp else 1.dp, if (on) K.ink.copy(alpha = .9f) else K.line, RoundedCornerShape(20.dp))
-                            .combinedClickable(remember { MutableInteractionSource() }, null, onLongClick = { Act.buzzLong(); Ctx.open(g.id) }) {
-                                if (on) Act.play(ctx, g.id)
-                                else scope.launch { state.animateScrollToItem(i) }
-                            },
+                items(list, key = { it.id }) { g ->
+                    val on = g.id == fg.id
+                    Row(
+                        Modifier.fillMaxWidth().height(58.dp).clip(RoundedCornerShape(16.dp))
+                            .background(if (on) K.acc.copy(alpha = .16f) else Color.Transparent)
+                            .border(1.5.dp, if (on) K.acc.copy(alpha = .7f) else Color.Transparent, RoundedCornerShape(16.dp))
+                            .combinedClickable(remember { MutableInteractionSource() }, androidx.compose.material3.ripple(color = K.ink),
+                                onLongClick = { Act.buzzLong(); Ctx.open(g.id) }) {
+                                if (on) Act.play(ctx, g.id) else { sel = g.id; Act.buzz() }
+                            }
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Cover(g, 300, 400, modifier = Modifier.fillMaxSize())
-                        PlatformTag(g)
-                        com.nexus.psp.ui.FormatBadge(g, Modifier.align(Alignment.BottomStart).padding(8.dp))
-                    }
-                }
-                item {
-                    Box(
-                        Modifier.width(w * .7f).fillMaxHeight(.7f).clip(RoundedCornerShape(20.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(20.dp)).press { Act.addFile() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            com.nexus.psp.ui.kit.Mascot("wave", w * .34f)
-                            Text("Добавить\nигру", style = T.label.copy(color = K.ink2, textAlign = androidx.compose.ui.text.style.TextAlign.Center), modifier = Modifier.padding(top = 10.dp))
+                        Box(Modifier.width(34.dp).height(44.dp).clip(RoundedCornerShape(7.dp))) { Cover(g, 68, 88, modifier = Modifier.fillMaxSize()) }
+                        Column(Modifier.weight(1f)) {
+                            Ellip(g.t, T.label.copy(fontSize = 14.5.sp, color = if (on) K.ink else K.ink2).let { if (K.evening) it.copy(fontFamily = com.nexus.psp.ui.kit.Balsamiq, fontSize = 15.sp) else it })
+                            if (S.shelf == "all") Text(g.plat.short, style = T.small.copy(fontSize = 11.sp), maxLines = 1)
                         }
+                        if (on) Text("▶", style = T.label.copy(color = K.acc, fontSize = 15.sp))
                     }
                 }
-                item {
-                    Box(
-                        Modifier.width(w * .7f).fillMaxHeight(.7f).clip(RoundedCornerShape(20.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(20.dp)).press { Nav.open(Ov.Library) },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            SolarIcon(R.drawable.sl_grid, 26.dp, K.ink2)
-                            Text("Вся\nбиблиотека", style = T.label.copy(color = K.ink2), modifier = Modifier.padding(top = 8.dp))
-                        }
-                    }
-                }
+                item { MenuRow(R.drawable.ph_plus, "Добавить игру") { Act.addFile() } }
+                item { MenuRow(R.drawable.sl_grid, "Вся библиотека") { Nav.open(Ov.Library) } }
+            }
+            // выбранная игра
+            AnimatedContent(fg.id, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) }, label = "info", modifier = Modifier.weight(1f).fillMaxHeight()) { id ->
+                AppState.byId[id]?.let { Detail(it) }
             }
         }
-        if (fg != null) AnimatedContent(fg.id, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) }, label = "info") { id ->
-            AppState.byId[id]?.let { Info(it) }
-        }
-    }
+        // маскот — справа внизу, с приветствием по времени суток (один раз за запуск)
+        HomeBuddy(Modifier.align(Alignment.BottomEnd))
     }
 }
 
 @Composable
-private fun Info(g: Game) {
+private fun MenuRow(icon: Int, text: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(14.dp)).press(onClick = onClick).padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(Modifier.width(34.dp), contentAlignment = Alignment.Center) { SolarIcon(icon, 20.dp, K.acc) }
+        Text(text, style = T.label.copy(color = K.ink2))
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun Detail(g: Game) {
     val e = AppState.lib[g.id]
-    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Ellip(g.t, T.h1)
-            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                ConsolePill(g.plat.short, g.plat.color)
-                if (e != null && e.play > 0) { Meta("Наиграно ${hrs(e.play)}"); Meta(e.last) } else Meta("Ещё не запускалась")
-                Meta("${g.format} · ${size(g.size)}")
+    val ctx = LocalContext.current
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val coverH = maxHeight * .94f
+        val coverW = minOf(coverH * .75f, maxWidth * .44f)
+        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            Box(
+                Modifier.width(coverW).height(coverW / .75f).clip(RoundedCornerShape(18.dp))
+                    .border(if (K.evening) 3.dp else 1.5.dp, if (K.evening) K.ink.copy(alpha = .85f) else K.ink.copy(alpha = .5f), RoundedCornerShape(18.dp))
+                    .combinedClickable(remember { MutableInteractionSource() }, null, onLongClick = { Act.buzzLong(); Ctx.open(g.id) }) { Act.play(ctx, g.id) },
+            ) {
+                Cover(g, 300, 400, modifier = Modifier.fillMaxSize())
+                PlatformTag(g)
+                com.nexus.psp.ui.FormatBadge(g, Modifier.align(Alignment.BottomStart).padding(8.dp))
+            }
+            Column(Modifier.weight(1f).fillMaxHeight().padding(top = 8.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ConsolePill(g.plat.short, g.plat.color)
+                    Meta("${g.format} · ${size(g.size)}")
+                }
+                Ellip(g.t, T.h1, lines = 2)
+                Meta(if (e != null && e.play > 0) "Наиграно ${hrs(e.play)} · ${e.last}" else "Ещё не запускалась")
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ActButton(g)
+                    KButton("Карточка") { Nav.open(Ov.Game(g.id)) }
+                }
             }
         }
-        Spacer(Modifier.width(12.dp))
-        ActButton(g)
-        Spacer(Modifier.width(8.dp))
-        KButton(icon = R.drawable.sl_info) { Nav.open(Ov.Game(g.id)) }
+    }
+}
+
+/** Маскот главного экрана: приветствие (поза и облачко по времени суток), потом — спокойный, живой. */
+@Composable
+private fun HomeBuddy(modifier: Modifier) {
+    if (!S.mascot) return
+    val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
+    var pose by remember { mutableStateOf(if (com.nexus.psp.ui.kit.Buddy.greeted) "idle" else com.nexus.psp.ui.kit.Buddy.greetPose(hour)) }
+    var bubble by remember { mutableStateOf(if (com.nexus.psp.ui.kit.Buddy.greeted) null else com.nexus.psp.ui.kit.Buddy.greetText(hour, S.nick)) }
+    LaunchedEffect(Unit) {
+        if (com.nexus.psp.ui.kit.Buddy.greeted) return@LaunchedEffect
+        com.nexus.psp.ui.kit.Buddy.greeted = true
+        kotlinx.coroutines.delay(5000); bubble = null
+        // ночью продолжает спать, в остальное время — обычная поза
+        if (pose != "sleep") { kotlinx.coroutines.delay(600); pose = "idle" }
+    }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.animation.AnimatedVisibility(bubble != null, enter = fadeIn(tween(300)), exit = fadeOut(tween(400))) {
+            Text(
+                bubble ?: "", maxLines = 2,
+                style = T.label.copy(fontSize = 14.sp, color = K.ink).let { if (K.evening) it.copy(fontFamily = com.nexus.psp.ui.kit.Balsamiq, fontSize = 15.sp) else it },
+                modifier = Modifier.widthIn(max = 220.dp).clip(RoundedCornerShape(16.dp)).background(K.s2.copy(alpha = .95f))
+                    .border(1.dp, K.acc.copy(alpha = .4f), RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
+            )
+        }
+        com.nexus.psp.ui.kit.LiveMascot(pose, 96.dp) {
+            // касание: смех (внутри LiveMascot); спящий — просыпается
+            if (pose == "sleep") pose = "idle"
+        }
     }
 }
 
@@ -210,8 +255,8 @@ private fun EmptyShelf() {
             }
         }
         Column(Modifier.weight(1.1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Полка PSP пока пустая", style = T.h1.copy(fontSize = 28.sp))
-            Text("Закинь образ своего UMD — ISO, CSO, CHD или PBP. Проще всего — положить файлы в папку ${com.nexus.psp.emulator.GameLibrary.FOLDER} в памяти телефона: игры появятся сами. Игры для PS1, PS2, Sega и других консолей живут на своих полках: значок с джойстиком в шапке.", style = T.body)
+            Text("Полка пока пустая", style = T.h1.copy(fontSize = 28.sp))
+            Text("Закинь образ своей игры — для PSP, PS1, PS2, Sega и других консолей, или Java-игру. Проще всего — положить файлы в папку ${com.nexus.psp.emulator.GameLibrary.FOLDER} в памяти телефона: игры появятся сами. Консоль выбирается во вкладке «Игры ▾».", style = T.body)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                 KButton("Добавить игру", R.drawable.ph_plus, BtnKind.Main) { Act.addFile() }
                 KButton("Найти на телефоне", R.drawable.sl_search) { Act.findGames() }
@@ -238,6 +283,25 @@ private fun GhostSlot(w: androidx.compose.ui.unit.Dp, h: androidx.compose.ui.uni
             Box(Modifier.size(56.dp).clip(RoundedCornerShape(28.dp)).background(K.ink), contentAlignment = Alignment.Center) { SolarIcon(R.drawable.ph_plus, 26.dp, K.bg) }
             Text("Добавь\nпервую игру", style = T.label.copy(color = K.ink2, textAlign = androidx.compose.ui.text.style.TextAlign.Center), modifier = Modifier.padding(top = 12.dp))
         }
+    }
+}
+
+/** Полка выбранной консоли пуста: что ей нужно и кнопки добавления. */
+@Composable
+private fun ShelfEmpty(id: String) {
+    val p = com.nexus.psp.data.PL[id] ?: run { S.shelf = "all"; return }
+    Row(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        AssetImage(p.conImg, Modifier.width(220.dp).height(160.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("${p.short}: пока нет игр", style = T.h1)
+            Text("Форматы: " + p.exts.joinToString(", ") { it.uppercase() } + if (p.biosLevel == 2) ". Нужен BIOS — подскажу, где его указать." else ".", style = T.body)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                KButton("Добавить игру", R.drawable.ph_plus, BtnKind.Main) { Act.addFile() }
+                KButton("Найти на телефоне", R.drawable.sl_search) { Act.findGames() }
+                if (p.bios) KButton("BIOS", R.drawable.sl_chip) { Nav.settingsTab = "bios"; Nav.open(Ov.Settings) }
+            }
+        }
+        com.nexus.psp.ui.kit.Mascot("wait", 110.dp)
     }
 }
 

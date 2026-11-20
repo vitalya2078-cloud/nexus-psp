@@ -67,6 +67,7 @@ fun Onboarding(onDone: () -> Unit) {
     var how by remember { mutableStateOf("touch") }
     fun finish() {
         S.con = if (cons.size == 1) cons[0] else "all"
+        S.shelf = S.con
         S.cons = cons.joinToString(","); com.nexus.psp.emulator.Disc.chosen = cons.toSet()
         S.hide = how == "pad"; if (how == "pad") S.ctlMode = "pad"
         S.onboarded = true; Nav.go("games"); onDone()

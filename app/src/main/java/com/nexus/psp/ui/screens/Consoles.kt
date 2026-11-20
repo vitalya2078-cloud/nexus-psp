@@ -111,7 +111,8 @@ fun ConsoleScreen(id: String) {
                         if (p.exp) Text("Тестовый режим: нужен мощный телефон, не все игры пойдут", style = T.small.copy(color = K.warn))
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
-                        KButton("Добавить игру", R.drawable.ph_plus, BtnKind.Main, small = true) { Act.addFile() }
+                        if (list.isNotEmpty()) KButton("На главный", R.drawable.sb_play, BtnKind.Main, small = true) { com.nexus.psp.data.AppState.S.shelf = id; Nav.closeAll(); Nav.go("games") }
+                        KButton("Добавить игру", R.drawable.ph_plus, if (list.isEmpty()) BtnKind.Main else BtnKind.Soft, small = true) { Act.addFile() }
                         KButton("Найти на телефоне", R.drawable.sl_search, small = true) { Act.findGames() }
                         if (p.bios) KButton("BIOS", R.drawable.sl_chip, small = true) { Nav.settingsTab = "bios"; Nav.open(Ov.Settings) }
                     }

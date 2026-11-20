@@ -47,6 +47,10 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.sp
 import com.nexus.psp.R
 import com.nexus.psp.data.AppState
@@ -79,14 +83,13 @@ fun Header() {
                 if (word) Text("KAPSULA", style = T.label.copy(fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.5.sp), maxLines = 1)
             }
             Row(Modifier.padding(start = if (w >= 700.dp) 24.dp else 14.dp), horizontalArrangement = Arrangement.spacedBy(if (w >= 700.dp) 24.dp else 16.dp)) {
-                TabLabel("Игры", Nav.tab == "games") { Nav.go("games") }
+                ConsoleTab()
                 TabLabel("Моё", Nav.tab == "my") { Nav.go("my") }
                 TabLabel("Управление", Nav.tab == "ctl") { Nav.go("ctl") }
             }
             Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(if (w >= 700.dp) 4.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (status) HeadStatus()
-                if (extra) IconBtn(R.drawable.sl_pad) { Nav.open(Ov.Consoles) }
                 if (extra) IconBtn(R.drawable.sl_library) { Nav.open(Ov.Library) }
                 IconBtn(R.drawable.sl_search) { Nav.open(Ov.Search) }
                 if (dl) DownloadsBtn()
@@ -104,6 +107,75 @@ private fun TabLabel(text: String, on: Boolean, onClick: () -> Unit) {
     Column(Modifier.tap(onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text, style = T.label.copy(fontFamily = com.nexus.psp.ui.kit.Rubik, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, fontSize = 16.sp, color = if (on) K.ink else K.ink3))
         Box(Modifier.padding(top = 5.dp).height(2.5.dp).width(28.dp).graphicsLayer { scaleX = line; alpha = line }.clip(RoundedCornerShape(2.dp)).background(K.acc))
+    }
+}
+
+/**
+ * Вкладка «Игры» — она же переключатель консоли: картинка приставки + «PSP ▾» («Все игры ▾»).
+ * С другой вкладки первое касание открывает игры, второе — список консолей.
+ */
+@Composable
+private fun ConsoleTab() {
+    val on = Nav.tab == "games"
+    var open by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val p = com.nexus.psp.data.PL[S.shelf]
+    val line by animateFloatAsState(if (on) 1f else 0f, tween(220), label = "tab")
+    Box {
+        Column(Modifier.tap { if (!on) Nav.go("games") else open = !open }, horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                com.nexus.psp.ui.kit.AssetImage(p?.conImg ?: "con-all.png", Modifier.size(26.dp, 20.dp))
+                Text((p?.short ?: "Игры") + " ▾", maxLines = 1, style = T.label.copy(fontFamily = com.nexus.psp.ui.kit.Rubik, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = if (on) K.ink else K.ink3))
+            }
+            Box(Modifier.padding(top = 5.dp).height(2.5.dp).width(28.dp).graphicsLayer { scaleX = line; alpha = line }.clip(RoundedCornerShape(2.dp)).background(K.acc))
+        }
+        if (open) ConsoleMenu { open = false }
+    }
+}
+
+/** Компактный список под вкладкой: «Все игры», мои консоли (число игр, ⚠ без BIOS), «Ещё N консолей ›». Долгое нажатие — полка консоли (BIOS, форматы). */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun ConsoleMenu(onClose: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val mine = AppState.lib.keys.mapNotNull { AppState.byId[it] }
+    val counts = mine.groupingBy { it.p }.eachCount()
+    val my = com.nexus.psp.data.PLATFORMS.filter { (counts[it.id] ?: 0) > 0 }
+    val noBios = remember(my.size) { my.filter { it.biosLevel == 2 && com.nexus.psp.emulator.BiosFiles.found(ctx, it.id).isEmpty() }.map { it.id }.toSet() }
+    val more = com.nexus.psp.data.PLATFORMS.size - my.size
+    val dy = with(androidx.compose.ui.platform.LocalDensity.current) { 42.dp.roundToPx() }
+    androidx.compose.ui.window.Popup(offset = androidx.compose.ui.unit.IntOffset(0, dy), onDismissRequest = onClose, properties = androidx.compose.ui.window.PopupProperties(focusable = true)) {
+        Column(
+            Modifier.width(280.dp).heightIn(max = 330.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).border(1.dp, K.line2, RoundedCornerShape(18.dp))
+                .verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(6.dp),
+        ) {
+            fun pick(id: String) { S.shelf = id; Act.buzz(); onClose() }
+            MenuItem("con-all.png", "Все игры", "${mine.size}", S.shelf == "all", false, { pick("all") }, null)
+            my.forEach { p -> MenuItem(p.conImg, p.short, "${counts[p.id]}", S.shelf == p.id, p.id in noBios, { pick(p.id) }) { onClose(); Nav.open(Ov.Console(p.id)) } }
+            if (more > 0) Row(
+                Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(12.dp)).press { onClose(); Nav.open(Ov.Consoles) }.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Ещё $more ${if (more % 10 in 2..4 && more % 100 !in 12..14) "консоли" else if (more % 10 == 1 && more % 100 != 11) "консоль" else "консолей"}", style = T.label.copy(color = K.acc), modifier = Modifier.weight(1f))
+                Text("›", style = T.label.copy(color = K.acc, fontSize = 18.sp))
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun MenuItem(img: String, name: String, count: String, on: Boolean, warn: Boolean, onClick: () -> Unit, onLong: (() -> Unit)?) {
+    Row(
+        Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.acc.copy(alpha = .16f) else androidx.compose.ui.graphics.Color.Transparent)
+            .combinedClickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, androidx.compose.material3.ripple(color = K.ink),
+                onLongClick = onLong?.let { { Act.buzzLong(); it() } }, onClick = onClick)
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        com.nexus.psp.ui.kit.AssetImage(img, Modifier.size(36.dp, 26.dp))
+        Text(name, style = T.label.copy(color = if (on) K.ink else K.ink2), maxLines = 1, modifier = Modifier.weight(1f))
+        if (warn) Text("⚠ BIOS", style = T.small.copy(color = K.warn, fontSize = 11.sp))
+        Text(count, style = T.small.copy(color = K.ink3))
     }
 }
 

@@ -81,18 +81,24 @@ object K {
     /** Свой акцент (уже подогнан под текущую тему); null — фирменный. */
     var accent by mutableStateOf<Color?>(null)
     private val light get() = theme == "light"
+    /** «Вечер»: ночная синева, янтарный акцент, тёплый свет лампы, мягкие шрифты. */
+    val evening get() = theme == "evening"
 
-    val bg get() = when (theme) { "oled" -> Color(0xFF000000); "light" -> Color(0xFFE7E5E0); else -> Color(0xFF0B0C0F) }
-    val s1 get() = when (theme) { "oled" -> Color(0xFF0B0B0D); "light" -> Color(0xFFF1EFEB); else -> Color(0xFF131419) }
-    val s2 get() = when (theme) { "oled" -> Color(0xFF121215); "light" -> Color(0xFFFAF9F6); else -> Color(0xFF1A1C22) }
-    val s3 get() = when (theme) { "oled" -> Color(0xFF1A1A1F); "light" -> Color(0xFFFFFFFF); else -> Color(0xFF23262E) }
-    val ink get() = if (light) Color(0xFF1C1D20) else Color(0xFFF2F1EC)
+    val bg get() = when (theme) { "oled" -> Color(0xFF000000); "light" -> Color(0xFFE7E5E0); "evening" -> Color(0xFF121828); else -> Color(0xFF0B0C0F) }
+    val s1 get() = when (theme) { "oled" -> Color(0xFF0B0B0D); "light" -> Color(0xFFF1EFEB); "evening" -> Color(0xFF1B2238); else -> Color(0xFF131419) }
+    val s2 get() = when (theme) { "oled" -> Color(0xFF121215); "light" -> Color(0xFFFAF9F6); "evening" -> Color(0xFF242C48); else -> Color(0xFF1A1C22) }
+    val s3 get() = when (theme) { "oled" -> Color(0xFF1A1A1F); "light" -> Color(0xFFFFFFFF); "evening" -> Color(0xFF2F3858); else -> Color(0xFF23262E) }
+    val ink get() = when { light -> Color(0xFF1C1D20); evening -> Color(0xFFF4EEE4); else -> Color(0xFFF2F1EC) }
     val ink2 get() = ink.copy(alpha = if (contrast) .9f else .74f)
     // второстепенный текст: не тусклее ~4.5:1 даже на поверхностях s1 (мелкий шрифт)
     val ink3 get() = ink.copy(alpha = if (contrast) .78f else .58f)
     val line get() = if (light) Color(0x1A141416) else Color(0x14FFFFFF)
     val line2 get() = if (light) Color(0x33141416) else Color(0x29FFFFFF)
-    val acc get() = accent ?: if (light) Color(0xFF3E6699) else Color(0xFF7FA7D9)
+    val acc get() = accent ?: when { light -> Color(0xFF3E6699); evening -> Color(0xFFF2A65A); else -> Color(0xFF7FA7D9) }
+    /** Заливка выбранного (главная кнопка, чип, сегмент): в «Вечере» — янтарь, иначе — цвет текста. */
+    val sel get() = if (evening) acc else ink
+    /** Текст на выбранном. */
+    val onSel get() = if (evening) Color(0xFF231607) else bg
     val ok get() = if (light) Color(0xFF2F7A4C) else Color(0xFF8FC9A3)
     val warn get() = if (light) Color(0xFF8A6418) else Color(0xFFD9B36C)
     val bad get() = if (light) Color(0xFFA34444) else Color(0xFFD98A8A)
@@ -105,10 +111,21 @@ object K {
 @OptIn(ExperimentalTextApi::class)
 private fun manrope(w: Int) = Font(R.font.manrope, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
 
-val Manrope = FontFamily(manrope(400), manrope(500), manrope(600), manrope(700), manrope(800))
+private val ManropeF = FontFamily(manrope(400), manrope(500), manrope(600), manrope(700), manrope(800))
+private val RubikF = FontFamily(Font(R.font.rubik_semibold, FontWeight.SemiBold), Font(R.font.rubik_bold, FontWeight.Bold))
 
-/** Rubik — заголовки, вкладки и цифры (игровой характер); обычный текст — Manrope. */
-val Rubik = FontFamily(Font(R.font.rubik_semibold, FontWeight.SemiBold), Font(R.font.rubik_bold, FontWeight.Bold))
+/** «Вечер»: Balsamiq Sans — заголовки, вкладки, кнопки; M PLUS Rounded 1c — остальной текст (оба OFL, кириллица). */
+val Balsamiq = FontFamily(Font(R.font.balsamiq_bold, FontWeight.Normal), Font(R.font.balsamiq_bold, FontWeight.SemiBold), Font(R.font.balsamiq_bold, FontWeight.Bold))
+private val MPlus = FontFamily(
+    Font(R.font.mplus_medium, FontWeight.Normal), Font(R.font.mplus_medium, FontWeight.Medium),
+    Font(R.font.mplus_bold, FontWeight.SemiBold), Font(R.font.mplus_bold, FontWeight.Bold), Font(R.font.mplus_extrabold, FontWeight.ExtraBold),
+)
+
+/** Обычный текст: Manrope (в «Вечере» — M PLUS Rounded). */
+val Manrope: FontFamily get() = if (K.evening) MPlus else ManropeF
+
+/** Rubik — заголовки, вкладки и цифры (игровой характер); в «Вечере» — Balsamiq Sans. */
+val Rubik: FontFamily get() = if (K.evening) Balsamiq else RubikF
 
 /** Russo One — оформление создателя (имя, титул, «Играет»). */
 val Russo = FontFamily(Font(R.font.russo_one, FontWeight.Normal))
@@ -200,24 +217,28 @@ fun KButton(
     danger: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit,
 ) {
     val h = if (small) 36.dp else 44.dp
-    val bg = when (kind) { BtnKind.Main -> K.ink; BtnKind.Soft -> K.s2; BtnKind.Glass -> Color.Black.copy(alpha = .45f) }
-    val fg = when { kind == BtnKind.Main -> K.bg; danger -> K.bad; kind == BtnKind.Glass -> Color(0xFFF2F1EC); else -> K.ink }
+    val bg = when (kind) { BtnKind.Main -> K.sel; BtnKind.Soft -> K.s2; BtnKind.Glass -> Color.Black.copy(alpha = .45f) }
+    val fg = when { kind == BtnKind.Main -> K.onSel; danger -> K.bad; kind == BtnKind.Glass -> Color(0xFFF2F1EC); else -> K.ink }
     val round = text == null
+    // «Вечер»: объёмные кнопки — тёмная кромка снизу
+    val edge = if (K.evening && kind != BtnKind.Glass) (if (kind == BtnKind.Main) Color(0xFFC9772F) else Color(0xFF151A2C)) else null
     Row(
-        modifier.height(h).then(if (round) Modifier.width(h) else Modifier).clip(RoundedCornerShape(h / 2)).background(if (enabled) bg else bg.copy(alpha = .5f))
+        modifier.height(h).then(if (round) Modifier.width(h) else Modifier).clip(RoundedCornerShape(h / 2))
+            .then(if (edge != null && enabled) Modifier.background(edge).padding(bottom = 3.dp).clip(RoundedCornerShape(h / 2)) else Modifier)
+            .background(if (enabled) bg else bg.copy(alpha = .5f))
             .press(enabled, onClick).padding(horizontal = if (round) 0.dp else if (small) 13.dp else 18.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
         if (icon != null) SolarIcon(icon, if (small) 17.dp else 19.dp, if (enabled) fg else fg.copy(alpha = .5f))
-        if (text != null) Text(text, style = T.label.copy(color = if (enabled) fg else fg.copy(alpha = .5f), fontSize = if (small) 13.sp else 14.sp), maxLines = 1)
+        if (text != null) Text(text, style = T.label.copy(color = if (enabled) fg else fg.copy(alpha = .5f), fontSize = if (small) 13.sp else 14.sp).let { if (K.evening) it.copy(fontFamily = Balsamiq, fontSize = if (small) 14.sp else 15.sp) else it }, maxLines = 1)
     }
 }
 
 /** Фильтр-чип с точкой цвета консоли и счётчиком (как .chip). */
 @Composable
 fun Chip(text: String, on: Boolean = false, dot: Color? = null, count: Int? = null, icon: Int? = null, onClick: () -> Unit) {
-    val bg by animateColorAsState(if (on) K.ink else K.s2, label = "chip")
-    val fg = if (on) K.bg else K.ink2
+    val bg by animateColorAsState(if (on) K.sel else K.s2, label = "chip")
+    val fg = if (on) K.onSel else K.ink2
     Row(
         Modifier.height(34.dp).clip(RoundedCornerShape(17.dp)).background(bg).press(onClick = onClick).padding(horizontal = 13.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -259,10 +280,10 @@ fun Seg(options: List<String>, selected: Int, small: Boolean = false, onSelect: 
         options.forEachIndexed { i, o ->
             val on = i == selected
             Box(
-                Modifier.height(if (small) 30.dp else 34.dp).clip(RoundedCornerShape(9.dp)).background(if (on) K.ink else Color.Transparent)
+                Modifier.height(if (small) 30.dp else 34.dp).clip(RoundedCornerShape(9.dp)).background(if (on) K.sel else Color.Transparent)
                     .tap { onSelect(i) }.padding(horizontal = if (small) 10.dp else 13.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text(o, style = T.label.copy(color = if (on) K.bg else K.ink2, fontSize = if (small) 12.5.sp else 13.sp), maxLines = 1) }
+            ) { Text(o, style = T.label.copy(color = if (on) K.onSel else K.ink2, fontSize = if (small) 12.5.sp else 13.sp), maxLines = 1) }
         }
     }
 }

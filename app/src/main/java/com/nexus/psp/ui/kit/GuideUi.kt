@@ -48,11 +48,14 @@ import org.json.JSONObject
 /** Маскот Сейвик: картинка из набора (mascot-<поза>.webp). В светлой теме — на тёмном круге, чтобы свечение читалось. */
 @Composable
 fun Mascot(pose: String, size: Dp, modifier: Modifier = Modifier) {
-    if (K.dark) AssetImage("mascot-$pose.webp", modifier.size(size))
-    else Box(modifier.size(size).clip(CircleShape).background(Color(0xFF14151A)), contentAlignment = Alignment.Center) {
-        AssetImage("mascot-$pose.webp", Modifier.size(size * .86f))
-    }
+    // позы, у которых есть живая пара, — живой маскот (дышит, моргает, отзывается на касание)
+    val live = LIVE[pose]
+    val img: @Composable (Modifier, Dp) -> Unit = { m, s -> if (live != null) LiveMascot(live, s, m, glow = false) else AssetImage("mascot-$pose.webp", m.size(s)) }
+    if (K.dark) img(modifier, size)
+    else Box(modifier.size(size).clip(CircleShape).background(Color(0xFF14151A)), contentAlignment = Alignment.Center) { img(Modifier, size * .86f) }
 }
+
+private val LIVE = mapOf("wave" to "wave", "sad" to "sad", "joy" to "jump", "hug" to "heart", "wait" to "think")
 
 /** Значок кнопки KAPSULA Touch (ctl_<имя>) — тот же, что на экране игры. */
 @Composable
