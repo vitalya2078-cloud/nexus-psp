@@ -80,8 +80,6 @@ class ScreensTest {
     @Test fun h04_settings_about() = shot("h04-settings-about", true) { Nav.settingsTab = "about"; Nav.open(Ov.Settings) }
     @Test fun h05_game_settings() = shot("h05-game-settings", true) { Nav.open(Ov.GSet(firstId())) }
     @Test fun h06_pad_classic() = shot("h06-pad-classic", true) { AppState.S.ctlMode = "classic"; Nav.open(Ov.Pad) }
-    @Test fun h07_games_light() = shot("h07-games-light", true) { AppState.S.theme = "light"; AppState.applyLook() }
-    @Test fun h08_game_light() = shot("h08-game-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Game(firstId())) }
     // 0.33: вкладка «Управление» и гайд
     @Test fun n01_controls_tab() = shot("n01-controls-tab", true) { Nav.go("ctl") }
     @Test fun n02_controls_empty() = shot("n02-controls-empty", false) { Nav.go("ctl") }
@@ -90,17 +88,15 @@ class ScreensTest {
     @Test fun n05_guide_gta() = shot("n05-guide-gta", false) { Nav.open(Ov.Guide(preset = "GTA: Vice City Stories")) }
     @Config(qualifiers = "w844dp-h1500dp-xhdpi")
     @Test fun n07_controls_full() = shot("n07-controls-full", true) { Nav.go("ctl") }
-    @Test fun n06_controls_light() = shot("n06-controls-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.go("ctl") }
     @Test fun h10_settings_ach() = shot("h10-settings-ach", true) { Nav.settingsTab = "ach"; Nav.open(Ov.Settings) }
     // «Уют»: тема «Вечер», «Ретро-меню», полка консоли, маскот в сообщении
-    private fun evening() { AppState.S.theme = "evening"; AppState.applyLook(); com.nexus.psp.ui.kit.Buddy.greeted = false }
+    private fun evening() { com.nexus.psp.ui.kit.Buddy.greeted = false }
     @Test fun v01_games_evening() = shot("v01-games-evening", true) { evening() }
     @Test fun v02_game_evening() = shot("v02-game-evening", true) { evening(); Nav.open(Ov.Game(firstId())) }
     @Test fun v03_settings_evening() = shot("v03-settings-evening", true) { evening(); Nav.settingsTab = "general"; Nav.open(Ov.Settings) }
     @Test fun v04_toast_evening() = shot("v04-toast-evening", true) { evening(); com.nexus.psp.ui.kit.Buddy.greeted = true; AppState.say("Игра добавлена в библиотеку", action = "Открыть") { } }
     @Test fun v05_shelf_empty_ps1() = shot("v05-shelf-ps1", true) { evening(); AppState.S.shelf = "ps1" }
     @Test fun v06_empty_evening() = shot("v06-empty-evening", false) { evening() }
-    @Test fun v07_looks_evening() = shot("v07-looks-evening", true) { evening(); Nav.open(Ov.Look("theme")) }
     @Test fun h09_search() = shot("h09-search", true) { Nav.open(Ov.Search) }
     /** Профиль с историей: часы, серия дней, избранное, любимая игра. */
     private fun played() {
@@ -180,7 +176,7 @@ class ScreensTest {
         com.nexus.psp.ui.screens.MyTab.start = 1; Nav.go("my")
     }
     @Test fun j14_profile_player_id() = shot("j14-profile-id", true) { played(); com.nexus.psp.data.Cloud.setForTest("7Q4M2K", false); Nav.go("my") }
-    @Test fun j12_home_wallpaper() = shot("j12-home-wall", true) { played(); AppState.S.wall = "wp_aurora"; AppState.S.accent = "wall"; AppState.wallChanged() }
+    @Test fun j12_home_wallpaper() = shot("j12-home-wall", true) { played(); AppState.S.wall = "wp_aurora"; AppState.S.accent = "#E8836B"; AppState.wallChanged() }
     /** Игра PS1: CUE + две дорожки BIN. */
     private fun ps1Game() {
         val dir = CoreFiles.gamesDir(ApplicationProvider.getApplicationContext())
@@ -199,5 +195,4 @@ class ScreensTest {
     @Test fun m05_files_noaccess() = shot("m05-files", true) { Nav.open(Ov.Files("games")) }
     @Test fun m06_scan_noaccess() = shot("m06-scan", true) { Nav.open(Ov.Scan) }
     @Test fun m07_my_full() { shot("m07-my", true) { played(); Nav.go("my") } }
-    @Test fun g09_quick_light() = shot("g09-quick-light", true) { AppState.S.theme = "light"; AppState.applyLook(); Nav.open(Ov.Quick) }
 }

@@ -79,9 +79,6 @@ class Settings(private val sp: SharedPreferences) {
     var con by s("con", "all")
     /** Консоли, выбранные при знакомстве (через запятую). */
     var cons by s("cons", "")
-    var theme by s("theme", "dark")
-    /** «Вечер» сам с 19:00 до 7:00 (поверх выбранной темы). */
-    var eveningAuto by b("eveningAuto", false)
     /** Живой маскот на главном экране и в сообщениях. */
     var mascot by b("mascot", true)
     /** Консоль главного экрана: all — все мои игры, иначе id платформы. */
@@ -216,34 +213,16 @@ object AppState {
     }
 
     fun applyLook() {
-        val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        K.theme = if (S.eveningAuto && (h >= 19 || h < 7)) "evening" else S.theme; K.contrast = S.contrast; T.big = S.big
-        K.accent = accentRaw()?.let { com.nexus.psp.ui.kit.Accent.fit(it, K.s1, K.theme == "light") }
+        // у KAPSULA одна атмосфера — уютный «Вечер» (тёмная, OLED и светлая убраны в 0.49)
+        K.theme = "evening"; K.contrast = S.contrast; T.big = S.big
+        K.accent = accentRaw()?.let { com.nexus.psp.ui.kit.Accent.fit(it, K.s1, false) }
     }
 
-    /** Цвет фона, из которого берётся акцент «из фона» (считается при выборе фона). */
-    var wallColor: androidx.compose.ui.graphics.Color? = null
+    /** Акцент — только тёплые цвета из набора; прежние холодные, «из фона» и «как в системе» ломали уют — для них янтарь. */
+    private fun accentRaw(): androidx.compose.ui.graphics.Color? = com.nexus.psp.ui.kit.Accent.preset(S.accent)
 
-    private fun accentRaw(): androidx.compose.ui.graphics.Color? = when (val a = S.accent) {
-        "" -> null
-        "system" -> com.nexus.psp.ui.kit.Accent.system(app)
-        "wall" -> wallColor ?: wallAccent()
-        else -> try { androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(a)) } catch (e: Exception) { null }
-    }
-
-    /** Картинка фона главного экрана (готовая или своё фото), уменьшенная — для цвета; null — фона-картинки нет. */
-    fun wallBitmap(maxW: Int = 1920): android.graphics.Bitmap? = try {
-        when {
-            S.wall == "photo" -> java.io.File(app.filesDir, "wall.jpg").takeIf { it.exists() }?.let { android.graphics.BitmapFactory.decodeFile(it.path) }
-            S.wall.startsWith("wp_") -> app.assets.open("img/look/${S.wall}.webp").use { android.graphics.BitmapFactory.decodeStream(it) }
-            else -> null
-        }
-    } catch (e: Exception) { null }
-
-    private fun wallAccent(): androidx.compose.ui.graphics.Color? = wallBitmap()?.let { b -> com.nexus.psp.ui.kit.Accent.fromImage(b).also { wallColor = it; b.recycle() } }
-
-    /** Фон сменили — пересчитать цвет «из фона». */
-    fun wallChanged() { wallColor = null; applyLook() }
+    /** Фон сменили — перерисовать оформление. */
+    fun wallChanged() = applyLook()
 
     // ---------- сохранение ----------
     private fun load() {

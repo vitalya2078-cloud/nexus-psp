@@ -115,7 +115,7 @@ fun SettingsScreen() {
 private fun General() {
     val th = listOf("dark", "oled", "light")
     // тема, цвет, фон главного экрана и профиль — в «Оформлении» (быстрая панель); здесь — дорога туда
-    Opt("Оформление", "Тема, цвет, фон главного экрана, аватар и рамки") { KButton("Открыть", small = true) { com.nexus.psp.ui.Nav.replace(com.nexus.psp.ui.Ov.Look()) } }
+    Opt("Оформление", "Цвет акцента, фон главного экрана, аватар и рамки") { KButton("Открыть", small = true) { com.nexus.psp.ui.Nav.replace(com.nexus.psp.ui.Ov.Look()) } }
     CloudAccount()
     Opt("Язык", null) { Seg(listOf("RU", "EN"), if (S.lang == "EN") 1 else 0) { S.lang = if (it == 1) "EN" else "RU"; if (it == 1) AppState.say("Английский перевод появится позже") } }
     Opt("Маскот", "Живой маскот на главном экране и в сообщениях: здоровается, радуется, грустит вместе с тобой. Выключишь — останутся простые картинки") { Toggle(S.mascot) { S.mascot = it } }

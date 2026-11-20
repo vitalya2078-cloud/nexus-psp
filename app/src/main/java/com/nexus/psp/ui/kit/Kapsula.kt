@@ -216,21 +216,23 @@ fun KButton(
     text: String? = null, icon: Int? = null, kind: BtnKind = BtnKind.Soft, small: Boolean = false, enabled: Boolean = true,
     danger: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit,
 ) {
-    val h = if (small) 36.dp else 44.dp
+    val h = if (small) 34.dp else 40.dp
     val bg = when (kind) { BtnKind.Main -> K.sel; BtnKind.Soft -> K.s2; BtnKind.Glass -> Color.Black.copy(alpha = .45f) }
     val fg = when { kind == BtnKind.Main -> K.onSel; danger -> K.bad; kind == BtnKind.Glass -> Color(0xFFF2F1EC); else -> K.ink }
     val round = text == null
-    // «Вечер»: объёмные кнопки — тёмная кромка снизу
-    val edge = if (K.evening && kind != BtnKind.Glass) (if (kind == BtnKind.Main) Color(0xFFC9772F) else Color(0xFF151A2C)) else null
+    // «Вечер»: объём только у главной кнопки (тонкая тёплая кромка снизу); остальные — плоские с тонкой обводкой
+    val edge = if (K.evening && kind == BtnKind.Main) Color(0xFFC9772F) else null
+    val ring = K.evening && kind == BtnKind.Soft
     Row(
         modifier.height(h).then(if (round) Modifier.width(h) else Modifier).clip(RoundedCornerShape(h / 2))
-            .then(if (edge != null && enabled) Modifier.background(edge).padding(bottom = 3.dp).clip(RoundedCornerShape(h / 2)) else Modifier)
+            .then(if (edge != null && enabled) Modifier.background(edge).padding(bottom = 2.dp).clip(RoundedCornerShape(h / 2)) else Modifier)
             .background(if (enabled) bg else bg.copy(alpha = .5f))
-            .press(enabled, onClick).padding(horizontal = if (round) 0.dp else if (small) 13.dp else 18.dp),
+            .then(if (ring) Modifier.border(1.dp, K.line2, RoundedCornerShape(h / 2)) else Modifier)
+            .press(enabled, onClick).padding(horizontal = if (round) 0.dp else if (small) 12.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
         if (icon != null) SolarIcon(icon, if (small) 17.dp else 19.dp, if (enabled) fg else fg.copy(alpha = .5f))
-        if (text != null) Text(text, style = T.label.copy(color = if (enabled) fg else fg.copy(alpha = .5f), fontSize = if (small) 13.sp else 14.sp).let { if (K.evening) it.copy(fontFamily = Balsamiq, fontSize = if (small) 14.sp else 15.sp) else it }, maxLines = 1)
+        if (text != null) Text(text, style = T.label.copy(color = if (enabled) fg else fg.copy(alpha = .5f), fontSize = if (small) 13.sp else 14.sp).let { if (K.evening) it.copy(fontFamily = Balsamiq, fontSize = if (small) 13.sp else 14.sp) else it }, maxLines = 1)
     }
 }
 

@@ -81,7 +81,7 @@ import java.io.File
 @Composable
 fun LooksScreen(start: String) {
     var tab by rememberSaveable { mutableStateOf(start) }
-    val tabs = listOf("theme" to "Тема и цвет", "wall" to "Фон", "profile" to "Профиль")
+    val tabs = listOf("theme" to "Цвет", "wall" to "Фон", "profile" to "Профиль")
     Full {
         OvHead("Оформление", back = true, actions = { TokensChip() })
         Row(Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)) {
@@ -157,39 +157,13 @@ private fun Caps(t: String, top: Dp = 10.dp) = Text(t.uppercase(), style = T.cap
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ThemeTab() {
-    val th = listOf("dark" to "Тёмная", "oled" to "OLED", "light" to "Светлая", "evening" to "Вечер")
-    Caps("Тема", 2.dp)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        th.forEach { (id, name) ->
-            val on = S.theme == id
-            val (bg, fg) = when (id) { "oled" -> Color(0xFF000000) to Color(0xFFF2F1EC); "light" -> Color(0xFFE7E5E0) to Color(0xFF1C1D20); "evening" -> Color(0xFF1B2238) to Color(0xFFF2A65A); else -> Color(0xFF0B0C0F) to Color(0xFFF2F1EC) }
-            Column(
-                Modifier.width(132.dp).clip(RoundedCornerShape(16.dp)).background(bg).border(if (on) 2.5.dp else 1.dp, if (on) K.acc else K.line2, RoundedCornerShape(16.dp))
-                    .press { S.theme = id; AppState.applyLook() }.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(fg.copy(alpha = .8f)))
-                Box(Modifier.width(60.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(fg.copy(alpha = .35f)))
-                Text(name, style = T.label.copy(color = fg, fontSize = 13.sp))
-            }
-        }
-    }
-    Opt("Вечер сам по вечерам", "С 19:00 до 7:00 KAPSULA включает тему «Вечер»: ночная синева, тёплый свет лампы и мягкие шрифты. Днём — снова выбранная тема.") {
-        Toggle(S.eveningAuto) { S.eveningAuto = it; AppState.applyLook() }
-    }
-    Caps("Цвет акцента")
-    Text("Цвет кнопок, выделения и ползунков. KAPSULA сама подправит яркость, чтобы всё читалось.", style = T.small)
+    Caps("Цвет акцента", 2.dp)
+    Text("Цвет кнопок, выделения и ползунков — только тёплые, чтобы не ломать уют. KAPSULA сама подправит яркость, чтобы всё читалось.", style = T.small)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 4.dp)) {
-        AccentDot("KAPSULA", Color(0xFF7FA7D9), S.accent.isEmpty()) { S.accent = ""; AppState.applyLook() }
+        AccentDot("Янтарь", Color(0xFFF2A65A), Accent.preset(S.accent) == null) { S.accent = ""; AppState.applyLook() }
         Accent.PRESETS.forEach { (name, c) ->
-            val hex = "#%06X".format(c.toArgb() and 0xFFFFFF)
-            AccentDot(name, c, S.accent.equals(hex, true)) { S.accent = hex; AppState.applyLook() }
+            AccentDot(name, c, Accent.preset(S.accent) == c) { S.accent = Accent.hex(c); AppState.applyLook() }
         }
-        val wallOk = S.wall == "photo" || S.wall.startsWith("wp_")
-        AccentDot("Из фона", AppState.wallColor ?: Color(0xFF8E96C4), S.accent == "wall", hint = !wallOk) {
-            if (!wallOk) AppState.say("Сначала выбери картинку во вкладке «Фон»") else { S.accent = "wall"; AppState.applyLook() }
-        }
-        if (android.os.Build.VERSION.SDK_INT >= 31) AccentDot("Как в системе", Accent.system(LocalContext.current) ?: K.acc, S.accent == "system") { S.accent = "system"; AppState.applyLook() }
     }
     Caps("Удобство")
     Opt("Крупный текст", null) { Toggle(S.big) { S.big = it; AppState.applyLook() } }

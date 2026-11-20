@@ -94,4 +94,12 @@ class CosmeticsTest {
             assertTrue(Accent.contrast(Accent.fit(c, lightSurface, true), lightSurface) >= 4.5f)
         }
     }
+
+    /** Одна уютная тема: тёплые цвета набора сохраняются и читаются; прежние холодные, «из фона», системный — янтарь (null). */
+    @Test fun accentOnlyWarm() {
+        Accent.PRESETS.forEach { (_, c) -> assertEquals(c, Accent.preset(Accent.hex(c))) }
+        listOf("", "wall", "system", "#7FA7D9", "мусор").forEach { assertEquals(null, Accent.preset(it)) }
+        val evening = Color(0xFF1B2238)
+        Accent.PRESETS.forEach { (_, c) -> assertTrue(Accent.contrast(Accent.fit(c, evening, false), evening) >= 4.5f) }
+    }
 }
