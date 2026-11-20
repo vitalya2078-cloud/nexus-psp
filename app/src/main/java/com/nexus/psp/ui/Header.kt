@@ -123,7 +123,8 @@ private fun ConsoleTab() {
     Box {
         Column(Modifier.tap { if (!on) Nav.go("games") else open = !open }, horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                com.nexus.psp.ui.kit.AssetImage(p?.conImg ?: "con-all.png", Modifier.size(26.dp, 20.dp))
+                if (p != null) com.nexus.psp.ui.kit.AssetImage(p.conImg, Modifier.size(26.dp, 20.dp))
+                else SolarIcon(R.drawable.sl_grid, 18.dp, if (on) K.acc else K.ink3)
                 Text((p?.short ?: "Игры") + " ▾", maxLines = 1, style = T.label.copy(fontFamily = com.nexus.psp.ui.kit.Rubik, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = if (on) K.ink else K.ink3))
             }
             Box(Modifier.padding(top = 5.dp).height(2.5.dp).width(28.dp).graphicsLayer { scaleX = line; alpha = line }.clip(RoundedCornerShape(2.dp)).background(K.acc))

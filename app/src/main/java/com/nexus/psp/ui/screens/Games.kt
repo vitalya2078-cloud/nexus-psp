@@ -224,7 +224,7 @@ private fun HomeBuddy(modifier: Modifier) {
             Text(
                 bubble ?: "", maxLines = 2,
                 style = T.label.copy(fontSize = 14.sp, color = K.ink).let { if (K.evening) it.copy(fontFamily = com.nexus.psp.ui.kit.Balsamiq, fontSize = 15.sp) else it },
-                modifier = Modifier.widthIn(max = 220.dp).clip(RoundedCornerShape(16.dp)).background(K.s2.copy(alpha = .95f))
+                modifier = Modifier.widthIn(max = 160.dp).clip(RoundedCornerShape(16.dp)).background(K.s2.copy(alpha = .95f))
                     .border(1.dp, K.acc.copy(alpha = .4f), RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
             )
         }
@@ -295,7 +295,8 @@ private fun ShelfEmpty(id: String) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("${p.short}: пока нет игр", style = T.h1)
             Text("Форматы: " + p.exts.joinToString(", ") { it.uppercase() } + if (p.biosLevel == 2) ". Нужен BIOS — подскажу, где его указать." else ".", style = T.body)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 KButton("Добавить игру", R.drawable.ph_plus, BtnKind.Main) { Act.addFile() }
                 KButton("Найти на телефоне", R.drawable.sl_search) { Act.findGames() }
                 if (p.bios) KButton("BIOS", R.drawable.sl_chip) { Nav.settingsTab = "bios"; Nav.open(Ov.Settings) }
