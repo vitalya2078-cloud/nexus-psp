@@ -104,10 +104,10 @@ object Covers {
             val name = serial?.let { db?.bySerial?.get(it) } ?: db?.byTitle(sfoTitle ?: g.file.substringBeforeLast('.'))
             if (name != null) {
                 title = cleanTitle(name)
-                if (needCover && !File(d, "cover_user.jpg").exists()) download(base + "Named_Boxarts/" + thumbName(name) + ".png")?.let { saveImage(it, File(d, "cover.jpg"), 600, byWidth = false) }
+                if (needCover && !File(d, "cover_user.jpg").exists()) thumb(base, "Named_Boxarts", name)?.let { saveImage(it, File(d, "cover.jpg"), 600, byWidth = false) }
                 if (needExtra) {
-                    download(base + "Named_Snaps/" + thumbName(name) + ".png")?.let { saveImage(it, File(d, "snap.jpg"), 960, byWidth = true) }
-                    download(base + "Named_Titles/" + thumbName(name) + ".png")?.let { saveImage(it, File(d, "title.jpg"), 960, byWidth = true) }
+                    thumb(base, "Named_Snaps", name)?.let { saveImage(it, File(d, "snap.jpg"), 960, byWidth = true) }
+                    thumb(base, "Named_Titles", name)?.let { saveImage(it, File(d, "title.jpg"), 960, byWidth = true) }
                 }
             } else if (sfoTitle != null && title == null) title = cleanTitle(sfoTitle!!)
             tried = System.currentTimeMillis(); extra = System.currentTimeMillis()
@@ -178,6 +178,19 @@ object Covers {
 
     /** «Soulcalibur - Broken Destiny (Europe) (En,Fr…)» → «Soulcalibur — Broken Destiny». */
     fun cleanTitle(n: String): String = prettyName(n).replace(" - ", " — ")
+
+    /** Картинка libretro: сначала сервер thumbnails.libretro.com, если его нет — те же файлы на GitHub (libretro-thumbnails). */
+    private fun thumb(base: String, kind: String, name: String): ByteArray? {
+        val file = kind + "/" + thumbName(name) + ".png"
+        return download(base + file) ?: mirror(base)?.let { download(it + file) }
+    }
+
+    /** «https://thumbnails.libretro.com/Sony%20-%20PlayStation%20Portable/» → «…/libretro-thumbnails/Sony_-_PlayStation_Portable/master/». */
+    internal fun mirror(base: String): String? {
+        val sys = base.removePrefix("https://thumbnails.libretro.com/").trimEnd('/').takeIf { it.isNotEmpty() && '/' !in it && it != base } ?: return null
+        val repo = java.net.URLDecoder.decode(sys, "UTF-8").replace(' ', '_')
+        return "https://raw.githubusercontent.com/libretro-thumbnails/" + URLEncoder.encode(repo, "UTF-8").replace("+", "%20") + "/master/"
+    }
 
     private fun download(url: String): ByteArray? = try {
         val con = URL(url).openConnection() as HttpURLConnection

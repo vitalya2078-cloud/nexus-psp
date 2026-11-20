@@ -45,6 +45,14 @@ class CoversTest {
         }
     }
 
+    @Test fun thumbnailMirror() {
+        assertEquals("https://raw.githubusercontent.com/libretro-thumbnails/Sony_-_PlayStation_Portable/master/",
+            com.nexus.psp.data.Covers.mirror("https://thumbnails.libretro.com/Sony%20-%20PlayStation%20Portable/"))
+        assertEquals("https://raw.githubusercontent.com/libretro-thumbnails/Nintendo_-_Nintendo_Entertainment_System/master/",
+            com.nexus.psp.data.Covers.mirror("https://thumbnails.libretro.com/Nintendo%20-%20Nintendo%20Entertainment%20System/"))
+        org.junit.Assert.assertNull(com.nexus.psp.data.Covers.mirror("https://example.com/x/"))
+    }
+
     @Test fun findsCoverOnline() {
         val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
         val f = File(CoreFiles.gamesDir(ctx), "game1.cso"); res("Soulcalibur (Europe).cso").copyTo(f, true)
