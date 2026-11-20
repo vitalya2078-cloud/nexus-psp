@@ -26,8 +26,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 74
-        versionName = "0.46.0"
+        versionCode = 75
+        versionName = "0.47.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a") // ядро PPSSPP собрано только под 64-бит ARM
@@ -89,6 +89,8 @@ dependencies {
     implementation("androidx.browser:browser:1.8.0")
     // libretro-фронтенд (GPL-3.0): вывод картинки, звук, ввод, сохранения; ядро PPSSPP подключается как .so
     implementation(project(":libretrodroid"))
+    // движок Java-игр J2ME Loader (Apache-2.0), собирается из исходников с патчем KAPSULA (tools/j2me/setup.sh)
+    implementation(project(":j2me"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

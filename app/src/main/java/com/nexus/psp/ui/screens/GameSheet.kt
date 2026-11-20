@@ -155,8 +155,11 @@ fun GameSheet(id: String) {
                     Text(if (e != null && e.play > 0) "Последний запуск: ${e.last}" else "Ещё не запускалась", style = T.small)
                 }
                 if (com.nexus.psp.data.Invite.supported(g)) KButton(icon = R.drawable.sl_wifi) { invite = true }
-                KButton("Управление", R.drawable.sl_pad, small = true) { Nav.open(Ov.Guide(id = id)) }
-                KButton(icon = R.drawable.sl_sliders) { Nav.open(Ov.GSet(id)) }
+                // у Java-игр свой движок: схемы кнопок и настройки ядра libretro к ним не относятся
+                if (g.p != "j2me") {
+                    KButton("Управление", R.drawable.sl_pad, small = true) { Nav.open(Ov.Guide(id = id)) }
+                    KButton(icon = R.drawable.sl_sliders) { Nav.open(Ov.GSet(id)) }
+                }
                 KButton(icon = R.drawable.sl_trash) { askDelete = true }
                 ActButton(g)
             }

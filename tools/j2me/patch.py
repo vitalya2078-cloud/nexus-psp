@@ -3,6 +3,7 @@
 
 1. ContextHolder: контекст приложения задаёт KAPSULA (своего Application у движка в KAPSULA нет).
 2. MicroActivity: задаёт контекст первым делом — процесс :j2me начинается с неё.
+2б. Config: данные игр — в папке приложения, не в J2ME-Loader в памяти телефона.
 3. InternalDataSource: без ffmpeg-kit (очень тяжёлый, нужен был только для ADPCM-звука) —
    ADPCM в WAV перекодируется маленьким встроенным декодером (tools/j2me/Adpcm.java).
 Каждая замена проверяется: если оригинал изменился — патч падает, а не молча пропускает.
@@ -49,6 +50,37 @@ edit("javax/microedition/shell/MicroActivity.java", [
 """),
 ])
 
+# время в игре для KAPSULA: при каждой паузе — прирост минут в last_session.json (его читает главный экран)
+edit("javax/microedition/shell/MicroActivity.java", [
+    ("""	public void onResume() {
+		super.onResume();
+		visible = true;""",
+     """	public void onResume() {
+		super.onResume();
+		kapsulaStart = android.os.SystemClock.elapsedRealtime();
+		visible = true;"""),
+    ("""	public void onPause() {
+		hideSoftInput();""",
+     """	public void onPause() {
+		ru.kapsula.j2me.Session.add(this, getIntent().getStringExtra("kapsula_id"), kapsulaStart);
+		kapsulaStart = 0;
+		hideSoftInput();"""),
+    ("""public class MicroActivity extends AppCompatActivity {
+""",
+     """public class MicroActivity extends AppCompatActivity {
+	private long kapsulaStart;
+"""),
+])
+
+edit("ru/playsoftware/j2meloader/config/Config.java", [
+    ("""		String path = FileUtils.isExternalStorageLegacy() ?
+				preferences.getString(PREF_EMULATOR_DIR, null) :
+				context.getExternalFilesDir(null).getPath();""",
+     """		// KAPSULA: данные Java-игр — только в папке приложения (без папки J2ME-Loader в памяти телефона)
+		java.io.File own = context.getExternalFilesDir(null);
+		String path = new java.io.File(own != null ? own : context.getFilesDir(), "j2me").getPath();"""),
+])
+
 edit("javax/microedition/media/InternalDataSource.java", [
     ("""import com.arthenica.ffmpegkit.FFmpegKit;
 import com.arthenica.ffmpegkit.FFmpegSession;
@@ -82,5 +114,6 @@ p.write_text(s, encoding="utf-8")
 
 dst = java / "ru/kapsula/j2me"
 dst.mkdir(parents=True, exist_ok=True)
-shutil.copy(Path(__file__).parent / "Adpcm.java", dst / "Adpcm.java")
+for f in ("Adpcm.java", "Session.java"):
+    shutil.copy(Path(__file__).parent / f, dst / f)
 print("patched")

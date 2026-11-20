@@ -25,7 +25,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":j2me-dexlib"))
+    api(project(":j2me-dexlib"))
     val room = "2.6.1"
     implementation("androidx.room:room-runtime:$room")
     implementation("androidx.room:room-rxjava2:$room")

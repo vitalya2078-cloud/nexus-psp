@@ -54,7 +54,7 @@ object CloudSaves {
     fun serialOf(g: Game): String? = AppState.meta[g.id]?.serial?.uppercase()?.filter { it.isLetterOrDigit() }?.takeIf { it.length >= 9 }
 
     /** Ключ сейва в облаке (null — для этой игры облако не умеет). */
-    fun keyOf(g: Game): String? = if (g.p == "psp") serialOf(g)?.let { "psp_" + it.lowercase() }
+    fun keyOf(g: Game): String? = if (g.p == "j2me") null else if (g.p == "psp") serialOf(g)?.let { "psp_" + it.lowercase() }
         else "srm_" + sha(GameLibrary.key(g.path).toByteArray()).take(24)
 
     /** Содержимое сейва на телефоне (null — сейва нет). */

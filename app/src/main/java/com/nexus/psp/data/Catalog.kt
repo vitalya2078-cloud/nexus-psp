@@ -41,6 +41,8 @@ val PLATFORMS = listOf(
     Platform("a78", "Atari 7800", "Atari 7800", Color(0xFFB3A27C), 0, "Картридж", "ic-cd.png", "con-a26.png", core = "prosystem", exts = listOf("a78"), family = "Bandai и Atari"),
     Platform("lynx", "Lynx", "Atari Lynx", Color(0xFF9CB0A8), 2, "Картридж", "ic-cd.png", "con-lynx.png", core = "gearlynx", exts = listOf("lnx", "lyx"), family = "Bandai и Atari",
         biosHint = "Нужен BIOS: lynxboot.img"),
+    // Java-игры кнопочных телефонов (J2ME): движок J2ME Loader (модуль :j2me), без ядра libretro
+    Platform("j2me", "Java", "Java-игры (J2ME)", Color(0xFFD9A35F), 0, "Java-игра", "ic-jar.png", "con-j2me.png", exts = listOf("jar"), family = "Телефоны"),
 )
 val PL = PLATFORMS.associateBy { it.id }
 

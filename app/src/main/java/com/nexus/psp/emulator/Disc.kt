@@ -125,6 +125,7 @@ object Disc {
             "a78" -> at(1, "ATARI7800") || size >= 16 * 1024
             "lnx" -> at(0, "LYNX")
             "lyx" -> size >= 64 * 1024
+            "jar" -> at(0, "PK\u0003\u0004")
             else -> true
         }
     }

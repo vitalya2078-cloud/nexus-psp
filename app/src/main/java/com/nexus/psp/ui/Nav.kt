@@ -75,6 +75,8 @@ object Act {
         if (g.missing || !java.io.File(g.path).exists()) { missing(g); return }
         buzz()
         AppState.markPlayed(id)
+        // Java-игры — свой движок (J2ME Loader), не ядро libretro
+        if (g.p == "j2me") { com.nexus.psp.emulator.J2me.play(ctx, g); return }
         // мгновенное продолжение: без выбранного слота — с места, где вышел
         val s = if (slot < 0 && S.autoResume && AppState.stateFile(g, 4).exists()) 4 else slot
         GameActivity.start(ctx, bootJson(ctx, id, s).toString())
