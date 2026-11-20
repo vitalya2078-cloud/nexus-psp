@@ -45,6 +45,9 @@ jobs:
       - name: Prepare LibretroDroid sources (KAPSULA patch)
         run: tools/libretrodroid/setup.sh
 
+      - name: Prepare J2ME Loader sources (KAPSULA patch)
+        run: tools/j2me/setup.sh
+
       # те же ядра и системные файлы, что в android.yml — иначе APK не запустит игры
       - name: Fetch libretro cores and system files
         run: |

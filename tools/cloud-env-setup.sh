@@ -24,3 +24,4 @@ ln -sf /opt/gradle-8.9/bin/gradle /usr/local/bin/gradle-8.9
 cd nexus-psp
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 tools/libretrodroid/setup.sh
+tools/j2me/setup.sh
