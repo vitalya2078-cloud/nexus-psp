@@ -3,7 +3,7 @@
 Идея: маскот собирается в коде из частей и анимируется на 60 кадрах/с (дыхание, моргание, ручки, хохолок, предметы).
 К каждой генерации прикладывать образец: `mascot-reference.png` (нынешний маскот: «машет» + голова).
 Два листа: крупные части — отдельно (им нужно разрешение), лицо и предметы — мелким листом.
-Фон тёмный ровный — светлого маскота проще вырезать. Свечение и искорки НЕ рисуем: их делает код.
+Лист A — на тёмном фоне (светлое тело). Лист B — на БЕЛОМ: глаза тёмные, на тёмном фоне при вырезке становятся дырами (проверено на листе A, 2026-11-20). Свечение и искорки НЕ рисуем: их делает код.
 
 ## Лист A — тело, рюкзак, ручки (4×3, 1536×1152)
 ```
@@ -31,7 +31,7 @@ Each arm has a soft rounded end where it joins the body, so it can overlap the b
 ```
 Use the ATTACHED IMAGE as the exact character reference (the same cute glowing cream-yellow mascot). Keep its face style EXACTLY: the same big glossy dark eyes, the same small mouth, the same line thickness.
 Make a sprite sheet of SEPARATE FACE PARTS and PROPS for cut-out animation:
-- canvas 1536x1024, flat solid dark background #14161B, a strict grid of 6 columns x 4 rows, equal cells, each item centered, wide gaps, nothing touching;
+- canvas 1536x1024, flat solid pure WHITE background #FFFFFF (the eyes are dark — they must not merge with the background), a strict grid of 6 columns x 4 rows, equal cells, each item centered, wide gaps, nothing touching;
 - all eyes are a PAIR with exactly the same distance between them and the same size in every cell; all mouths at the same scale;
 - NO glow, NO sparkles around items, clean edges, front view.
 Row 1 — EYES (pairs): 1 open normal; 2 closed (blink, soft curved lines); 3 happy ^^ arcs; 4 sad (with tilted eyebrows); 5 sleepy half-closed; 6 wink (left open, right closed).
@@ -45,3 +45,9 @@ Props are sized to be held in the mascot's small hands. No other text, no logos.
 - Части одного масштаба; тело без лица, рук и хохолка; ручки с круглыми концами.
 - Глаза — пары с одинаковым расстоянием во всех ячейках; рты одного размера.
 - Без свечения и искорок; фон ровный тёмный.
+
+## Итоги сборки листа A (2026-11-20)
+- Собрал куклу: дыхание, хохолок, моргание (пока сжатием лица из эталона), взмах — работает, пропорции узнаваемые.
+- Ручки на листе в ~2,3 раза крупнее, чем у эталона, — масштабирую в коде по эталону.
+- У хохолка ровный срез — ставлю ЗА телом.
+- Лямки рюкзака не нарисованы на теле — при желании отдельной частью.
