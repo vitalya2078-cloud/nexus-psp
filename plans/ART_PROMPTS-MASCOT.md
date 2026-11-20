@@ -51,3 +51,38 @@ Props are sized to be held in the mascot's small hands. No other text, no logos.
 - Ручки на листе в ~2,3 раза крупнее, чем у эталона, — масштабирую в коде по эталону.
 - У хохолка ровный срез — ставлю ЗА телом.
 - Лямки рюкзака не нарисованы на теле — при желании отдельной частью.
+
+---
+# ❌ «Кукла из частей» отклонена пользователем (не понравилась сборка). Новый план — целые позы (2026-11-20)
+24 позы, два листа по 12 (4×3, 1536×1152 → около 380 точек на маскота, как нынешние 360).
+Фон — хромакей #00FF00 (в маскоте зелёного нет: вырежется и светлое тело, и тёмные глаза). К каждой генерации — образец `plans/mascot-reference.png`.
+Между позами код делает плавный переход (подскок с растяжкой + смена картинки) и «дыхание» целиком.
+
+## Лист 1 — основа, эмоции, время суток (позы 1–12)
+```
+Use the ATTACHED IMAGE as the exact character reference: the cute glowing cream-yellow flame/ghost mascot with a dark cartridge backpack. Keep its design EXACTLY the same in every drawing: same proportions, same big glossy dark eyes, same flame curl, same backpack, same colors, line style and shading. Only the pose, face and props change.
+Make a character pose sheet of 12 SEPARATE drawings of this mascot:
+- canvas 1536x1152, flat solid pure green chroma-key background #00FF00 (no gradients, no shadows on the background), a strict grid of 4 columns x 3 rows, equal cells, wide empty gaps, nothing touching;
+- the mascot is the SAME SIZE in every cell, full body, centered, feet on the same baseline near the bottom of each cell;
+- soft warm inner glow on the body is fine, but NO outer glow, NO sparkles or particles around (the app adds them);
+- no text, no logos.
+Poses, left to right, top to bottom:
+Row 1: 1 standing calm, small smile, arms relaxed (base pose); 2 EXACTLY the same pose as 1 but with eyes closed (blink); 3 looking to the left; 4 looking to the right.
+Row 2: 5 waving hello; 6 jumping with joy, both arms up; 7 laughing, eyes ^^; 8 surprised, mouth "o", arms out.
+Row 3: 9 sad, eyes down; 10 stretching after waking up (morning); 11 holding a warm mug with steam, cozy (evening); 12 sitting and sleeping with three small stylized "z" above.
+```
+
+## Лист 2 — события (позы 13–24)
+```
+Use the ATTACHED IMAGE as the exact character reference: the cute glowing cream-yellow flame/ghost mascot with a dark cartridge backpack. Keep its design EXACTLY the same in every drawing: same proportions, same big glossy dark eyes, same flame curl, same backpack, same colors, line style and shading. Only the pose, face and props change.
+Make a character pose sheet of 12 SEPARATE drawings of this mascot:
+- canvas 1536x1152, flat solid pure green chroma-key background #00FF00 (no gradients, no shadows on the background), a strict grid of 4 columns x 3 rows, equal cells, wide empty gaps, nothing touching;
+- the mascot is the SAME SIZE in every cell, full body, centered, feet on the same baseline near the bottom of each cell;
+- soft warm inner glow on the body is fine, but NO outer glow, NO sparkles or particles around (the app adds them);
+- no text, no logos.
+Poses, left to right, top to bottom:
+Row 1: 13 winking with a thumbs-up; 14 thinking, hand at chin, eyes up; 15 crying with one tear; 16 big yawn, sleepy.
+Row 2: 17 carrying a game box in both hands; 18 hugging a pile of golden coins; 19 holding a golden trophy above the head; 20 holding a red heart in both hands.
+Row 3: 21 a small cloud with an up arrow above the head, looking at it; 22 playing a tiny keypad mobile phone; 23 playing with a gamepad, excited; 24 scared, hiding behind its backpack, only eyes visible.
+```
+Для второго листа лучше приложить ещё и готовый лист 1 — так позы точно выйдут одного размера и стиля.
