@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Движок Java-игр внутри KAPSULA: только экран игры в отдельном процессе. Без разрешений: камера, микрофон,
+     Bluetooth и геолокация игр J2ME не запрашиваются (такие игры просто не получат эти функции). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name="javax.microedition.shell.MicroActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme.NoActionBar"
+            android:screenOrientation="fullUser"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode"
+            android:process=":j2me" />
+        <receiver
+            android:name="com.nokia.mid.ui.NotificationBroadcastReceiver"
+            android:exported="false"
+            android:process=":j2me" />
+    </application>
+</manifest>
