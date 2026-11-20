@@ -1,5 +1,7 @@
 # KAPSULA «Уют» — промпты графики (отдельная версия, основная не меняется)
 
+Стиль: «hi-bit» — ближе к пиксельному (чёткие слегка «ступенчатые» края, текстуры пиксельными кластерами, 2–4 тона на материал), но свет мягкий и современный: свечение лампы, плавные градиенты, мягкие тени — не пикселизованы.
+
 Порядок: в ОДНОМ чате сначала «0. Стиль», потом листы 1–4 по очереди (стиль сохранится).
 Нельзя: логотипы и названия брендов (PlayStation, Nintendo, Sega, Sony…), копии реальных коробок и картриджей, надписи.
 Места под обложки и подписи — ровная серая заливка #808080: туда код вставит обложку игры или название.
@@ -8,7 +10,7 @@
 ```
 We are making a consistent set of game-art assets for "KAPSULA Cozy", a retro game emulator app. Mood: a cozy room in the EVENING lit by a warm desk lamp.
 Style rules for every image in this chat:
-- Soft painterly 2D illustration with clean shapes, gentle cel shading, subtle hand-made texture (cardboard fibers, wood grain), no photorealism, no 3D render look.
+- "Hi-bit" pixel-inspired illustration, NOT pure pixel art: objects have crisp, slightly chunky pixel-style edges and a limited-palette feel, wood grain, cardboard fibers and fabric are suggested with small visible pixel clusters and stepped shading (2-4 tones per material), BUT the lighting is smooth and modern — soft glow, gentle gradients of lamp light, soft shadows and bloom are allowed and NOT pixelated. Think of a modern cozy pixel game scene rendered at high resolution. No blurry upscaled pixels, no mixed pixel sizes, no photorealism, no 3D render look.
 - Lighting: warm lamp light from the upper left (color ~#FFC27A), soft long shadows to the lower right, deep warm darkness in the corners. No neon, no cold blue light.
 - Palette: warm browns, honey wood, kraft cardboard beige, cream, muted terracotta, a little olive green; dark areas are warm dark brown (~#1E140D), never pure black.
 - Straight front view (orthographic), no tilt, unless a prompt says otherwise.
@@ -17,10 +19,19 @@ Style rules for every image in this chat:
 Reply "ready" and wait.
 ```
 
-## 1. Комната (одна картинка, 1536×1024)
+## 1. Комната — объёмная (одна картинка, 1536×1024)
+Задняя стена и полки строго фронтально: код ставит коробки на нарисованные полки. Если консолей больше трёх полок — содержимое стеллажа прокручивается в его рамке, комната стоит на месте.
 ```
-Background for the main screen, landscape 1536x1024: the back wall of a cozy evening room, nothing in the foreground. Warm wallpaper with a very subtle vertical pattern, a wooden wainscot at the bottom, a warm pool of light from a desk lamp that is OUTSIDE the frame at the upper left, the light fades into warm darkness toward the right and the corners. Quiet and calm, low detail in the middle so shelves and UI can be placed on top. No shelves, no furniture, no objects, no text.
+Background for the main screen, landscape 1536x1024: the inside of a cozy room in the EVENING, drawn in ONE-POINT PERSPECTIVE with real depth (this image is an exception to the "straight front view" rule): the back wall faces the viewer directly and is parallel to the frame, the side walls, wooden floor and ceiling recede toward it.
+- On the back wall, centered and taking about 60% of the width and 60% of the height: a built-in wooden bookcase with exactly THREE EMPTY horizontal shelves, perfectly straight and level, seen straight on (no perspective on the shelves themselves), evenly spaced, nothing on them.
+- In the foreground at the bottom: the edge of a wooden desk across the whole width, empty except for a vintage desk lamp at the far left that lights the room with warm light (~#FFC27A).
+- Left wall: a small window with a dark blue night outside and a curtain; right side: a soft armchair corner or a plant in the shadow.
+- A rug on the floor, warm wallpaper, wooden wainscot.
+- Light: the lamp is the main source; warm pool of light on the desk and the lower-left part of the bookcase, the room fades into warm darkness to the right and in the corners. Cozy, calm, inviting.
+- Keep the bookcase shelves and the desk top clear and uncluttered: the app will place boxes and games there.
+No text, no logos, no people.
 ```
+Если полки вышли с наклоном — перегенерировать с припиской `the shelves must be perfectly horizontal and frontal`.
 
 ## 2. Картонная коробка консоли — 4 состояния (2×2, 1536×1536)
 ```
