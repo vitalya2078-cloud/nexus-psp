@@ -4,7 +4,7 @@
 set -euo pipefail
 DIR=j2me-src
 REV=360681dd5f6ccbc537e3334da1bf3d32201c684b
-STAMP="$DIR/.kapsula-$(cat tools/j2me/setup.sh tools/j2me/patch.py tools/j2me/Adpcm.java tools/j2me/Session.java tools/j2me/build.gradle.kts tools/j2me/dexlib.gradle.kts tools/j2me/AndroidManifest.xml | sha1sum | cut -c1-12)-${REV:0:8}"
+STAMP="$DIR/.kapsula-$(cat tools/j2me/setup.sh tools/j2me/patch.py tools/j2me/Adpcm.java tools/j2me/Session.java tools/j2me/KapsulaKeypad.java tools/j2me/build.gradle.kts tools/j2me/dexlib.gradle.kts tools/j2me/AndroidManifest.xml | sha1sum | cut -c1-12)-${REV:0:8}"
 if [ -f "$STAMP" ]; then echo "j2me: готово"; exit 0; fi
 rm -rf "$DIR"
 mkdir -p "$DIR"

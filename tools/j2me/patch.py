@@ -112,6 +112,22 @@ s = s[:a] + """	private void convert() {
 """ + s[b:]
 p.write_text(s, encoding="utf-8")
 
+# наша клавиатура телефона вместо экранной клавиатуры J2ME Loader (tools/j2me/KapsulaKeypad.java)
+edit("javax/microedition/lcdui/graphics/CanvasWrapper.java", [
+    ("""	public void bind(Canvas canvas) {""",
+     """	/** KAPSULA: холст Android — клавиатура рисует градиенты и фигуры сама. */
+	public Canvas raw() {
+		return canvas;
+	}
+
+	public void bind(Canvas canvas) {"""),
+])
+edit("javax/microedition/shell/MicroLoader.java", [
+    ("ContextHolder.setVk(new VirtualKeyboard(params));",
+     "ContextHolder.setVk(new javax.microedition.lcdui.keyboard.KapsulaKeypad(params));"),
+])
+shutil.copy(Path(__file__).parent / "KapsulaKeypad.java", java / "javax/microedition/lcdui/keyboard/KapsulaKeypad.java")
+
 dst = java / "ru/kapsula/j2me"
 dst.mkdir(parents=True, exist_ok=True)
 for f in ("Adpcm.java", "Session.java"):
