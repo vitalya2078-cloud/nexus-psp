@@ -122,3 +122,13 @@ jobs:
         run: |
           git fetch --unshallow origin || true
           VER=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts) APK=kapsula.apk python3 tools/gitverse_mirror.py
+
+      - name: Refresh site (GitVerse Pages)
+        # сайт берёт номер версии и ссылку на APK из latest.json — после выпуска собираем его заново
+        continue-on-error: true
+        env:
+          GV_TOKEN: ${{ secrets.GITVERSE_TOKEN }}
+          GV_REPO: ${{ secrets.GITVERSE_REPO }}
+        run: |
+          pip install -q fonttools brotli segno pillow
+          python3 tools/site_build.py build/site && python3 tools/gitverse_site.py build/site

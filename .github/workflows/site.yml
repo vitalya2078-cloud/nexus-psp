@@ -1,0 +1,37 @@
+# Сайт KAPSULA → GitVerse Pages (ветка pages). Только с основных веток: черновики из веток сессий не выкладываются.
+name: Site (GitVerse Pages)
+
+on:
+  push:
+    branches: [ "main", "ccr-30f02f17-ph3ie4" ]
+    paths:
+      - "site/**"
+      - "tools/site_build.py"
+      - "tools/gitverse_site.py"
+      - "ui/img/mascot-l-*"
+      - "ui/img/con-*"
+      - "app/src/main/java/com/nexus/psp/data/Catalog.kt"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: site
+  cancel-in-progress: true
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          pip install -q fonttools brotli segno pillow
+          python3 tools/site_build.py build/site
+      - name: Publish to GitVerse
+        env:
+          GV_TOKEN: ${{ secrets.GITVERSE_TOKEN }}
+          GV_REPO: ${{ secrets.GITVERSE_REPO }}
+        run: python3 tools/gitverse_site.py build/site

@@ -7,7 +7,7 @@ on:
   push:
     # Все ветки сессий ccr-*, кроме основной линии (её собирает и публикует android.yml).
     branches: [ "ccr-*", "!ccr-30f02f17-ph3ie4" ]
-    paths-ignore: [ "telegram/**", "plans/**", "promo/**", "docs/**" ]
+    paths-ignore: [ "telegram/**", "plans/**", "promo/**", "docs/**", "site/**" ]
 
 concurrency:
   group: test-build-${{ github.ref }}
