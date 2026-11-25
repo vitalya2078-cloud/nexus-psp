@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121828">
+<title>KAPSULA — уютный эмулятор ретро-консолей для Android</title>
+<meta name="description" content="PSP, PS1, PS2, Dreamcast, Sega, Денди и ещё 10 консолей плюс Java-игры — в одном Android-приложении. Бесплатно, без рекламы.">
+<meta property="og:title" content="KAPSULA — ретро-игры в уютной капсуле">
+<meta property="og:description" content="PSP, PS1, PS2, Dreamcast, Sega, Денди и Java-игры в одном Android-приложении. Бесплатно, без рекламы.">
+<meta property="og:image" content="img/og.jpg">
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="lamp" aria-hidden="true"></div>
+
+<header class="top">
+  <a class="brand" href="#"><img src="img/logo.svg" alt="" width="36" height="36"><span>KAPSULA</span></a>
+  <nav>
+    <a href="#features">Возможности</a>
+    <a href="#consoles">Консоли</a>
+    <a href="#faq">Вопросы</a>
+  </nav>
+  <a class="btn btn-main btn-sm" href="#get">Скачать</a>
+</header>
+
+<main>
+<section class="hero">
+  <div class="hero-text">
+    <p class="kicker">Эмулятор ретро-консолей для Android</p>
+    <h1>Ретро-игры<br>в уютной капсуле</h1>
+    <p class="lead">PSP, PS1, PS2, Dreamcast, Sega, Денди и ещё 10 консолей, плюс Java-игры с кнопочных телефонов — в одном приложении. Тёплое, живое, со своим маскотом. Бесплатно и без рекламы.</p>
+    <div class="cta" id="get">
+      <a class="btn btn-main btn-big js-apk" href="https://gitverse.ru/kapsula/KAPSULA/releases">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Скачать APK</span>
+      </a>
+      <p class="ver"><span class="js-ver">Последняя версия</span> · Android 8.0+ · 64-бит ARM</p>
+      <div class="qr" aria-label="QR-код для телефона">
+        <img src="img/qr.svg" alt="QR-код: открыть сайт на телефоне" width="132" height="132">
+        <p><b>Наведи камеру телефона</b>APK ставится на телефон — с компьютера удобнее открыть сайт там.</p>
+      </div>
+      <p class="ios">KAPSULA — только для Android. На iPhone, к сожалению, не установится.</p>
+    </div>
+  </div>
+  <div class="hero-buddy">
+    <div class="bubble js-bubble">Привет! Во что сыграем?</div>
+    <button class="buddy js-buddy" type="button" aria-label="Маскот KAPSULA — нажми, он обрадуется">
+      <span class="glow"></span>
+      <img class="js-pose" src="img/mascot/wave.webp" alt="" width="321" height="305">
+      <i class="spark s1"></i><i class="spark s2"></i><i class="spark s3"></i>
+    </button>
+  </div>
+</section>
+
+<section class="shots" aria-label="Скриншоты">
+  <div class="shots-track">
+    <figure><img src="img/screens/1-home.webp" alt="Главный экран: список игр слева, обложка и «Играть» справа" loading="lazy" width="1688" height="780"><figcaption>Главный экран — как ретро-меню</figcaption></figure>
+    <figure><img src="img/screens/2-game.webp" alt="Карточка игры" loading="lazy" width="1688" height="780"><figcaption>Карточка игры: сохранения, скриншоты, файл</figcaption></figure>
+    <figure><img src="img/screens/3-controls.webp" alt="Управление и раскладки кнопок" loading="lazy" width="1688" height="780"><figcaption>Свои кнопки и подсказки по управлению</figcaption></figure>
+    <figure><img src="img/screens/4-profile.webp" alt="Профиль игрока" loading="lazy" width="1688" height="780"><figcaption>Профиль, часы в играх, друзья</figcaption></figure>
+    <figure><img src="img/screens/5-looks.webp" alt="Оформление профиля" loading="lazy" width="1688" height="780"><figcaption>Аватары, рамки и фоны</figcaption></figure>
+    <figure><img src="img/screens/6-consoles.webp" alt="Все консоли" loading="lazy" width="1688" height="780"><figcaption>17 консолей и Java-игры</figcaption></figure>
+  </div>
+</section>
+
+<section id="features" class="block">
+  <h2>Что умеет</h2>
+  <div class="cards">
+    <article class="card"><b>Всё в одном</b><p>Не нужно ставить по эмулятору на каждую приставку: игры всех консолей — в одной библиотеке, с обложками и временем в игре.</p></article>
+    <article class="card"><b>Свои кнопки</b><p>Экранный геймпад KAPSULA Touch: двигай кнопки, меняй размер и прозрачность, добавляй турбо и комбо. Подключённый геймпад — тоже работает.</p></article>
+    <article class="card"><b>С места выхода</b><p>Вышел из игры — место сохранилось само. «Играть» вернёт ровно туда же.</p></article>
+    <article class="card"><b>Облачные сохранения</b><p>Сейвы игр хранятся в облаке KAPSULA: сменил телефон — продолжаешь с того же места (для большинства консолей).</p></article>
+    <article class="card"><b>Игры прямо из папки</b><p>Положи образы в папку KAPSULA в памяти телефона — игры появятся сами, без копирования.</p></article>
+    <article class="card"><b>Java-игры</b><p>Те самые игры с кнопочных телефонов — с настоящей клавиатурой телефона на экране.</p></article>
+    <article class="card"><b>Друзья и испытания</b><p>Профиль, друзья, испытания недели и достижения RetroAchievements.</p></article>
+    <article class="card"><b>Живой маскот</b><p>Сейвик здоровается по времени суток, радуется вместе с тобой и грустит, если что-то пошло не так.</p></article>
+  </div>
+</section>
+
+<section id="consoles" class="block">
+  <h2>Консоли</h2>
+  <p class="sub">Тестовые — те, что работают не на всех телефонах и не со всеми играми.</p>
+  <div class="consoles"><!--CONSOLES--></div>
+</section>
+
+<section class="block honest">
+  <h2>Где брать игры</h2>
+  <div class="note">
+    <img src="img/mascot/think.webp" alt="" width="321" height="305" loading="lazy">
+    <div>
+      <p><b>KAPSULA не раздаёт игры и BIOS</b> и не помогает их искать. Играть можно в свои игры: сделай образ (дамп) своего диска или картриджа — получится файл ISO, CSO, CHD, BIN и т. п.</p>
+      <p>Есть и бесплатные любительские (homebrew) игры — их авторы раздают сами.</p>
+      <p>Если консоли нужен BIOS, KAPSULA подскажет, какой файл нужен и куда его положить.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="block">
+  <h2>Вопросы</h2>
+  <details><summary>Как установить APK?</summary><p>Скачай файл, открой его и разреши установку «из неизвестных источников», если телефон спросит (Настройки → Безопасность или прямо в окне установки). Обновления KAPSULA подскажет сама.</p></details>
+  <details><summary>Какой нужен телефон?</summary><p>Android 8.0 или новее, 64-битный процессор ARM (почти все телефоны последних лет). Для PS2 и Saturn нужен мощный телефон.</p></details>
+  <details><summary>Зачем «Доступ ко всем файлам»?</summary><p>Чтобы играть прямо из папки в памяти телефона, без копирования гигабайтных образов. Можно не давать — тогда игры добавляются копией через системное окно.</p></details>
+  <details><summary>Что KAPSULA отправляет в интернет?</summary><p>Профиль, друзей, жетоны и облачные сейвы — для этих функций. Анонимная статистика без названий игр отключается в настройках. Подробно — в <a href="privacy.html">политике конфиденциальности</a>.</p></details>
+  <details><summary>Это бесплатно?</summary><p>Да. Без рекламы и без покупок за деньги. Жетоны зарабатываются игрой.</p></details>
+  <details><summary>Нужен ли VPN?</summary><p>Чтобы скачать — нет: KAPSULA и её обновления лежат на GitVerse.</p></details>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="foot-row">
+    <a class="brand" href="#"><img src="img/logo.svg" alt="" width="28" height="28"><span>KAPSULA</span></a>
+    <nav>
+      <a href="https://gitverse.ru/kapsula/KAPSULA">Исходный код</a>
+      <a href="https://gitverse.ru/kapsula/KAPSULA/releases">Все версии</a>
+      <a href="https://gitverse.ru/kapsula/KAPSULA/issues">Написать нам</a>
+      <a href="privacy.html">Конфиденциальность</a>
+    </nav>
+  </div>
+  <p class="small">Ядра эмуляции — проекты с открытым кодом (PPSSPP, PCSX-ReARMed, Flycast и другие) под лицензиями GNU GPL; список и тексты лицензий — в приложении: Настройки → О приложении. Названия консолей принадлежат их владельцам и указаны только для совместимости.</p>
+</footer>
+
+<a class="sticky btn btn-main js-apk" href="https://gitverse.ru/kapsula/KAPSULA/releases">Скачать APK</a>
+<script src="site.js" defer></script>
+</body>
+</html>
