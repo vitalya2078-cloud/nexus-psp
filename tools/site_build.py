@@ -38,9 +38,9 @@ def platforms():
     """Консоли из Catalog.kt: id, короткое имя, полное, картинка, тестовая ли, нужен ли BIOS."""
     src = (ROOT / "app/src/main/java/com/nexus/psp/data/Catalog.kt").read_text(encoding="utf-8")
     out = []
-    for m in re.finditer(r'Platform\("([^"]+)",\s*"([^"]+)",\s*"([^"]+)",\s*Color\([^)]*\),\s*(\d),\s*"[^"]*",\s*"[^"]*",\s*"([^"]+)"([^\n]*)', src):
-        pid, short, full, bios, img, rest = m.groups()
-        out.append(dict(id=pid, short=short, full=full, bios=int(bios), img=img, exp="exp = true" in rest))
+    for m in re.finditer(r'Platform\("([^"]+)",\s*"([^"]+)",\s*"([^"]+)",\s*Color\(0xFF([0-9A-Fa-f]{6})\),\s*(\d),\s*"[^"]*",\s*"[^"]*",\s*"([^"]+)"([^\n]*)', src):
+        pid, short, full, col, bios, img, rest = m.groups()
+        out.append(dict(id=pid, short=short, full=full, color="#" + col.lower(), bios=int(bios), img=img, exp="exp = true" in rest))
     if len(out) < 10: sys.exit(f"site: в Catalog.kt найдено только {len(out)} консолей — разбор сломался")
     return out
 
@@ -57,7 +57,7 @@ def consoles_html(pl, out: Path):
         tags = []
         if p["exp"]: tags.append('<span class="tag">тестовая</span>')
         if p["bios"] == 2: tags.append("нужен BIOS")
-        cards.append(f'<div class="con"><img src="img/con/{name}" alt="" loading="lazy"><b>{html.escape(p["full"])}</b>'
+        cards.append(f'<div class="con" style="--c:{p["color"]}"><img src="img/con/{name}" alt="" loading="lazy"><b>{html.escape(p["full"])}</b>'
                      + (f'<small>{" · ".join(tags)}</small>' if tags else "") + "</div>")
     return "\n    ".join(cards)
 
@@ -70,9 +70,29 @@ def fonts(out: Path):
 
 
 def mascot(out: Path):
+    """Позы приложения (ui/img/mascot-l-*) и позы только для сайта (site/art/mascot) — на один общий холст:
+    по центру тела, ноги на одной линии, чтобы смена позы в одном <img> не дёргала маскота."""
+    from PIL import Image
     d = out / "img/mascot"; d.mkdir(parents=True, exist_ok=True)
-    for f in (ROOT / "ui/img").glob("mascot-l-*.webp"):
-        shutil.copy(f, d / f.name.removeprefix("mascot-l-"))
+    src = {f.name.removeprefix("mascot-l-").removesuffix(".webp"): f for f in (ROOT / "ui/img").glob("mascot-l-*.webp")}
+    src.update({f.stem: f for f in (SITE / "art/mascot").glob("*.webp")})
+    ims = {n: Image.open(f).convert("RGBA") for n, f in src.items()}
+    W = max(i.width for i in ims.values()); H = max(i.height for i in ims.values())
+    for n, im in ims.items():
+        cv = Image.new("RGBA", (W, H), (0, 0, 0, 0)); cv.paste(im, ((W - im.width) // 2, H - im.height), im)
+        cv.save(d / f"{n}.webp", "WEBP", quality=88, method=6)
+    return W, H
+
+
+def changes_html():
+    """«Что нового» — из site/changes.json (пишется по-человечески при выпуске)."""
+    out = []
+    for r in json.loads((SITE / "changes.json").read_text(encoding="utf-8")):
+        y, m, d = r["date"].split("-")
+        mon = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][int(m) - 1]
+        items = "".join(f"<li>{html.escape(i)}</li>" for i in r["items"])
+        out.append(f'<article class="rel"><b>{html.escape(r["ver"])}</b><time datetime="{r["date"]}">{int(d)} {mon} {y}</time><ul>{items}</ul></article>')
+    return "\n    ".join(out)
 
 
 LOGO = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="13" fill="#1b2238"/>
@@ -105,11 +125,14 @@ def latest(out: Path):
 def build(out: Path):
     if out.exists(): shutil.rmtree(out)
     (out / "img/screens").mkdir(parents=True)
-    for f in ("index.html", "privacy.html", "site.css", "site.js"): shutil.copy(SITE / f, out / f)
+    for f in ("index.html", "privacy.html", "404.html", "site.css", "site.js", "game.js"): shutil.copy(SITE / f, out / f)
+    shutil.copytree(SITE / "art/items", out / "img/items")
     for f in (SITE / "screens").glob("*.webp"): shutil.copy(f, out / "img/screens" / f.name)
     idx = out / "index.html"
     s = idx.read_text(encoding="utf-8")
-    if "<!--CONSOLES-->" not in s: sys.exit("site: в index.html нет места <!--CONSOLES-->")
+    for mark in ("<!--CONSOLES-->", "<!--CHANGES-->"):
+        if mark not in s: sys.exit(f"site: в index.html нет места {mark}")
+    s = s.replace("<!--CHANGES-->", changes_html())
     # картинка для превью ссылки (Telegram, ВК) — только с полным адресом
     s = s.replace('content="img/og.jpg"', f'content="{SITE_URL}img/og.jpg"')
     idx.write_text(s.replace("<!--CONSOLES-->", consoles_html(platforms(), out)), encoding="utf-8")
@@ -117,13 +140,21 @@ def build(out: Path):
     from PIL import Image
     if (SITE / "screens/1-home.webp").exists():
         Image.open(SITE / "screens/1-home.webp").convert("RGB").resize((1200, 554)).save(out / "img/og.jpg", quality=85)
-    fonts(out); mascot(out); qr(out); latest(out)
+    fonts(out); mw, mh = mascot(out); qr(out); latest(out)
+    for page in ("index.html", "404.html", "privacy.html"):  # размеры холста маскота — в разметку (без скачка при загрузке)
+        f = out / page; f.write_text(f.read_text(encoding="utf-8").replace('width="321" height="311"', f'width="{mw}" height="{mh}"'), encoding="utf-8")
     # GitVerse Pages по умолчанию прогоняет Jekyll — у нас готовая статика
     (out / ".nojekyll").write_text("")
     # проверка: все ссылки на свои файлы ведут на существующие файлы
-    for page in ("index.html", "privacy.html"):
-        for ref in re.findall(r'(?:src|href)="((?:img|fonts)/[^"]+|site\.\w+)"', (out / page).read_text(encoding="utf-8")):
+    for page in ("index.html", "privacy.html", "404.html"):
+        for ref in re.findall(r'(?:src|href)="((?:img|fonts)/[^"]+|site\.\w+|game\.js)"', (out / page).read_text(encoding="utf-8")):
             if not (out / ref).exists(): sys.exit(f"site: {page} ссылается на отсутствующий {ref}")
+    # позы и предметы, которые зовут скрипты и разметка (P("…"), data-buddy, img/items/…)
+    code = "".join((out / f).read_text(encoding="utf-8") for f in ("site.js", "game.js", "index.html"))
+    poses = set(re.findall(r'P\("(\w[\w-]*)"\)', code)) | set(re.findall(r'data-buddy="([\w-]+)\|', code))
+    poses |= {p for arr in re.findall(r'\[((?:"[\w-]+",\s*)+"[\w-]+")\]\.forEach\(function \(n\) \{ (?:new Image|var i = new Image)', code) for p in re.findall(r'"([\w-]+)"', arr)}
+    for p in sorted(poses):
+        if not (out / f"img/mascot/{p}.webp").exists(): sys.exit(f"site: нет позы маскота {p}")
     for ref in re.findall(r'url\((fonts/[^)]+)\)', (out / "site.css").read_text(encoding="utf-8")):
         if not (out / ref).exists(): sys.exit(f"site: site.css ссылается на отсутствующий {ref}")
     size = sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
