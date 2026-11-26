@@ -339,14 +339,39 @@
   }, { threshold: .6 }).observe(fb);
 
   // ---------- пасхалка: код Konami → старый телевизор и танец ----------
+  // компьютер — клавишами ↑↑↓↓←→←→BA; телефон — те же стрелки свайпами (↑↑↓↓←→←→) или подержать Сейвика полторы секунды
+  var retroOn = false;
+  function retro() {
+    if (retroOn) return; retroOn = true;
+    root.classList.add("crt"); busyB = true; say("Ретро-режим!", 5000);
+    if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+    var n = 0, iv = setInterval(function () { set(["dance1", "dance2", "dance3", "dance2"][n++ % 4]); if (n % 2) hop(); }, 380);
+    setTimeout(function () { clearInterval(iv); root.classList.remove("crt"); busyB = false; retroOn = false; set(base); }, 6500);
+  }
   var code = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"], pos = 0;
   addEventListener("keydown", function (e) {
     var k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     pos = k === code[pos] ? pos + 1 : (k === code[0] ? 1 : 0);
-    if (pos < code.length) return;
-    pos = 0; root.classList.add("crt"); busyB = true; say("Ретро-режим!", 5000);
-    var n = 0, iv = setInterval(function () { set(["dance1", "dance2", "dance3", "dance2"][n++ % 4]); if (n % 2) hop(); }, 380);
-    setTimeout(function () { clearInterval(iv); root.classList.remove("crt"); busyB = false; set(base); }, 6500);
+    if (pos === code.length) { pos = 0; retro(); }
+  });
+  var swipe = ["u", "u", "d", "d", "l", "r", "l", "r"], sp = 0, sx = 0, sy = 0, st = 0;
+  addEventListener("touchstart", function (e) { var t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now(); }, { passive: true });
+  addEventListener("touchend", function (e) {
+    var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Date.now() - st > 700 || Math.max(Math.abs(dx), Math.abs(dy)) < 40) return;
+    // палец вверх — страница едет вниз: считаем направление жеста, как стрелку на клавиатуре
+    var d = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "r" : "l") : (dy < 0 ? "u" : "d");
+    sp = d === swipe[sp] ? sp + 1 : (d === swipe[0] ? 1 : 0);
+    if (sp === swipe.length) { sp = 0; retro(); }
+  }, { passive: true });
+  var hold = 0;
+  btn.addEventListener("pointerdown", function (e) { if (e.pointerType !== "mouse") hold = setTimeout(function () { hold = 0; taps = []; retro(); }, 1500); });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) { btn.addEventListener(ev, function () { clearTimeout(hold); }); });
+  btn.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  var secret = $(".js-secret");
+  if (secret) secret.addEventListener("click", function (e) {
+    e.preventDefault(); scrollTo({ top: 0, behavior: still ? "auto" : "smooth" });
+    setTimeout(function () { say(finePointer ? "Попробуй ↑↑↓↓←→←→ B A на клавиатуре" : "Подержи меня пальцем… или смахни ↑↑↓↓←→←→", 6000); hop(); }, 700);
   });
 
   // ---------- мини-игра: грузится только по требованию ----------
