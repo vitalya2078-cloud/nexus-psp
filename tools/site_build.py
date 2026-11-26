@@ -162,7 +162,7 @@ def latest(out: Path):
 def build(out: Path):
     if out.exists(): shutil.rmtree(out)
     (out / "img/screens").mkdir(parents=True)
-    for f in ("index.html", "privacy.html", "404.html", "gift.html", "site.css", "site.js", "game.js"): shutil.copy(SITE / f, out / f)
+    for f in ("index.html", "privacy.html", "404.html", "gift.html", "site.css", "site.js", "game.js", "menu.js"): shutil.copy(SITE / f, out / f)
     # «Полезное»: страницы и их скрипты (site/tools/*.html, *.js, *.css)
     for f in (SITE / "tools").glob("*"): shutil.copy(f, out / f.name)
     shutil.copytree(SITE / "art/items", out / "img/items")
