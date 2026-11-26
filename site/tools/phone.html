@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121828">
+<title>Пойдёт ли у меня? — KAPSULA</title>
+<meta name="description" content="Выбери процессор телефона — покажем, какие приставки KAPSULA потянет хорошо, а какие только с лёгкими играми.">
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="tools.css">
+</head>
+<body>
+<div class="lamp" aria-hidden="true"></div>
+<header class="top">
+  <a class="brand" href="./"><img src="img/logo.svg" alt="" width="36" height="36"><span>KAPSULA</span></a>
+  <nav><a href="./#tools">Полезное</a></nav>
+  <a class="btn btn-main btn-sm" href="./#get">Скачать</a>
+</header>
+<main class="tool">
+  <a class="back" href="./#tools">← Полезное</a>
+  <div class="tool-head">
+    <img src="img/mascot/think.webp" alt="" width="321" height="311">
+    <div><h1>Пойдёт ли у меня?</h1><p>Выбери процессор телефона — подскажу, какие приставки он потянет.</p></div>
+  </div>
+  <div class="panel">
+    <p class="hint js-model">Процессор написан в Настройки → О телефоне (или «Характеристики»).</p>
+    <input class="field js-q" type="search" placeholder="Например: Snapdragon 778G, Helio G99, Dimensity 8100" autocomplete="off">
+    <div class="list js-list" role="listbox"></div>
+  </div>
+  <div class="panel js-res" hidden>
+    <h2 class="js-chip"></h2>
+    <p class="hint js-tier"></p>
+    <div class="grades js-grades"></div>
+    <p class="hint">Оценка примерная: многое зависит от игры, охлаждения и заряда. Тяжёлые игры PS2 и Saturn идут не на всех телефонах.</p>
+  </div>
+</main>
+<script src="data.js"></script>
+<script src="phone.js"></script>
+</body>
+</html>
