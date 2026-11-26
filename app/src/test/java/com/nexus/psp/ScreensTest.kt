@@ -45,7 +45,7 @@ class ScreensTest {
         AppState.autoFetch = false
         AppState.init(ApplicationProvider.getApplicationContext())
         AppState.S.onboarded = true; AppState.S.launched = true; AppState.S.statsAsked = true; AppState.S.seenVer = com.nexus.psp.BuildConfig.VERSION_NAME
-        Nav.closeAll(); Nav.tab = "games"
+        Nav.closeAll(); Nav.tab = "games"; AppState.toast = null
         com.nexus.psp.ui.screens.MyTab.start = 0; com.nexus.psp.data.Cloud.setFriendsForTest(null)
         prep()
         rule.setContent { KapsulaTheme { KapsulaApp() } }
