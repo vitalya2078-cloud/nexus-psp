@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KAPSULA — макет v3</title>
+<style>
+@font-face { font-family: "Balsamiq Sans"; src: url(fonts/balsamiq.woff2) format("woff2"); font-weight: 700; }
+@font-face { font-family: "M PLUS Rounded 1c"; src: url(fonts/mplus-500.woff2) format("woff2"); font-weight: 500; }
+@font-face { font-family: "M PLUS Rounded 1c"; src: url(fonts/mplus-800.woff2) format("woff2"); font-weight: 800; }
+:root {
+  /* тёмная, но тёплая и нежная: сливовые сумерки, кремовый текст, мёд и персик */
+  --bg1: #241f33; --bg2: #18141f; --card: rgba(255, 236, 214, .06); --card2: rgba(255, 236, 214, .1); --line: rgba(255, 228, 200, .12);
+  --ink: #fbf0e4; --ink2: #d9c8bb; --ink3: #a8988f; --honey: #f4b26b; --peach: #f6c3a1; --rose: #e9a6b8; --on: #2a1a0e;
+  --head: "Balsamiq Sans", system-ui, sans-serif; --text: "M PLUS Rounded 1c", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; color: var(--ink); font: 500 16px/1.55 var(--text); overflow: hidden;
+  background: radial-gradient(ellipse 70% 60% at 18% 10%, rgba(244,178,107,.18), transparent 60%),
+              radial-gradient(ellipse 60% 55% at 85% 75%, rgba(233,166,184,.14), transparent 60%),
+              linear-gradient(180deg, var(--bg1), var(--bg2)); }
+.page { height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+/* шапка */
+.top { display: flex; align-items: center; gap: 18px; height: 76px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 21px var(--head); letter-spacing: 2px; color: var(--ink); text-decoration: none; }
+.brand img { width: 38px; }
+.nav { display: flex; gap: 6px; margin-left: 18px; }
+.nav a { padding: 8px 16px; border-radius: 999px; color: var(--ink2); text-decoration: none; font: 700 16px var(--head); }
+.nav a.on { background: var(--card2); color: var(--ink); }
+.right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.lang { width: 44px; height: 44px; border-radius: 14px; background: var(--card2); border: 1px solid var(--line); display: grid; place-items: center; cursor: pointer; position: relative; }
+.lang svg { width: 26px; height: 18px; border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+.btn { display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 22px; border-radius: 999px; background: linear-gradient(180deg, #f8c07e, var(--honey)); color: var(--on);
+  font: 700 17px var(--head); text-decoration: none; box-shadow: 0 3px 0 #c9823e, 0 10px 30px rgba(244,178,107,.3); }
+.btn.big { height: 62px; padding: 0 34px; font-size: 22px; }
+.btn svg { width: 22px; height: 22px; }
+/* первый экран */
+.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); align-items: center; gap: 24px; min-height: 0; }
+.kicker { display: inline-flex; gap: 8px; align-items: center; padding: 6px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--peach); font-weight: 800; font-size: 14px; }
+h1 { font: 700 clamp(40px, 5.6vw, 72px)/1.02 var(--head); margin: 16px 0 12px; }
+h1 em { font-style: normal; color: var(--honey); }
+.lead { color: var(--ink2); font-size: 19px; margin: 0 0 24px; max-width: 30em; }
+.ver { color: var(--ink3); font-size: 14px; margin-top: 10px; }
+.pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.pill { display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 10px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
+.pill i { width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; font-style: normal; font-size: 18px; background: rgba(244,178,107,.16); }
+.pill b { display: block; font: 700 16px/1.1 var(--head); }
+.pill span { color: var(--ink3); font-size: 13px; }
+.art { position: relative; display: grid; place-items: center; height: 100%; min-height: 0; }
+.blob { position: absolute; width: 78%; aspect-ratio: 1; border-radius: 46% 54% 52% 48% / 52% 44% 56% 48%; background: radial-gradient(circle at 40% 35%, rgba(246,195,161,.35), rgba(233,166,184,.12) 60%, transparent 72%); }
+.shot { position: absolute; width: 62%; right: 0; bottom: 12%; border-radius: 18px; border: 6px solid #2f2638; box-shadow: 0 24px 50px rgba(0,0,0,.45); transform: rotate(4deg); }
+.buddy { position: relative; width: min(330px, 70%); filter: drop-shadow(0 18px 30px rgba(0,0,0,.35)); margin-right: 28%; }
+.bubble { position: absolute; top: 6%; left: 2%; padding: 10px 16px; border-radius: 18px 18px 18px 6px; background: #fbf0e4; color: #3a2a20; font: 700 17px var(--head); box-shadow: 0 10px 24px rgba(0,0,0,.3); }
+/* лента приставок */
+.ribbon { min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 0 22px; }
+.ribbon small { color: var(--ink3); white-space: nowrap; font-size: 14px; }
+.cons { display: flex; gap: 10px; overflow: hidden; flex: 1; min-width: 0; mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.cons img { height: 44px; width: 66px; object-fit: contain; padding: 6px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); flex: none; }
+.more { color: var(--honey); text-decoration: none; font: 700 15px var(--head); white-space: nowrap; }
+/* выбор языка: развёрнутый */
+.langs { position: absolute; top: 70px; right: 140px; width: 420px; padding: 14px; border-radius: 22px; background: #2c2537; border: 1px solid var(--line); box-shadow: 0 30px 70px rgba(0,0,0,.5);
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; z-index: 5; }
+.langs a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 14px; color: var(--ink); text-decoration: none; font-size: 15px; }
+.langs a svg { width: 26px; height: 18px; border-radius: 4px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+.langs a.on { background: rgba(244,178,107,.16); box-shadow: inset 0 0 0 1px rgba(244,178,107,.5); }
+.tabs { display: none; }
+/* телефон */
+@media (max-width: 720px) {
+  .page { padding: 0 16px; grid-template-rows: auto 1fr auto auto; }
+  .top { height: 60px; } .nav, .right .btn { display: none; }
+  .hero { grid-template-columns: minmax(0, 1fr); text-align: center; align-content: center; gap: 0; }
+  .art { order: -1; height: auto; } .shot { display: none; } .blob { width: 210px; }
+  .buddy { width: 170px; margin: 0; } .bubble { top: 0; left: auto; right: 0; font-size: 14px; padding: 7px 12px; }
+  h1 { font-size: 36px; margin: 8px 0 8px; } .lead { font-size: 15.5px; margin: 0 auto 16px; }
+  .kicker { display: none; } .btn.big { height: 56px; font-size: 20px; }
+  .pills { justify-content: center; gap: 8px; margin-top: 16px; } .pill { padding: 6px 10px 6px 6px; } .pill i { width: 28px; height: 28px; font-size: 15px; } .pill b { font-size: 14px; } .pill span { display: none; }
+  .ribbon { padding: 8px 0 10px; } .ribbon small { display: none; } .cons img { height: 36px; width: 52px; }
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 -16px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: rgba(36,31,51,.94); border-top: 1px solid var(--line); }
+  .tabs a { display: grid; justify-items: center; gap: 2px; padding: 6px 0; border-radius: 14px; color: var(--ink3); text-decoration: none; font: 700 12px var(--head); }
+  .tabs a i { font-style: normal; line-height: 0; }
+  .tabs a.on { color: var(--honey); background: rgba(244,178,107,.12); }
+  .langs { top: 58px; right: 12px; left: 12px; width: auto; grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) and (max-height: 720px) {
+  .buddy { width: 118px; } .blob { width: 150px; } .bubble { font-size: 12.5px; }
+  h1 { font-size: 30px; margin: 4px 0 6px; } .lead { font-size: 14.5px; margin-bottom: 12px; } .btn.big { height: 50px; font-size: 18px; }
+  .pills { margin-top: 10px; } .ver { margin-top: 6px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <a class="brand" href="#"><img src="img/logo.svg" alt="">KAPSULA</a>
+    <nav class="nav"><a class="on" href="#">Главная</a><a href="#">Приставки</a><a href="#">Полезное</a><a href="#">Вопросы</a></nav>
+    <div class="right">
+      <button class="lang" type="button" aria-label="Язык"><svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#fff"/><rect y=".667" width="3" height=".667" fill="#0039a6"/><rect y="1.333" width="3" height=".667" fill="#d52b1e"/></svg></button>
+      <a class="btn" href="#">Скачать</a>
+    </div>
+  </header>
+  <main class="hero">
+    <div>
+      <span class="kicker">Эмулятор ретро-приставок для Android</span>
+      <h1>Ретро-игры<br>в <em>уютной</em> капсуле</h1>
+      <p class="lead">PSP, PS1, Sega, Денди и ещё дюжина приставок — в одном милом приложении. Бесплатно и без рекламы.</p>
+      <a class="btn big" href="#"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Скачать APK</a>
+      <div class="ver">Версия 0.50.1 · 56 МБ · Android 8+</div>
+      <div class="pills">
+        <div class="pill"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f4b26b" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7.5 10.5v4M5.5 12.5h4"/><circle cx="16" cy="11.5" r="1" fill="#f4b26b"/><circle cx="18" cy="13.8" r="1" fill="#f4b26b"/></svg></i><div><b>16 приставок</b><span>и Java-игры</span></div></div>
+        <div class="pill"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f6c3a1" stroke-width="2" stroke-linecap="round"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.7A3.2 3.2 0 0 0 7 18z"/></svg></i><div><b>Сейвы в облаке</b><span>с телефона на телефон</span></div></div>
+        <div class="pill"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="#e9a6b8"><path d="M12 2.5l2.4 6.6 6.6 2.4-6.6 2.4L12 20.5l-2.4-6.6L3 11.5l6.6-2.4z"/></svg></i><div><b>Живой Сейвик</b><span>рядом всегда</span></div></div>
+      </div>
+    </div>
+    <div class="art">
+      <div class="blob"></div>
+      <img class="shot" src="img/screens/1-home.webp" alt="">
+      <img class="buddy" src="img/mascot/wave.webp" alt="">
+      <div class="bubble">Привет! Поиграем?</div>
+    </div>
+  </main>
+  <div class="ribbon">
+    <small>Приставки:</small>
+    <div class="cons">
+      <img src="img/con/con-psp.webp"><img src="img/con/con-ps1.webp"><img src="img/con/con-ps2.webp"><img src="img/con/con-dendy.webp"><img src="img/con/con-md.webp"><img src="img/con/con-sms.webp"><img src="img/con/con-gg.webp"><img src="img/con/con-dc.webp"><img src="img/con/con-saturn.webp"><img src="img/con/con-pce.webp"><img src="img/con/con-neogeo.webp"><img src="img/con/con-ngp.webp"><img src="img/con/con-ws.webp"><img src="img/con/con-a26.webp"><img src="img/con/con-lynx.webp"><img src="img/con/con-j2me.webp">
+    </div>
+    <a class="more" href="#">Все →</a>
+  </div>
+  <nav class="tabs"><a class="on" href="#"><i><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 11l8-6.5 8 6.5v8a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/></svg></i>Главная</a><a href="#"><i><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7.5 10.5v4M5.5 12.5h4"/></svg></i>Приставки</a><a href="#"><i><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></i>Полезное</a><a href="#"><i><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M10 9.2a2 2 0 1 1 2.8 1.8c-.6.3-.8.7-.8 1.3"/></svg></i>Вопросы</a></nav>
+</div>
+<div class="langs">
+  <a class="on"><svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#fff"/><rect y=".667" width="3" height=".667" fill="#0039a6"/><rect y="1.333" width="3" height=".667" fill="#d52b1e"/></svg>Русский</a>
+  <a><svg viewBox="0 0 60 40"><rect width="60" height="40" fill="#012169"/><path d="M0 0L60 40M60 0L0 40" stroke="#fff" stroke-width="8"/><path d="M0 0L60 40M60 0L0 40" stroke="#c8102e" stroke-width="3"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="12"/><path d="M30 0v40M0 20h60" stroke="#c8102e" stroke-width="7"/></svg>English</a>
+  <a><svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#c60b1e"/><rect y=".5" width="3" height="1" fill="#ffc400"/></svg>Español</a>
+  <a><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><path d="M15 2.5 27 10 15 17.5 3 10z" fill="#ffdf00"/><circle cx="15" cy="10" r="4.6" fill="#002776"/></svg>Português</a>
+  <a><svg viewBox="0 0 5 3"><rect width="5" height="3" fill="#ffce00"/><rect width="5" height="2" fill="#dd0000"/><rect width="5" height="1" fill="#000"/></svg>Deutsch</a>
+  <a><svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#ef4135"/><rect width="2" height="2" fill="#fff"/><rect width="1" height="2" fill="#0055a4"/></svg>Français</a>
+  <a><svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#ce2b37"/><rect width="2" height="2" fill="#fff"/><rect width="1" height="2" fill="#009246"/></svg>Italiano</a>
+  <a><svg viewBox="0 0 8 5"><rect width="8" height="5" fill="#dc143c"/><rect width="8" height="2.5" fill="#fff"/></svg>Polski</a>
+  <a><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#e30a17"/><circle cx="11" cy="10" r="5" fill="#fff"/><circle cx="12.3" cy="10" r="4" fill="#e30a17"/><path d="M17.5 10l-2.6.9 1.6-2.2v2.6l-1.6-2.2z" fill="#fff"/></svg>Türkçe</a>
+  <a><svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#ffd700"/><rect width="3" height="1" fill="#0057b7"/></svg>Українська</a>
+  <a><svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#fff"/><circle cx="1.5" cy="1" r=".6" fill="#bc002d"/></svg>日本語</a>
+  <a><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#de2910"/><path d="M5 3l1.2 3.6H10L7 8.8l1.1 3.6L5 10.2 1.9 12.4 3 8.8 0 6.6h3.8z" fill="#ffde00"/></svg>中文</a>
+  <a><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="5" fill="#cd2e3a"/><path d="M10 10a5 5 0 0 0 10 0 2.5 2.5 0 0 0-5 0 2.5 2.5 0 0 1-5 0" fill="#0047a0"/><g stroke="#000" stroke-width="1.2"><path d="M4 4l3 2M5 3l3 2M23 15l3 2M22 16l3 2M23 5l3-2M22 4l3-2M4 16l3 2M5 17l3 2"/></g></svg>한국어</a>
+</div>
+</body>
+</html>
