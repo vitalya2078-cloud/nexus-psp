@@ -108,8 +108,7 @@ def qr(out: Path):
 
 def latest(out: Path):
     """Последний выпуск на GitVerse → latest.json (сайт читает его со своего адреса — без запросов к чужим API из браузера)."""
-    if os.environ.get("NO_NET"): return
-    for i in range(4):
+    for i in range(0 if os.environ.get("NO_NET") else 4):
         try:
             req = urllib.request.Request(GV_API, headers={"Accept": "application/json", "User-Agent": "KAPSULA-site"})
             r = json.load(urllib.request.urlopen(req, timeout=30))["data"][0]
@@ -119,7 +118,14 @@ def latest(out: Path):
             print("версия на GitVerse:", ver); return
         except Exception as e:
             print(f"GitVerse: {e} — повтор через {10 * 2 ** i} с"); time.sleep(10 * 2 ** i)
-    print("::warning::версию с GitVerse получить не удалось — кнопка ведёт на страницу выпусков")
+    # запасной путь: выпуск на GitVerse всегда v<версия>/kapsula.apk (tools/gitverse_mirror.py), версия — из app/build.gradle.kts
+    m = re.search(r'versionName = "([^"]+)"', (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8"))
+    if m:
+        ver = m.group(1)
+        (out / "latest.json").write_text(json.dumps({"ver": ver, "url": f"https://gitverse.ru/kapsula/KAPSULA/releases/download/v{ver}/kapsula.apk", "mb": 0}), encoding="utf-8")
+        print(f"::warning::GitVerse не ответил — ссылка на APK собрана по версии {ver}")
+    else:
+        print("::warning::версию узнать не удалось — кнопка ведёт на страницу выпусков")
 
 
 def build(out: Path):
