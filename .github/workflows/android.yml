@@ -131,4 +131,4 @@ jobs:
           GV_REPO: ${{ secrets.GITVERSE_REPO }}
         run: |
           pip install -q fonttools brotli segno pillow
-          python3 tools/site_build.py build/site && python3 tools/gitverse_site.py build/site
+          APK_FILE=kapsula.apk python3 tools/site_build.py build/site && python3 tools/gitverse_site.py build/site
