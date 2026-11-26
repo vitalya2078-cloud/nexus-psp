@@ -23,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 GV_API = "https://gitverse.ru/api/repos/kapsula/KAPSULA/releases?limit=1"
+GH_API = "https://api.github.com/repos/vitalya2078-cloud/nexus-psp/releases/tags/latest"
 SITE_URL = os.environ.get("SITE_URL", "https://kapsula.gitverse.site/")
 
 
@@ -107,25 +108,32 @@ def qr(out: Path):
 
 
 def latest(out: Path):
-    """Последний выпуск на GitVerse → latest.json (сайт читает его со своего адреса — без запросов к чужим API из браузера)."""
-    for i in range(0 if os.environ.get("NO_NET") else 4):
+    """APK кладётся прямо на сайт (kapsula.apk) — GitVerse ограничивает скачивание с выпусков без входа (429),
+    а сайт отдаётся без лимита и с того же адреса (полоса загрузки работает). latest.json — версия и ссылка.
+      APK_FILE=путь — готовый APK (сборка выпуска); INCLUDE_APK=1 — взять из выпуска latest на GitHub."""
+    apk = os.environ.get("APK_FILE"); ver = None
+    if not apk and os.environ.get("INCLUDE_APK"):
         try:
-            req = urllib.request.Request(GV_API, headers={"Accept": "application/json", "User-Agent": "KAPSULA-site"})
-            r = json.load(urllib.request.urlopen(req, timeout=30))["data"][0]
-            a = next(x for x in r["attachments"] if x["name"].endswith(".apk"))
-            ver = re.search(r"\d+\.\d+(?:\.\d+)?", r.get("title") or r.get("tagName", "")).group(0)
-            (out / "latest.json").write_text(json.dumps({"ver": ver, "url": a["downloadUrl"], "mb": round(a.get("size", 0) / 1048576)}), encoding="utf-8")
-            print("версия на GitVerse:", ver); return
+            rel = json.load(urllib.request.urlopen(urllib.request.Request(GH_API, headers={"Accept": "application/json", "User-Agent": "KAPSULA-site"}), timeout=30))
+            ver = re.search(r"\d+\.\d+(?:\.\d+)?", rel.get("name", "")).group(0)
+            a = next(x for x in rel["assets"] if x["name"] == "kapsula.apk")
+            apk = str(out / "kapsula.apk")
+            with urllib.request.urlopen(urllib.request.Request(a["browser_download_url"], headers={"User-Agent": "KAPSULA-site"}), timeout=300) as r, open(apk, "wb") as f:
+                shutil.copyfileobj(r, f)
         except Exception as e:
-            print(f"GitVerse: {e} — повтор через {10 * 2 ** i} с"); time.sleep(10 * 2 ** i)
-    # запасной путь: выпуск на GitVerse всегда v<версия>/kapsula.apk (tools/gitverse_mirror.py), версия — из app/build.gradle.kts
+            print(f"::warning::APK с GitHub не получен: {e}"); apk = None
+    if apk and os.path.getsize(apk) > 1_000_000:
+        if os.path.abspath(apk) != os.path.abspath(out / "kapsula.apk"): shutil.copy(apk, out / "kapsula.apk")
+        ver = ver or re.search(r'versionName = "([^"]+)"', (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")).group(1)
+        mb = round(os.path.getsize(out / "kapsula.apk") / 1048576)
+        (out / "latest.json").write_text(json.dumps({"ver": ver, "url": "kapsula.apk", "mb": mb}), encoding="utf-8")
+        print(f"APK {ver} ({mb} МБ) — на сайте"); return
+    # без APK — ссылка на выпуск GitVerse по версии проекта (может упереться в лимит GitVerse для гостей)
     m = re.search(r'versionName = "([^"]+)"', (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8"))
     if m:
         ver = m.group(1)
         (out / "latest.json").write_text(json.dumps({"ver": ver, "url": f"https://gitverse.ru/kapsula/KAPSULA/releases/download/v{ver}/kapsula.apk", "mb": 0}), encoding="utf-8")
-        print(f"::warning::GitVerse не ответил — ссылка на APK собрана по версии {ver}")
-    else:
-        print("::warning::версию узнать не удалось — кнопка ведёт на страницу выпусков")
+        print(f"::warning::APK не положен на сайт — ссылка на GitVerse, версия {ver}")
 
 
 def build(out: Path):
