@@ -326,3 +326,15 @@ details p { margin: 0; padding: 0 20px 18px; color: var(--ink2); animation: open
 .gift .gift-code { color: var(--ink2); margin: 6px 0 0; }
 .gift .gift-code b { color: var(--acc); font-family: var(--head); letter-spacing: 2px; }
 .btn.off { opacity: .5; pointer-events: none; }
+
+/* «Полезное» на главной */
+.tools-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.tcard { position: relative; display: grid; justify-items: center; align-content: start; gap: 6px; padding: 16px 12px; border-radius: var(--r); text-align: center; text-decoration: none; color: var(--ink);
+  background: rgba(27,34,56,.72); border: 1px solid rgba(242,166,90,.15); transition: transform .25s, border-color .25s, box-shadow .25s; }
+.tcard:hover { transform: translateY(-6px); border-color: rgba(242,166,90,.5); box-shadow: 0 16px 40px rgba(0,0,0,.35); }
+.tcard:hover img { transform: scale(1.06) rotate(-3deg); }
+.tcard img { width: 96px; transition: transform .3s; }
+.tcard b { font: 700 18px/1.2 var(--head); }
+.tcard span { color: var(--ink2); font-size: 14px; line-height: 1.4; }
+@media (max-width: 1000px) { .tools-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 720px) { .tools-grid { grid-template-columns: 1fr 1fr; } .tcard img { width: 76px; } }
