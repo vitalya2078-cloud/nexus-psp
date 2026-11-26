@@ -40,3 +40,4 @@
   .tool-head img { width: 80px; }
   .verdict { flex-direction: column; text-align: center; }
 }
+[hidden] { display: none !important; }
