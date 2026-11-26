@@ -1,0 +1,43 @@
+  <main class="inner tool">
+    <a class="back" href="{{L}}tools.html">← {{nav.tools}}</a>
+    <div class="head"><img src="/img/mascot/gamepad.webp" alt="" width="{{MW}}" height="{{MH}}"><div><h1>{{pad.h1}}</h1><p>{{pad.lead}}</p></div></div>
+  <div class="panel">
+    <div class="status js-status"><span class="led"></span><b class="js-name">{{pad.none}}</b></div>
+    <div class="padbox">
+      <svg viewBox="0 0 620 340" aria-label="{{pad.h1}}">
+        <path class="body" d="M120 70h380c60 0 100 50 110 120l8 70c6 50-30 80-66 60l-70-40H138l-70 40c-36 20-72-10-66-60l8-70C20 120 60 70 120 70z"/>
+        <rect class="b" data-b="6" x="90" y="20" width="120" height="34" rx="14"/><text x="150" y="43">L2</text>
+        <rect class="b" data-b="4" x="110" y="52" width="100" height="22" rx="10"/><text x="160" y="69">L1</text>
+        <rect class="b" data-b="7" x="410" y="20" width="120" height="34" rx="14"/><text x="470" y="43">R2</text>
+        <rect class="b" data-b="5" x="410" y="52" width="100" height="22" rx="10"/><text x="460" y="69">R1</text>
+        <rect class="b" data-b="12" x="122" y="108" width="34" height="38" rx="6"/>
+        <rect class="b" data-b="13" x="122" y="180" width="34" height="38" rx="6"/>
+        <rect class="b" data-b="14" x="84" y="146" width="38" height="34" rx="6"/>
+        <rect class="b" data-b="15" x="156" y="146" width="38" height="34" rx="6"/>
+        <circle class="b" data-b="3" cx="470" cy="118" r="20"/><text x="470" y="124">Y</text>
+        <circle class="b" data-b="0" cx="470" cy="206" r="20"/><text x="470" y="212">A</text>
+        <circle class="b" data-b="2" cx="426" cy="162" r="20"/><text x="426" y="168">X</text>
+        <circle class="b" data-b="1" cx="514" cy="162" r="20"/><text x="514" y="168">B</text>
+        <rect class="b" data-b="8" x="250" y="120" width="44" height="20" rx="10"/><text x="272" y="162">Select</text>
+        <rect class="b" data-b="9" x="326" y="120" width="44" height="20" rx="10"/><text x="348" y="162">Start</text>
+        <circle class="b" data-b="16" cx="310" cy="190" r="14"/>
+        <circle class="stick" cx="230" cy="245" r="40"/><circle class="dot js-ls" data-b="10" cx="230" cy="245" r="16"/>
+        <circle class="stick" cx="390" cy="245" r="40"/><circle class="dot js-rs" data-b="11" cx="390" cy="245" r="16"/>
+      </svg>
+    </div>
+    <div class="meters">
+      <div class="meter">{{pad.lx}}<i><b class="js-a0"></b></i></div>
+      <div class="meter">{{pad.ly}}<i><b class="js-a1"></b></i></div>
+      <div class="meter">{{pad.rx}}<i><b class="js-a2"></b></i></div>
+      <div class="meter">{{pad.ry}}<i><b class="js-a3"></b></i></div>
+      <div class="meter">L2<i><b class="js-l2"></b></i></div>
+      <div class="meter">R2<i><b class="js-r2"></b></i></div>
+    </div>
+    <p class="tested js-tested"></p>
+    <button class="btn soft sm js-rumble" type="button" hidden>{{pad.rumble}}</button>
+  </div>
+  <div class="panel">
+    <h2>{{pad.help}}</h2>
+    <p class="hint">{{pad.helpd}}</p>
+  </div>
+</main>

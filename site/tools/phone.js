@@ -17,19 +17,19 @@
   // приставка → [класс «хорошо», класс «отлично»]
   var NEED = { a26: [1, 1], a78: [1, 1], nes: [1, 1], sms: [1, 1], gg: [1, 1], pce: [1, 1], ngp: [1, 1], ws: [1, 1], lynx: [1, 1], j2me: [1, 1],
     md: [1, 2], neogeo: [1, 2], ps1: [1, 2], psp: [2, 3], dc: [3, 4], saturn: [3, 5], ps2: [4, 5] };
-  var TIER = ["", "простой — для 8- и 16-битных приставок", "средний", "хороший", "мощный", "флагман"];
+  var TIER = ["", t("ph.t1l"), t("ph.t2"), t("ph.t3"), t("ph.t4"), t("ph.t5")];
   var q = document.querySelector(".js-q"), list = document.querySelector(".js-list"), res = document.querySelector(".js-res");
   function grade(tier, id) {
     var n = NEED[id] || [2, 3];
-    if (tier >= n[1]) return ["Отлично", "tag-ok"];
-    if (tier >= n[0]) return ["Хорошо", "tag-ok"];
-    if (tier >= n[0] - 1) return ["Только лёгкие игры", "tag-warn"];
-    return ["Не потянет", "tag-bad"];
+    if (tier >= n[1]) return [t("ph.g4"), "tag-ok"];
+    if (tier >= n[0]) return [t("ph.g3"), "tag-ok"];
+    if (tier >= n[0] - 1) return [t("ph.g2"), "tag-warn"];
+    return [t("ph.g1"), "tag-bad"];
   }
   function show(c) {
     res.hidden = false;
     document.querySelector(".js-chip").textContent = c[1];
-    document.querySelector(".js-tier").textContent = "Класс: " + TIER[c[0]];
+    document.querySelector(".js-tier").textContent = tf("ph.class", TIER[c[0]]); if (window.kEgg) { if (c[0] === 1) { kEgg.unlock("weakling"); kEgg.toast(t("ph.weak"), "🐢", t("js.seivik")); } if (c[0] === 5) kEgg.unlock("flagship"); }
     var g = document.querySelector(".js-grades"); g.innerHTML = "";
     D.platforms.forEach(function (p, i) {
       var r = grade(c[0], p.id), el = document.createElement("div");
@@ -45,14 +45,14 @@
     list.innerHTML = "";
     CHIPS.filter(function (c) { return !s || c[1].toLowerCase().indexOf(s) >= 0 || c[1].toLowerCase().replace(/\s/g, "").indexOf(s.replace(/\s/g, "")) >= 0; }).slice(0, 40).forEach(function (c) {
       var b = document.createElement("button"); b.type = "button"; b.className = "row-pick";
-      b.innerHTML = "<span></span><small></small>"; b.firstChild.textContent = c[1]; b.lastChild.textContent = ["", "простой", "средний", "хороший", "мощный", "флагман"][c[0]];
+      b.innerHTML = "<span></span><small></small>"; b.firstChild.textContent = c[1]; b.lastChild.textContent = t("ph.t" + c[0]);
       b.addEventListener("click", function () { show(c); }); list.appendChild(b);
     });
-    if (!list.children.length) list.innerHTML = '<p class="hint">Не нашёл такой процессор. Попробуй короче: «778», «G99», «8100».</p>';
+    if (!list.children.length) list.innerHTML = '<p class="hint">' + t("ph.none") + "</p>";
   }
   q.addEventListener("input", render); render();
   // модель телефона (Chrome на Android сообщает её сам) — подсказка, где искать процессор
   if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) navigator.userAgentData.getHighEntropyValues(["model"]).then(function (v) {
-    if (v.model) document.querySelector(".js-model").textContent = "Твой телефон: " + v.model + ". Процессор написан в Настройки → О телефоне (или найди модель в поиске).";
+    if (v.model) document.querySelector(".js-model").textContent = tf("ph.model", v.model);
   }).catch(function () {});
 })();

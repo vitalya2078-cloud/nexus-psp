@@ -1,0 +1,24 @@
+  <main class="inner tool">
+    <a class="back" href="{{L}}tools.html">← {{nav.tools}}</a>
+    <div class="head"><img src="/img/mascot/cartbox.webp" alt="" width="{{MW}}" height="{{MH}}"><div><h1>{{shelf.h1}}</h1><p>{{shelf.lead}}</p></div></div>
+    <div class="shelf-grid">
+      <div class="panel form">
+        <h2>{{shelf.cons}} <span class="hint js-cnt">{{shelf.max}}</span></h2>
+        <div class="picks js-picks"></div>
+        <h2>{{shelf.me}}</h2>
+        <input class="field js-nick" maxlength="20" placeholder="{{shelf.nick}}">
+        <input class="field js-g1" maxlength="34" placeholder="{{shelf.g1}}">
+        <input class="field js-g2" maxlength="34" placeholder="{{shelf.g2}}">
+        <input class="field js-g3" maxlength="34" placeholder="{{shelf.g3}}">
+      </div>
+      <div class="panel">
+        <h2>{{shelf.card}}</h2>
+        <canvas class="preview js-cv" width="1200" height="630"></canvas>
+        <p class="row" style="justify-content:flex-start;margin-top:12px">
+          <button class="btn js-share" type="button">{{shelf.share}}</button>
+          <button class="btn soft js-save" type="button">{{shelf.save}}</button>
+        </p>
+        <p class="hint">{{shelf.local}}</p>
+      </div>
+    </div>
+  </main>

@@ -18,15 +18,15 @@
     var pool = shuffle(P.filter(function (p) { return FACT[p.id]; })), out = [];
     pool.slice(0, 6).forEach(function (p) {
       var opts = shuffle([p].concat(shuffle(P.filter(function (o) { return o.id !== p.id; })).slice(0, 3)));
-      out.push({ img: p.img, q: "Что это за приставка?", opts: opts.map(nameOf), right: nameOf(p) });
+      out.push({ img: p.img, q: t("qz.what"), opts: opts.map(nameOf), right: nameOf(p) });
     });
     pool.slice(6, 8).forEach(function (p) {
       var y = FACT[p.id][0], ys = shuffle([y, y - 3, y + 2, y + 5].map(String));
-      out.push({ img: p.img, show: true, q: "В каком году вышла " + origOf(p) + "?", opts: ys, right: String(y) });
+      out.push({ img: p.img, show: true, q: tf("qz.year", origOf(p)), opts: ys, right: String(y) });
     });
     pool.slice(8, 10).forEach(function (p) {
       var m = FACT[p.id][1], ms = shuffle([m].concat(shuffle(MAKERS.filter(function (x) { return x !== m; })).slice(0, 3)));
-      out.push({ img: p.img, show: true, q: "Кто выпустил " + origOf(p) + "?", opts: ms, right: m });
+      out.push({ img: p.img, show: true, q: tf("qz.maker", origOf(p)), opts: ms, right: m });
     });
     return shuffle(out);
   }
@@ -53,33 +53,34 @@
     if (navigator.vibrate) navigator.vibrate(ok ? 20 : [30, 40, 30]);
     setTimeout(function () { i++; if (i < qs.length) ask(); else done(); }, ok ? 900 : 1600);
   }
-  function verdict() { return score >= 9 ? ["trophy", "Ретро-легенда!"] : score >= 7 ? ["jump", "Настоящий знаток!"] : score >= 4 ? ["wink", "Неплохо! Ещё партию?"] : ["think", "Есть куда расти — зато интересно!"]; }
+  function verdict() { return score >= 9 ? ["trophy", t("qz.v4")] : score >= 7 ? ["jump", t("qz.v3")] : score >= 4 ? ["wink", t("qz.v2")] : ["think", t("qz.v1")]; }
   function done() {
     var v = verdict();
-    box.innerHTML = prog() + '<img class="qbuddy" src="img/mascot/' + v[0] + '.webp" alt=""><div class="qscore">' + score + " / 10</div><p class='qq'></p>" +
-      '<div class="qrow"><button class="btn btn-main js-share" type="button">Поделиться результатом</button><button class="btn btn-soft js-again" type="button">Ещё раз</button></div>';
+    if (window.kEgg && score === 10) { var w = kstore.get("quiz10", 0) + 1; kstore.set("quiz10", w); kEgg.unlock("quiz_master"); if (w >= 2) kEgg.unlock("quiz_twice"); }
+    box.innerHTML = prog() + '<img class="qbuddy" src="/img/mascot/' + v[0] + '.webp" alt=""><div class="qscore">' + score + " / 10</div><p class='qq'></p>" +
+      '<div class="qrow"><button class="btn btn-main js-share" type="button">' + t("qz.share") + '</button><button class="btn btn-soft js-again" type="button">' + t("qz.again") + '</button></div>';
     box.querySelector(".qq").textContent = v[1];
     box.querySelector(".js-again").addEventListener("click", start);
     box.querySelector(".js-share").addEventListener("click", function () { share(v); });
   }
   function share(v) {
     var c = document.createElement("canvas"); c.width = 1200; c.height = 630; var g = c.getContext("2d");
-    var bg = g.createLinearGradient(0, 0, 0, 630); bg.addColorStop(0, "#1d2240"); bg.addColorStop(1, "#0b0f1c"); g.fillStyle = bg; g.fillRect(0, 0, 1200, 630);
+    var bg = g.createLinearGradient(0, 0, 0, 630); bg.addColorStop(0, "#2a2338"); bg.addColorStop(1, "#18141f"); g.fillStyle = bg; g.fillRect(0, 0, 1200, 630);
     var lamp = g.createRadialGradient(140, -40, 0, 140, -40, 700); lamp.addColorStop(0, "rgba(255,184,102,.35)"); lamp.addColorStop(1, "rgba(255,184,102,0)"); g.fillStyle = lamp; g.fillRect(0, 0, 1200, 630);
     var img = new Image(); img.onload = function () {
       g.drawImage(img, 760, 150, 380, 368);
-      g.fillStyle = "#f2a65a"; g.font = "700 34px 'Balsamiq Sans', sans-serif"; g.fillText("Ретро-викторина KAPSULA", 80, 120);
-      g.fillStyle = "#f4eee4"; g.font = "700 150px 'Balsamiq Sans', sans-serif"; g.fillText(score + " / 10", 80, 330);
+      g.fillStyle = "#f4b26b"; g.font = "700 34px 'Balsamiq Sans', sans-serif"; g.fillText(t("qz.card"), 80, 120);
+      g.fillStyle = "#fbf0e4"; g.font = "700 150px 'Balsamiq Sans', sans-serif"; g.fillText(score + " / 10", 80, 330);
       g.font = "700 46px 'Balsamiq Sans', sans-serif"; g.fillText(v[1], 80, 420);
-      g.fillStyle = "#aeb6cc"; g.font = "500 30px sans-serif"; g.fillText("А ты сколько наберёшь? kapsula.gitverse.site", 80, 540);
-      out(c, "kapsula-quiz.png", "Я набрал " + score + " из 10 в ретро-викторине KAPSULA! А ты?");
+      g.fillStyle = "#aeb6cc"; g.font = "500 30px sans-serif"; g.fillText(t("qz.you") + " kapsula.gitverse.site", 80, 540);
+      out(c, "kapsula-quiz.png", tf("qz.text", score));
     };
-    img.src = "img/mascot/" + v[0] + ".webp";
+    img.src = "/img/mascot/" + v[0] + ".webp";
   }
   function out(c, file, text) {
     c.toBlob(function (b) {
       var f = new File([b], file, { type: "image/png" });
-      if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], text: text + " https://kapsula.gitverse.site/quiz.html" }).catch(function () {});
+      if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], text: text + " https://kapsula.gitverse.site" + (window.L || "/") + "quiz.html" }).catch(function () {});
       else { var a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = file; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000); }
     }, "image/png");
   }
