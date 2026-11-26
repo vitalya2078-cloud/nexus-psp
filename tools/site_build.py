@@ -122,41 +122,27 @@ def qr(out: Path):
     segno.make(SITE_URL, error="m").save(str(out / "img/qr.svg"), scale=4, border=2, dark="#121828", light="#f4eee4")
 
 
+GH_APK = "https://github.com/vitalya2078-cloud/nexus-psp/releases/download/latest/kapsula.apk"
+
+
 def latest(out: Path):
-    """APK кладётся прямо на сайт (kapsula.apk) — GitVerse ограничивает скачивание с выпусков без входа (429),
-    а сайт отдаётся без лимита и с того же адреса (полоса загрузки работает). latest.json — версия и ссылка.
-      APK_FILE=путь — готовый APK (сборка выпуска); INCLUDE_APK=1 — взять из выпуска latest на GitHub."""
-    apk = os.environ.get("APK_FILE"); ver = None
-    if not apk and os.environ.get("INCLUDE_APK"):
+    """latest.json — версия и ссылка на APK. Качаем с выпуска GitHub: он умеет докачивать после обрыва;
+    сервер сайта (GitVerse) и выпуски GitVerse рвали загрузку и начинали с нуля (решение пользователя 2026-11-27)."""
+    ver = None; mb = 0
+    apk = os.environ.get("APK_FILE")
+    if apk and os.path.exists(apk): mb = round(os.path.getsize(apk) / 1048576)
+    if not os.environ.get("NO_NET"):
         try:
             rel = json.load(urllib.request.urlopen(urllib.request.Request(GH_API, headers={"Accept": "application/json", "User-Agent": "KAPSULA-site"}), timeout=30))
             ver = re.search(r"\d+\.\d+(?:\.\d+)?", rel.get("name", "")).group(0)
-            a = next(x for x in rel["assets"] if x["name"] == "kapsula.apk")
-            apk = str(out / "kapsula.apk")
-            with urllib.request.urlopen(urllib.request.Request(a["browser_download_url"], headers={"User-Agent": "KAPSULA-site"}), timeout=300) as r, open(apk, "wb") as f:
-                shutil.copyfileobj(r, f)
+            a = next((x for x in rel.get("assets", []) if x["name"] == "kapsula.apk"), None)
+            if a and not mb: mb = round(a["size"] / 1048576)
         except Exception as e:
-            print(f"::warning::APK с GitHub не получен: {e}"); apk = None
-    if apk and os.path.getsize(apk) > 1_000_000:
-        if os.path.abspath(apk) != os.path.abspath(out / "kapsula.apk"): shutil.copy(apk, out / "kapsula.apk")
-        ver = ver or re.search(r'versionName = "([^"]+)"', (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")).group(1)
-        size = os.path.getsize(out / "kapsula.apk"); mb = round(size / 1048576)
-        # куски по 8 МБ: сервер сайта не докачивает с места обрыва (Range не работает) — страница качает по кускам
-        # и при обрыве перекачивает только упавший кусок. Целый файл остаётся — для прямой ссылки и обновлений в приложении.
-        PART = 8 * 1048576; parts = 0
-        with open(out / "kapsula.apk", "rb") as src:
-            while True:
-                chunk = src.read(PART)
-                if not chunk: break
-                (out / f"kapsula.apk.{parts:02d}").write_bytes(chunk); parts += 1
-        (out / "latest.json").write_text(json.dumps({"ver": ver, "url": "kapsula.apk", "mb": mb, "size": size, "parts": parts}), encoding="utf-8")
-        print(f"APK {ver} ({mb} МБ) — на сайте"); return
-    # без APK — ссылка на выпуск GitVerse по версии проекта (может упереться в лимит GitVerse для гостей)
-    m = re.search(r'versionName = "([^"]+)"', (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8"))
-    if m:
-        ver = m.group(1)
-        (out / "latest.json").write_text(json.dumps({"ver": ver, "url": f"https://gitverse.ru/kapsula/KAPSULA/releases/download/v{ver}/kapsula.apk", "mb": 0}), encoding="utf-8")
-        print(f"::warning::APK не положен на сайт — ссылка на GitVerse, версия {ver}")
+            print(f"::warning::выпуск GitHub не прочитался: {e}")
+    if apk or not ver:  # сборка выпуска — версия проекта (выпуск на GitHub уже обновлён этим же запуском)
+        ver = re.search(r'versionName = "([^"]+)"', (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")).group(1)
+    (out / "latest.json").write_text(json.dumps({"ver": ver, "url": GH_APK, "mb": mb}), encoding="utf-8")
+    print(f"версия {ver}, APK — с GitHub ({mb} МБ)")
 
 
 def build(out: Path):

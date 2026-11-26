@@ -353,3 +353,10 @@ details p { margin: 0; padding: 0 20px 18px; color: var(--ink2); animation: open
 .menu-sheet a:not(.btn):active, .menu-sheet a:not(.btn):hover, .menu-sheet a.on { background: var(--s2); }
 .menu-get { margin-top: 10px; }
 @media (max-width: 1000px) { .top nav { display: none; } .burger { display: block; } }
+
+/* мини-игра на телефоне: правила компактнее */
+@media (max-width: 720px) {
+  .game-ui > div { padding: 16px; gap: 10px; }
+  .game-ui b { font-size: 24px; }
+  .legend img { width: 24px; }
+}

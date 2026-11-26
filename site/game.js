@@ -8,8 +8,8 @@
   var POWER = ["heart", "magnet", "hourglass", "lamp", "clock"];
   var ALL = GOOD.map(function (g) { return g[0]; }).concat(BAD, POWER, ["spark", "puff"]);
   var IMG = {}, POSE = {};
-  ALL.forEach(function (n) { var i = new Image(); i.src = "img/items/" + n + ".webp"; IMG[n] = i; });
-  ["run", "catch", "dizzy", "jump", "idle"].forEach(function (n) { var i = new Image(); i.src = "img/mascot/" + n + ".webp"; POSE[n] = i; });
+  ALL.forEach(function (n) { var i = new Image(); i.src = "/img/items/" + n + ".webp"; IMG[n] = i; });
+  ["run", "catch", "dizzy", "jump", "idle"].forEach(function (n) { var i = new Image(); i.src = "/img/mascot/" + n + ".webp"; POSE[n] = i; });
 
   var W = 720, H = 460, el, cv, cx, ui, raf = 0, st;
   function best() { try { return +localStorage.getItem("kapsula-game-best") || 0; } catch (e) { return 0; } }
@@ -20,6 +20,9 @@
     el.innerHTML = '<div class="game-box"><button class="x" type="button" aria-label="Закрыть">×</button><canvas width="720" height="460"></canvas><div class="game-ui"></div></div>';
     doc.body.appendChild(el);
     cv = el.querySelector("canvas"); cx = cv.getContext("2d"); ui = el.querySelector(".game-ui");
+    // телефон вертикально — поле выше (во всю высоту экрана), чтобы и правила, и игра помещались
+    if (innerHeight > innerWidth) { W = 480; H = Math.round(Math.min(1000, Math.max(460, 480 * innerHeight * .78 / Math.min(innerWidth, 760)))); cv.setAttribute("width", W); }
+    cv.setAttribute("height", H);
     var r = Math.min(window.devicePixelRatio || 1, 2); cv.width = W * r; cv.height = H * r; cx.setTransform(r, 0, 0, r, 0, 0);
     el.querySelector(".x").addEventListener("click", close);
     el.addEventListener("click", function (e) { if (e.target === el) close(); });
@@ -43,7 +46,7 @@
     row.firstChild && row.firstChild.focus();
   }
   function intro() {
-    var ic = function (n) { return '<img src="img/items/' + n + '.webp" alt="">'; };
+    var ic = function (n) { return '<img src="/img/items/' + n + '.webp" alt="">'; };
     menu("<b>Поймай картриджи</b><p>Води Сейвика пальцем или стрелками. Лови игры и монетки, уворачивайся от бомб и жуков.</p>" +
       '<div class="legend">' + ic("cart-red") + ic("disc") + ic("coin") + ic("star") + " — очки · " + ic("bad-bomb") + ic("bad-bug") + " — минус жизнь</div>" +
       '<div class="legend">' + ic("magnet") + " магнит · " + ic("hourglass") + " замедление · " + ic("lamp") + " ×2 · " + ic("clock") + " +5 с · " + ic("heart") + " жизнь</div>" +
@@ -145,7 +148,7 @@
     cx.font = "700 22px 'Balsamiq Sans', sans-serif"; cx.textAlign = "left"; cx.fillStyle = "#f4eee4";
     cx.fillText("Очки: " + st.score, 18, 34);
     cx.textAlign = "center"; cx.fillStyle = st.time < 10 ? "#ffb070" : "#f4eee4"; cx.fillText(Math.max(0, Math.ceil(st.time)) + " с", W / 2, 34);
-    for (var i = 0; i < 3; i++) { cx.globalAlpha = i < st.lives ? 1 : .2; if (IMG.heart.complete) cx.drawImage(IMG.heart, W - 50 - i * 32, 14, 28, 28); }
+    for (var i = 0; i < 3; i++) { cx.globalAlpha = i < st.lives ? 1 : .2; if (IMG.heart.complete) cx.drawImage(IMG.heart, W - 92 - i * 32, 14, 28, 28); }
     cx.globalAlpha = 1;
     var tags = []; if (st.magnet > 0) tags.push("магнит"); if (st.slow > 0) tags.push("замедление"); if (st.double > 0) tags.push("×2");
     if (tags.length) { cx.font = "700 15px 'Balsamiq Sans', sans-serif"; cx.textAlign = "left"; cx.fillStyle = "#f2a65a"; cx.fillText(tags.join(" · "), 18, 58); }
