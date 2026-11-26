@@ -234,7 +234,7 @@
     // скрипт не смог скачать (сеть, ограничения сайта) — обычная загрузка браузером, подсказки остаются
     if (ctrl) ctrl.abort(); busy = false;
     bar.parentNode.classList.remove("wait"); bar.style.width = "100%";
-    title.textContent = "Загрузка началась"; sub.textContent = "Браузер качает файл сам — следи за ним в шторке уведомлений.";
+    title.textContent = "Загрузка началась"; sub.textContent = "Браузер качает файл сам — следи за ним в шторке уведомлений. Если связь оборвётся, браузер докачает с того же места.";
     pose.src = P("phone"); step(0);
     location.href = url;
   }
@@ -255,7 +255,7 @@
       if (!apk.url) {
         // описание версии ещё не пришло — подождать его; не пришло совсем — качать целый файл с сайта (не страницу выпусков)
         title.textContent = "Узнаю последнюю версию…"; bar.parentNode.classList.add("wait");
-        apkReady.then(function () { if (!apk.url) apk = { url: "kapsula.apk", ver: null, mb: 0 }; a.click(); });
+        apkReady.then(function () { if (!apk.url) apk = { url: "https://github.com/vitalya2078-cloud/nexus-psp/releases/download/latest/kapsula.apk", ver: null, mb: 0 }; a.click(); });
         return;
       }
       head.classList.remove("done"); pose.src = P("run"); step(-1);
