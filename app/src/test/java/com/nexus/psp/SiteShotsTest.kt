@@ -42,7 +42,7 @@ class SiteShotsTest {
         file("Pixel Hearts.nes", 1, "NES\u001A".toByteArray()); file("Moon Courier.md", 2)
         AppState.autoFetch = false
         AppState.init(ApplicationProvider.getApplicationContext())
-        AppState.S.onboarded = true; AppState.S.launched = true
+        AppState.S.onboarded = true; AppState.S.launched = true; AppState.S.statsAsked = true; AppState.S.seenVer = com.nexus.psp.BuildConfig.VERSION_NAME
         val ids = AppState.myList().map { it.id }
         val now = System.currentTimeMillis()
         ids.forEachIndexed { i, id ->

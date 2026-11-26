@@ -32,6 +32,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- подарок с сайта: kapsula://gift/КОД -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kapsula" android:host="gift" />
+            </intent-filter>
         </activity>
         <!-- Экран игры: отдельный процесс, чтобы ядро libretro полностью выгружалось после выхода -->
         <activity

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121828">
+<title>Подарок — KAPSULA</title>
+<meta name="description" content="Подарок для KAPSULA: забери его в приложении.">
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="lamp" aria-hidden="true"></div>
+<header class="top">
+  <a class="brand" href="./"><img src="img/logo.svg" alt="" width="36" height="36"><span>KAPSULA</span></a>
+</header>
+<main class="lost gift">
+  <img class="js-gpose" src="img/mascot/gift.webp" alt="" width="321" height="311">
+  <h1>Тебе подарок!</h1>
+  <p class="lead">Нажми — KAPSULA откроется и сама положит подарок в «Оформление».</p>
+  <div class="row">
+    <a class="btn btn-main btn-big js-take" href="kapsula://gift/">Забрать в KAPSULA</a>
+  </div>
+  <p class="gift-code">Код подарка: <b class="js-code">—</b><br>Можно ввести и вручную: Настройки → Общие → «Код подарка».</p>
+  <p class="small">Ещё нет KAPSULA? <a href="./#get">Скачай</a> — подарок подождёт.</p>
+</main>
+<script>
+(function () {
+  var c = (new URLSearchParams(location.search).get("c") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32);
+  var take = document.querySelector(".js-take");
+  document.querySelector(".js-code").textContent = c || "—";
+  if (!c) { take.removeAttribute("href"); take.classList.add("off"); return; }
+  take.href = "kapsula://gift/" + c;
+  take.addEventListener("click", function () {
+    document.querySelector(".js-gpose").src = "img/mascot/gift-open.webp";
+    // приложение не открылось (не установлено) — через пару секунд подсказываем скачать
+    setTimeout(function () { if (!document.hidden) document.querySelector(".lead").textContent = "Если KAPSULA не открылась — скачай её, а потом нажми ещё раз."; }, 2000);
+  });
+})();
+</script>
+</body>
+</html>

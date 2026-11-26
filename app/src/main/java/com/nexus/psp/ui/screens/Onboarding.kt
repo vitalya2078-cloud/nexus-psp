@@ -78,11 +78,17 @@ fun Onboarding(onDone: () -> Unit) {
             AnimatedContent(step, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(150)) }, label = "onb", modifier = Modifier.weight(1f)) { st ->
                 // на невысоких экранах шаг прокручивается — карточки не обрезаются
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 18.dp)) {
-                    Text(listOf("Во что играешь?", "Как будешь играть?", "Добавь первую игру")[st], style = T.h1)
-                    Text(
-                        listOf("Выбери консоли — KAPSULA настроит под них библиотеку.", "Можно поменять в любой момент в настройках.", "Образ своего диска или бесплатная homebrew-игра: ISO, CSO, CHD или PBP.")[st],
-                        style = T.body, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
-                    )
+                    // Сейвик ведёт знакомство: встречает, держит геймпад, несёт коробку с картриджами
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(bottom = 14.dp)) {
+                        com.nexus.psp.ui.kit.LiveMascot(listOf("welcome", "gamepad", "cartbox")[st], 92.dp, glow = st == 0)
+                        Column(Modifier.weight(1f)) {
+                            Text(listOf("Привет! Во что играешь?", "Как будешь играть?", "Добавь первую игру")[st], style = T.h1)
+                            Text(
+                                listOf("Выбери приставки — KAPSULA настроит под них полку.", "Можно поменять в любой момент в настройках.", "Образ своего диска или картриджа, или бесплатная любительская игра.")[st],
+                                style = T.body, modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    }
                     if (st == 0) ConsolePicker(cons)
                     else Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         when (st) {

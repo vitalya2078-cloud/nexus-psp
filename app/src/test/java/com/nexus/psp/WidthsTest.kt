@@ -29,7 +29,7 @@ class WidthsTest {
     private fun shot(name: String, onboarding: Boolean = false, quick: Boolean = false) {
         AppState.autoFetch = false
         AppState.init(ApplicationProvider.getApplicationContext())
-        AppState.S.onboarded = !onboarding; AppState.S.launched = true; AppState.S.headClock = true
+        AppState.S.onboarded = !onboarding; AppState.S.launched = true; AppState.S.headClock = true; AppState.S.statsAsked = true; AppState.S.seenVer = com.nexus.psp.BuildConfig.VERSION_NAME
         Nav.closeAll(); Nav.tab = "ctl"
         if (quick) Nav.open(com.nexus.psp.ui.Ov.Quick)
         rule.setContent { KapsulaTheme { KapsulaApp() } }

@@ -270,6 +270,11 @@ class MainActivity : ComponentActivity() {
 
     /** Тап по системному уведомлению: друзья — «Моё → Друзья», остальное — колокольчик. */
     private fun openFrom(i: android.content.Intent?) {
+        // подарок с сайта: kapsula://gift/КОД — окно «Подарок» само заберёт его
+        i?.data?.takeIf { it.scheme == "kapsula" && it.host == "gift" }?.let { u ->
+            com.nexus.psp.ui.screens.GiftLink.pending = (u.lastPathSegment ?: u.getQueryParameter("c") ?: "").take(32)
+            i.data = null
+        }
         when (i?.getStringExtra(com.nexus.psp.data.Inbox.EXTRA_OPEN)) {
             "friends" -> com.nexus.psp.data.Cloud.openFriends()
             "alerts" -> { Nav.closeAll(); Nav.open(Ov.Alerts) }

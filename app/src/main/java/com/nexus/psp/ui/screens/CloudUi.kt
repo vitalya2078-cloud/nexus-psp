@@ -60,7 +60,106 @@ fun CloudAccount() {
         }
     }
     if (code.isNotEmpty()) Opt("ID игрока", "Его можно называть в поддержке и (скоро) друзьям. Код восстановления — секрет, его не показывай") { PlayerId(onDark = false) }
+    Opt("Код подарка", "Подарки — рамки и другое оформление — выдаются на сайте KAPSULA и в наших новостях. Кнопка «Забрать» на сайте откроет KAPSULA сама, а код можно ввести и здесь") {
+        KButton("Ввести", small = true) { GiftLink.pending = "" }
+    }
+    val scope = rememberCoroutineScope()
+    var del by remember { mutableStateOf(false) }
+    if (Cloud.noAccount) Opt("Профиль удалён", "Прогресса, жетонов и друзей на сервере больше нет. Игры и сохранения на телефоне остались") {
+        KButton("Создать заново", small = true) { Cloud.allowAccount(); scope.launch { withContext(Dispatchers.IO) { Cloud.sync() }; AppState.say(if (Cloud.code.isNotEmpty()) "Новый профиль создан" else "Нет связи с сервером — профиль создастся сам, когда появится интернет") } }
+    } else if (code.isNotEmpty()) Opt("Удалить профиль", "Стереть с сервера всё, что там о тебе есть: прогресс, жетоны, оформление, друзей и облачные сейвы. Игры и сохранения на телефоне не тронем") {
+        KButton("Удалить", small = true, danger = true) { del = true }
+    }
     if (restore) RestoreDialog { restore = false }
+    if (del) DeleteDialog { del = false }
+}
+
+/** Подарок: ссылка с сайта (kapsula://gift/КОД) или код, введённый вручную. pending != null — окно открыто. */
+object GiftLink {
+    var pending by mutableStateOf<String?>(null)
+}
+
+/** Окно подарка: с кодом из ссылки забирает сразу, без кода — поле ввода. Поверх всего (KapsulaApp). */
+@Composable
+fun GiftDialog() {
+    val start = GiftLink.pending ?: return
+    val scope = rememberCoroutineScope()
+    var input by remember(start) { mutableStateOf(start) }
+    var busy by remember(start) { mutableStateOf(false) }
+    var err by remember(start) { mutableStateOf<String?>(null) }
+    var got by remember(start) { mutableStateOf<String?>(null) }
+    fun claim() {
+        busy = true; err = null
+        scope.launch {
+            val (title, e) = withContext(Dispatchers.IO) { Cloud.gift(input) }
+            busy = false; if (title != null) got = title else err = e
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(start) { if (start.isNotEmpty()) claim() }
+    val close = { GiftLink.pending = null }
+    androidx.compose.ui.window.Dialog(close) {
+        Column(
+            Modifier.widthIn(max = 460.dp).clip(RoundedCornerShape(22.dp)).background(K.s1).border(1.dp, K.acc.copy(alpha = .3f), RoundedCornerShape(22.dp)).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        ) {
+            com.nexus.psp.ui.kit.LiveMascot(if (got != null) "gift-open" else if (err != null) "sad" else "gift", 120.dp, glow = got != null)
+            when {
+                got != null -> {
+                    Text("Подарок: $got", style = T.h3)
+                    Text("Уже лежит в «Оформлении» — надень, когда захочешь.", style = T.small)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        KButton("Открыть оформление", kind = BtnKind.Main) { close(); com.nexus.psp.ui.Nav.open(com.nexus.psp.ui.Ov.Look("profile")) }
+                        KButton("Позже") { close() }
+                    }
+                }
+                else -> {
+                    Text(if (busy) "Забираю подарок…" else "Код подарка", style = T.h3)
+                    SearchField(input, "Например, PIONEER", Modifier.fillMaxWidth(), icon = R.drawable.sl_keyhole) { input = it.take(32); err = null }
+                    err?.let { Text(it, style = T.small.copy(color = K.bad, fontSize = 13.sp)) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        KButton(if (busy) "Проверяю…" else "Забрать", kind = BtnKind.Main, enabled = !busy && input.isNotBlank()) { claim() }
+                        KButton("Отмена") { close() }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Удаление профиля: два подтверждения, грустный Сейвик с чемоданчиком. */
+@Composable
+private fun DeleteDialog(onClose: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var sure by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<String?>(null) }
+    androidx.compose.ui.window.Dialog(onClose) {
+        Column(
+            Modifier.widthIn(max = 480.dp).clip(RoundedCornerShape(22.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(22.dp)).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        ) {
+            com.nexus.psp.ui.kit.LiveMascot("bye", 110.dp, glow = false)
+            Text(if (sure) "Точно удалить?" else "Удалить профиль?", style = T.h3)
+            Text(
+                if (sure) "Это не отменить. Код восстановления перестанет работать."
+                else "С сервера сотрутся прогресс и уровень, жетоны и купленное оформление, друзья, подарки и облачные сейвы. Игры, сохранения и настройки на телефоне останутся.",
+                style = T.small.copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+            )
+            err?.let { Text(it, style = T.small.copy(color = K.bad, fontSize = 13.sp)) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                KButton(if (busy) "Удаляю…" else if (sure) "Удалить навсегда" else "Удалить", enabled = !busy, danger = true) {
+                    if (!sure) { sure = true; return@KButton }
+                    busy = true
+                    scope.launch {
+                        val r = withContext(Dispatchers.IO) { Cloud.deleteProfile() }
+                        busy = false
+                        if (r == null) { AppState.sayAs("bye", "Профиль удалён. Пока, и спасибо, что играл"); onClose() } else err = r
+                    }
+                }
+                KButton("Оставить", kind = BtnKind.Main) { onClose() }
+            }
+        }
+    }
 }
 
 @Composable

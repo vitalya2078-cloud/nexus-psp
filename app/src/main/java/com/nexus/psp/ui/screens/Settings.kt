@@ -156,6 +156,11 @@ private fun Downloads() {
 
 @Composable
 private fun Controls() {
+    // геймпад: если подключён — подсказка не нужна
+    val pad = remember { android.view.InputDevice.getDeviceIds().any { id -> android.view.InputDevice.getDevice(id)?.let { d -> !d.isVirtual && (d.sources and android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD } == true } }
+    if (!pad) Box(Modifier.padding(bottom = 8.dp)) {
+        StateCard("mascot-gamepad", "Есть геймпад?", "Подключи его по Bluetooth или проводу — KAPSULA подхватит сама, а экранные кнопки спрячутся (если включено «Скрывать кнопки»).")
+    }
     Opt("Экранный геймпад", sub = mapOf("touch" to "KAPSULA Touch", "classic" to "Классика", "pad" to "Геймпад")[S.ctlMode] + " · раскладка, размер, прозрачность") {
         KButton("Настроить", kind = com.nexus.psp.ui.kit.BtnKind.Main, small = true) { Nav.open(Ov.Pad) }
     }
@@ -185,7 +190,9 @@ private fun Bios() {
             tick++
         }
     }
-    Text("BIOS — прошивка консоли. Бери только со своей приставки: KAPSULA проверит файл и положит куда надо. Консолям без строчки ниже BIOS не нужен вообще.", style = T.small, modifier = Modifier.padding(bottom = 10.dp))
+    Box(Modifier.padding(bottom = 10.dp)) {
+        StateCard("mascot-chip", "BIOS — прошивка приставки", "Бери только со своей приставки: KAPSULA проверит файл и положит куда надо. Приставкам, которых нет в списке ниже, BIOS не нужен вообще.")
+    }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(K.s1)) {
         PLATFORMS.filter { it.bios }.forEachIndexed { i, p ->
             val found = remember(tick, p.id, AppState.storageTick) { com.nexus.psp.emulator.BiosFiles.found(ctx, p.id) }
@@ -238,7 +245,22 @@ private fun About() {
         }
     }
     Opt("Эмуляторы", sub = "PSP, PS1, PS2, Sega, NEC, SNK, Bandai, Atari") { }
-    Opt("Конфиденциальность", sub = "Всё твоё остаётся на телефоне и никуда не уходит") { }
+    Opt("Конфиденциальность", sub = "Игры и файлы остаются на телефоне. Что уходит на сервер и зачем — на сайте") {
+        KButton("Открыть", small = true) { openUrl(ctx, "https://kapsula.gitverse.site/privacy.html") }
+    }
+    // связь: «Написать нам» (ВК) и «Сообщить об ошибке» — готовый текст с версией, телефоном и последним сбоем
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp).clip(RoundedCornerShape(18.dp)).background(K.s2).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        com.nexus.psp.ui.kit.LiveMascot("letter", 72.dp, glow = false)
+        Column(Modifier.weight(1f)) {
+            Text("Есть идея или что-то сломалось?", style = T.label.copy(fontSize = 15.sp))
+            Text("Пиши — читаем всё. Отчёт об ошибке сам добавит версию, модель телефона и последний сбой.", style = T.small)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
+            KButton("Написать нам", small = true, kind = BtnKind.Main) { openUrl(ctx, "https://vk.ru/glasty") }
+            KButton("Сообщить об ошибке", small = true) { shareReport(ctx) }
+        }
+    }
     // авторы и тексты лицензий открытых компонентов — по условиям этих лицензий; на виду только нейтральная строка
     var legal by remember { mutableStateOf(false) }
     // незаметная серая ссылка внизу раздела
@@ -592,4 +614,24 @@ private fun CloudSavesOpt() {
             scope.launch { val r = com.nexus.psp.data.CloudSaves.sync(ctx.applicationContext); busy = false; AppState.say(r.text) }
         }
     }
+}
+
+private fun openUrl(ctx: android.content.Context, url: String) {
+    try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    catch (e: Exception) { AppState.say("Не нашлось браузера, чтобы открыть ссылку") }
+}
+
+/** Отчёт об ошибке: версия, телефон, Android и последние сбои (если были) — в окно «Поделиться». */
+private fun shareReport(ctx: android.content.Context) {
+    val log = listOfNotNull(
+        com.nexus.psp.data.CrashLog.last(ctx)?.let { f -> try { f.readText() } catch (e: Exception) { null } }?.takeIf { it.isNotBlank() },
+        com.nexus.psp.emulator.LaunchCheck.saved(ctx)?.let { "Игра не запустилась:\n$it" },
+    ).joinToString("\n\n")
+    val txt = "KAPSULA ${com.nexus.psp.BuildConfig.VERSION_NAME} · ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}\n\n" +
+        "Что случилось:\n\n" + (if (log.isNotEmpty()) "Журнал:\n$log" else "")
+    try {
+        ctx.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
+            .putExtra(android.content.Intent.EXTRA_SUBJECT, "KAPSULA — ошибка").putExtra(android.content.Intent.EXTRA_TEXT, txt), "Сообщить об ошибке")
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (e: Exception) { AppState.say("Не получилось открыть «Поделиться»") }
 }

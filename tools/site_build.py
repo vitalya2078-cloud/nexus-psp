@@ -139,7 +139,7 @@ def latest(out: Path):
 def build(out: Path):
     if out.exists(): shutil.rmtree(out)
     (out / "img/screens").mkdir(parents=True)
-    for f in ("index.html", "privacy.html", "404.html", "site.css", "site.js", "game.js"): shutil.copy(SITE / f, out / f)
+    for f in ("index.html", "privacy.html", "404.html", "gift.html", "site.css", "site.js", "game.js"): shutil.copy(SITE / f, out / f)
     shutil.copytree(SITE / "art/items", out / "img/items")
     for f in (SITE / "screens").glob("*.webp"): shutil.copy(f, out / "img/screens" / f.name)
     idx = out / "index.html"
@@ -155,12 +155,12 @@ def build(out: Path):
     if (SITE / "screens/1-home.webp").exists():
         Image.open(SITE / "screens/1-home.webp").convert("RGB").resize((1200, 554)).save(out / "img/og.jpg", quality=85)
     fonts(out); mw, mh = mascot(out); qr(out); latest(out)
-    for page in ("index.html", "404.html", "privacy.html"):  # размеры холста маскота — в разметку (без скачка при загрузке)
+    for page in ("index.html", "404.html", "privacy.html", "gift.html"):  # размеры холста маскота — в разметку (без скачка при загрузке)
         f = out / page; f.write_text(f.read_text(encoding="utf-8").replace('width="321" height="311"', f'width="{mw}" height="{mh}"'), encoding="utf-8")
     # GitVerse Pages по умолчанию прогоняет Jekyll — у нас готовая статика
     (out / ".nojekyll").write_text("")
     # проверка: все ссылки на свои файлы ведут на существующие файлы
-    for page in ("index.html", "privacy.html", "404.html"):
+    for page in ("index.html", "privacy.html", "404.html", "gift.html"):
         for ref in re.findall(r'(?:src|href)="((?:img|fonts)/[^"]+|site\.\w+|game\.js)"', (out / page).read_text(encoding="utf-8")):
             if not (out / ref).exists(): sys.exit(f"site: {page} ссылается на отсутствующий {ref}")
     # позы и предметы, которые зовут скрипты и разметка (P("…"), data-buddy, img/items/…)

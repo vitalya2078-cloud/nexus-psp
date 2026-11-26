@@ -67,7 +67,7 @@ class CoversTest {
         File(Covers.dir(ctx, g.id), "pic.png").delete()
         // снимок: библиотека и карточка с найденной обложкой
         AppState.autoFetch = false
-        AppState.init(ctx); AppState.S.onboarded = true; AppState.S.launched = true
+        AppState.init(ctx); AppState.S.onboarded = true; AppState.S.launched = true; AppState.S.statsAsked = true; AppState.S.seenVer = com.nexus.psp.BuildConfig.VERSION_NAME
         Nav.closeAll(); Nav.tab = "games"; Nav.open(Ov.Game(g.id))
         rule.setContent { KapsulaTheme { KapsulaApp() } }
         rule.mainClock.advanceTimeBy(3000); rule.waitForIdle()

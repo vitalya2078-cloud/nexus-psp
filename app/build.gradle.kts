@@ -26,8 +26,8 @@ android {
         applicationId = "com.nexus.psp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 77
-        versionName = "0.49.0"
+        versionCode = 78
+        versionName = "0.50.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a") // ядро PPSSPP собрано только под 64-бит ARM
@@ -106,4 +106,9 @@ val copyUiImages by tasks.registering(Copy::class) {
     from(rootProject.file("ui")) { include("LICENSE-phosphor.txt", "LICENSE-solar.txt"); into("../licenses") }
     into(layout.buildDirectory.dir("generated/uiAssets/img"))
 }
-tasks.named("preBuild") { dependsOn(copyUiImages) }
+// «Что нового» — тот же список, что на сайте (site/changes.json)
+val copyChanges by tasks.registering(Copy::class) {
+    from(rootProject.file("site/changes.json"))
+    into(layout.buildDirectory.dir("generated/uiAssets"))
+}
+tasks.named("preBuild") { dependsOn(copyUiImages, copyChanges) }

@@ -110,6 +110,8 @@ fun KapsulaApp() {
         FoundDialog()
         AskDialog()
         if (onb && !splash) Onboarding { onb = false }
+        // после знакомства — по одному: «Что нового», вопрос про статистику, подарок по ссылке
+        if (!onb && !splash) com.nexus.psp.ui.screens.Notices()
         if (splash) Splash(full = !S.launched) { splash = false; S.launched = true }
         // яркость интерфейса (быстрая панель)
         if (bright < 1f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 1f - bright)))

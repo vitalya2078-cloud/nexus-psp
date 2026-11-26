@@ -323,3 +323,6 @@ details p { margin: 0; padding: 0 20px 18px; color: var(--ink2); animation: open
 .lost .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 .game[hidden] { display: none; }
 .buddy { -webkit-touch-callout: none; touch-action: manipulation; }
+.gift .gift-code { color: var(--ink2); margin: 6px 0 0; }
+.gift .gift-code b { color: var(--acc); font-family: var(--head); letter-spacing: 2px; }
+.btn.off { opacity: .5; pointer-events: none; }

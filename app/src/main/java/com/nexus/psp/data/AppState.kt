@@ -96,8 +96,11 @@ class Settings(private val sp: SharedPreferences) {
     var sc by i("sc", 100)
     var hide by b("hide", true)
     var cloud by b("cloud", true)
-    /** Анонимная статистика (счётчики без названий игр и без привязки к игроку). */
-    var stats by b("stats", true)
+    /** Анонимная статистика (счётчики без названий игр и без привязки к игроку). По умолчанию выкл — спрашиваем один раз (0.50). */
+    var stats by b("stats", false)
+    var statsAsked by b("statsAsked", false)
+    /** Версия, чьё «Что нового» уже показано. */
+    var seenVer by s("seenVer", "")
     var ctlMode by s("ctlMode", "touch")
     var lang by s("lang", "RU")
     var sort by s("sort", "Недавние")

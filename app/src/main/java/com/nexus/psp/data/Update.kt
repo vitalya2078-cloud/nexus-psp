@@ -18,6 +18,8 @@ object Update {
     const val APK = "https://github.com/vitalya2078-cloud/nexus-psp/releases/download/latest/kapsula.apk"
     private const val API = "https://api.github.com/repos/vitalya2078-cloud/nexus-psp/releases/tags/latest"
     private const val GV_API = "https://gitverse.ru/api/repos/kapsula/KAPSULA/releases?limit=1"
+    /** Сайт KAPSULA (GitVerse Pages): версия и APK рядом со страницей — без VPN и без лимита GitVerse для гостей (с 0.50). */
+    private const val SITE = "https://kapsula.gitverse.site/"
     private const val EVERY = 6 * 3600_000L
 
     /** Версия и откуда её скачать. */
@@ -48,6 +50,13 @@ object Update {
         if (v != null && a != null) Rel(v, a.optString("downloadUrl"), true) else null
     } catch (e: Exception) { null }
 
+    /** Сайт: latest.json → версия и ссылка на APK (обычно kapsula.apk рядом). */
+    fun fromSite(): Rel? = try {
+        val o = JSONObject(get(SITE + "latest.json") ?: "")
+        val v = versionOf(o.optString("ver")); val u = o.optString("url")
+        if (v != null && u.isNotEmpty()) Rel(v, if (u.startsWith("http")) u else SITE + u, true) else null
+    } catch (e: Exception) { null }
+
     fun fromGitHub(): Rel? = try {
         versionOf(JSONObject(get(API) ?: "").optString("name"))?.let { Rel(it, APK, false) }
     } catch (e: Exception) { null }
@@ -55,7 +64,8 @@ object Update {
     /** Самая новая из двух площадок (при равных — зеркало: качается без VPN). */
     fun latestRel(): Rel? {
         if (android.os.Build.FINGERPRINT == "robolectric") return null
-        val gv = fromGitVerse(); val gh = fromGitHub()
+        // сайт первым: с выпусков GitVerse гостям качать не дают (429), сайт отдаёт APK без ограничений
+        val gv = fromSite() ?: fromGitVerse(); val gh = fromGitHub()
         return when {
             gv == null -> gh
             gh == null -> gv

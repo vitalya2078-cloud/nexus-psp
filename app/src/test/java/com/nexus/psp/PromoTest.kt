@@ -45,7 +45,7 @@ class PromoTest {
         games.forEach { (n, _, mb) -> RandomAccessFile(File(dir, n), "rw").use { it.setLength(mb * 1048576L) } }
         AppState.autoFetch = false
         AppState.init(ctx)
-        AppState.S.onboarded = true; AppState.S.launched = true
+        AppState.S.onboarded = true; AppState.S.launched = true; AppState.S.statsAsked = true; AppState.S.seenVer = com.nexus.psp.BuildConfig.VERSION_NAME
         val played = mapOf("last_frontier" to 754, "neon_drift" to 312, "shadow_blade" to 128, "sky_raiders" to 45)
         // обложки и фон (фон — та же картинка, приложение размывает её само)
         games.reversed().forEach { (n, key, _) ->

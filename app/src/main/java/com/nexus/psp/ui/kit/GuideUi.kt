@@ -55,7 +55,8 @@ fun Mascot(pose: String, size: Dp, modifier: Modifier = Modifier) {
     else Box(modifier.size(size).clip(CircleShape).background(Color(0xFF14151A)), contentAlignment = Alignment.Center) { img(Modifier, size * .86f) }
 }
 
-private val LIVE = mapOf("wave" to "wave", "sad" to "sad", "joy" to "jump", "hug" to "heart", "wait" to "think")
+private val LIVE = mapOf("wave" to "wave", "sad" to "sad", "joy" to "jump", "hug" to "heart", "wait" to "think",
+    "chip" to "chip", "gamepad" to "gamepad", "gift" to "gift", "letter" to "letter", "scroll" to "scroll", "welcome" to "welcome", "cartbox" to "cartbox", "magnifier" to "magnifier")
 
 /** Значок кнопки KAPSULA Touch (ctl_<имя>) — тот же, что на экране игры. */
 @Composable

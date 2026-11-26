@@ -40,7 +40,7 @@ class WideScreensTest {
         if (withGames) games("Ridge_Racer_2 (Europe).iso" to 640, "Patapon 3.cso" to 410, "Lumines.iso" to 300, "Daxter (USA).cso" to 520)
         AppState.autoFetch = false
         AppState.init(ApplicationProvider.getApplicationContext())
-        AppState.S.onboarded = true; AppState.S.launched = true
+        AppState.S.onboarded = true; AppState.S.launched = true; AppState.S.statsAsked = true; AppState.S.seenVer = com.nexus.psp.BuildConfig.VERSION_NAME
         Nav.closeAll(); Nav.tab = "games"
         prep()
         rule.setContent { KapsulaTheme { KapsulaApp() } }
