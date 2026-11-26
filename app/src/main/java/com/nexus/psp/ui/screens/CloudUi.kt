@@ -2,6 +2,7 @@ package com.nexus.psp.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -99,10 +100,10 @@ fun GiftDialog() {
     val close = { GiftLink.pending = null }
     androidx.compose.ui.window.Dialog(close) {
         Column(
-            Modifier.widthIn(max = 460.dp).clip(RoundedCornerShape(22.dp)).background(K.s1).border(1.dp, K.acc.copy(alpha = .3f), RoundedCornerShape(22.dp)).padding(20.dp),
+            Modifier.widthIn(max = 460.dp).clip(RoundedCornerShape(22.dp)).background(K.s1).border(1.dp, K.acc.copy(alpha = .3f), RoundedCornerShape(22.dp)).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
         ) {
-            com.nexus.psp.ui.kit.LiveMascot(if (got != null) "gift-open" else if (err != null) "sad" else "gift", 120.dp, glow = got != null)
+            com.nexus.psp.ui.kit.LiveMascot(if (got != null) "gift-open" else if (err != null) "sad" else "gift", 88.dp, glow = got != null)
             when {
                 got != null -> {
                     Text("Подарок: $got", style = T.h3)
@@ -135,10 +136,10 @@ private fun DeleteDialog(onClose: () -> Unit) {
     var err by remember { mutableStateOf<String?>(null) }
     androidx.compose.ui.window.Dialog(onClose) {
         Column(
-            Modifier.widthIn(max = 480.dp).clip(RoundedCornerShape(22.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(22.dp)).padding(20.dp),
+            Modifier.widthIn(max = 480.dp).clip(RoundedCornerShape(22.dp)).background(K.s1).border(1.dp, K.line, RoundedCornerShape(22.dp)).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
         ) {
-            com.nexus.psp.ui.kit.LiveMascot("bye", 110.dp, glow = false)
+            com.nexus.psp.ui.kit.LiveMascot("bye", 84.dp, glow = false)
             Text(if (sure) "Точно удалить?" else "Удалить профиль?", style = T.h3)
             Text(
                 if (sure) "Это не отменить. Код восстановления перестанет работать."
