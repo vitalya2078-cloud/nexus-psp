@@ -338,3 +338,18 @@ details p { margin: 0; padding: 0 20px 18px; color: var(--ink2); animation: open
 .tcard span { color: var(--ink2); font-size: 14px; line-height: 1.4; }
 @media (max-width: 1000px) { .tools-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 720px) { .tools-grid { grid-template-columns: 1fr 1fr; } .tcard img { width: 76px; } }
+
+/* меню ☰: на узком экране вместо ссылок в шапке */
+.burger { display: none; width: 44px; height: 44px; margin-left: 4px; border: 0; border-radius: 12px; background: var(--s2); cursor: pointer; position: relative; flex: none; }
+.burger i { position: absolute; left: 12px; right: 12px; height: 2.5px; border-radius: 2px; background: var(--ink); transition: transform .25s, opacity .2s; }
+.burger i:nth-child(1) { top: 14px; } .burger i:nth-child(2) { top: 21px; } .burger i:nth-child(3) { top: 28px; }
+.burger.x i:nth-child(1) { transform: translateY(7px) rotate(45deg); } .burger.x i:nth-child(2) { opacity: 0; } .burger.x i:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.menu { position: fixed; inset: 0; z-index: 40; background: rgba(5,7,14,.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: fade .2s; }
+.menu[hidden] { display: none; }
+.menu-sheet { position: absolute; top: 70px; right: var(--pad); left: var(--pad); max-width: 420px; margin-left: auto; max-height: calc(100vh - 90px); overflow: auto;
+  display: grid; gap: 2px; padding: 14px; border-radius: 22px; background: var(--s1); border: 1px solid rgba(242,166,90,.25); box-shadow: 0 30px 70px rgba(0,0,0,.55); animation: rise .25s ease-out; }
+.menu-sheet b { color: var(--acc); font: 700 13px var(--head); letter-spacing: 1px; text-transform: uppercase; padding: 10px 10px 4px; }
+.menu-sheet a:not(.btn) { padding: 11px 10px; border-radius: 12px; color: var(--ink); text-decoration: none; font: 700 17px var(--head); }
+.menu-sheet a:not(.btn):active, .menu-sheet a:not(.btn):hover, .menu-sheet a.on { background: var(--s2); }
+.menu-get { margin-top: 10px; }
+@media (max-width: 1000px) { .top nav { display: none; } .burger { display: block; } }
