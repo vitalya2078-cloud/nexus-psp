@@ -14,7 +14,8 @@
 
   // ---------- версия и ссылка на APK (latest.json кладёт сборка сайта) ----------
   var apk = { url: null, ver: null, mb: 0 };
-  fetch("latest.json", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+  // описание версии; кнопка «Скачать» ждёт его (раньше нажатие до загрузки уводило на страницу выпусков GitVerse)
+  var apkReady = fetch("latest.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
     if (!d || !d.url) return;
     apk = d;
     $$(".js-apk, .js-direct").forEach(function (a) { a.href = d.url; });
@@ -249,9 +250,14 @@
   $$(".js-apk").forEach(function (a) {
     a.addEventListener("click", function (e) {
       var r = a.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2);
-      if (!apk.url) return; // версия ещё не известна — откроется страница выпусков
       e.preventDefault();
       openGet(); if (busy) return;
+      if (!apk.url) {
+        // описание версии ещё не пришло — подождать его; не пришло совсем — качать целый файл с сайта (не страницу выпусков)
+        title.textContent = "Узнаю последнюю версию…"; bar.parentNode.classList.add("wait");
+        apkReady.then(function () { if (!apk.url) apk = { url: "kapsula.apk", ver: null, mb: 0 }; a.click(); });
+        return;
+      }
       head.classList.remove("done"); pose.src = P("run"); step(-1);
       if (apk.ver !== lastVer) { parts = []; partGot = []; lastVer = apk.ver; }
       title.textContent = "Качаю KAPSULA…"; sub.textContent = "Не закрывай страницу, пока идёт загрузка.";
