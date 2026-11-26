@@ -5,7 +5,7 @@
   var P = {}; D.platforms.forEach(function (p) { P[p.id] = p; });
   var out = document.querySelector(".js-out"), drop = document.querySelector(".js-drop"), input = document.querySelector(".js-file");
 
-  function mb(n) { return n >= 1073741824 ? (n / 1073741824).toFixed(1) + " ГБ" : n >= 1048576 ? (n / 1048576).toFixed(1) + " МБ" : n >= 1024 ? Math.round(n / 1024) + " КБ" : n + " байт"; }
+  function mb(n) { return n >= 1073741824 ? (n / 1073741824).toFixed(1) + " " + t("u.gb") : n >= 1048576 ? (n / 1048576).toFixed(1) + " " + t("u.mb") : n >= 1024 ? Math.round(n / 1024) + " " + t("u.kb") : n + " " + t("u.b"); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function ext(n) { var i = n.lastIndexOf("."); return i < 0 ? "" : n.slice(i + 1).toLowerCase(); }
   function head(f, n) { return f.slice(0, n).arrayBuffer().then(function (b) { return new Uint8Array(b); }); }
@@ -20,15 +20,15 @@
   // ---------- BIOS ----------
   function biosGuess(f) {
     var n = f.name.toLowerCase(), s = f.size;
-    if (n === "neogeo.zip" || n === "aes.zip") return Promise.resolve(["ok", "neogeo", "BIOS Neo Geo", "Положи его в KAPSULA: Настройки → BIOS → Neo Geo."]);
-    if (s === 512 && /lynx/.test(n)) return Promise.resolve(["ok", "lynx", "BIOS Atari Lynx", "Подходит по размеру. Настройки → BIOS → Lynx."]);
-    if (s === 2097152 && /dc|boot|dreamcast/.test(n)) return Promise.resolve(["ok", "dc", "BIOS Dreamcast", "Подходит по размеру (2 МБ). Настройки → BIOS → Dreamcast."]);
-    if (s === 4194304 && /scph|bios|ps2/.test(n)) return Promise.resolve(["ok", "ps2", "BIOS PS2", "Подходит по размеру (4 МБ). Настройки → BIOS → PS2."]);
+    if (n === "neogeo.zip" || n === "aes.zip") return Promise.resolve(["ok", "neogeo", "BIOS Neo Geo", tf("ck.bios.put", "Neo Geo")]);
+    if (s === 512 && /lynx/.test(n)) return Promise.resolve(["ok", "lynx", "BIOS Atari Lynx", tf("ck.bios.size", "", "Lynx")]);
+    if (s === 2097152 && /dc|boot|dreamcast/.test(n)) return Promise.resolve(["ok", "dc", "BIOS Dreamcast", tf("ck.bios.size", " (2 " + t("u.mb") + ")", "Dreamcast")]);
+    if (s === 4194304 && /scph|bios|ps2/.test(n)) return Promise.resolve(["ok", "ps2", "BIOS PS2", tf("ck.bios.size", " (4 " + t("u.mb") + ")", "PS2")]);
     if (s === 524288) return f.arrayBuffer().then(function (b) {
       var sum = md5(new Uint8Array(b)), known = D.ps1bios[sum];
-      if (known) return ["ok", "ps1", "BIOS PS1: " + known, "Известная версия — подходит. Настройки → BIOS → PS1."];
-      if (/sat|sega/.test(n)) return ["ok", "saturn", "BIOS Sega Saturn", "Подходит по размеру (512 КБ). Настройки → BIOS → Saturn."];
-      return ["warn", "ps1", "Похоже на BIOS (512 КБ), но версия неизвестна", "Если это PS1 — может не подойти: KAPSULA знает версии SCPH-1001, 5500, 5501, 5502, 7001, 101. Если Saturn — подойдёт. Отпечаток MD5: " + sum];
+      if (known) return ["ok", "ps1", "BIOS PS1: " + known, t("ck.bios.known")];
+      if (/sat|sega/.test(n)) return ["ok", "saturn", "BIOS Sega Saturn", tf("ck.bios.size", " (512 " + t("u.kb") + ")", "Saturn")];
+      return ["warn", "ps1", t("ck.bios.unk"), tf("ck.bios.unkd", sum)];
     });
     return null;
   }
@@ -53,20 +53,20 @@
   function gameGuess(f, h) {
     var e = ext(f.name), s = f.size;
     if (["zip", "7z", "rar", "gz"].indexOf(e) >= 0 && f.name.toLowerCase() !== "neogeo.zip")
-      return ["bad", null, "Это архив (" + e.toUpperCase() + ")", "Сначала распакуй его — внутри будет образ игры (ISO, CUE + BIN, CHD…). KAPSULA архивы не открывает."];
-    if (["txt", "md", "nfo", "html", "jpg", "png", "pdf", "exe"].indexOf(e) >= 0) return ["bad", null, "Это не игра", "Файл ." + e + " — описание, картинка или программа для компьютера."];
-    if (e !== "cue" && e !== "m3u" && e !== "gdi" && isText(h)) return ["bad", null, "Это текстовый файл, а не игра", "Внутри текст, а у образов игр — двоичные данные."];
-    if (s > 0 && s < 1024 && ["cue", "m3u", "gdi", "ccd"].indexOf(e) < 0) return ["bad", null, "Слишком маленький файл", "Всего " + mb(s) + " — так игры не весят. Возможно, скачался не до конца."];
+      return ["bad", null, tf("ck.arc", e.toUpperCase()), t("ck.arcd")];
+    if (["txt", "md", "nfo", "html", "jpg", "png", "pdf", "exe"].indexOf(e) >= 0) return ["bad", null, t("ck.notgame"), tf("ck.notgamed", e)];
+    if (e !== "cue" && e !== "m3u" && e !== "gdi" && isText(h)) return ["bad", null, t("ck.text"), t("ck.textd")];
+    if (s > 0 && s < 1024 && ["cue", "m3u", "gdi", "ccd"].indexOf(e) < 0) return ["bad", null, t("ck.small"), tf("ck.smalld", mb(s))];
     var id = null, note = "";
     switch (e) {
       case "iso": case "img": id = discKind(h, s); if (!id && at(h, 0x8008, "PSP GAME")) id = "psp"; break;
       case "bin": id = (s % 2352 === 0 && s >= 2352 * 17) ? discKind(h, s) || "ps1?" : at(h, 0x100, "SEGA") ? "md" : [0x7FF0, 0x3FF0, 0x1FF0].some(function (o) { return at(h, o, "TMR SEGA"); }) ? "sms" : s <= 65536 ? "a26" : "md";
-        note = "Если это образ диска — рядом должен лежать CUE-файл с тем же названием."; break;
+        note = t("ck.bincue"); break;
       case "cso": id = at(h, 0, "CISO") ? "psp" : null; break;
       case "zso": id = at(h, 0, "ZISO") ? "ps2" : null; break;
-      case "pbp": id = at(h, 1, "PBP") ? "psp" : null; note = "PBP бывает и с играми PS1 — KAPSULA различит сама."; break;
+      case "pbp": id = at(h, 1, "PBP") ? "psp" : null; note = t("ck.pbp"); break;
       case "chd": id = at(h, 0, "MComprHD") ? "chd" : null; break;
-      case "cue": var t = str(h, 0, 4096); id = /FILE/i.test(t) && /TRACK/i.test(t) ? "cue" : null; break;
+      case "cue": var tx = str(h, 0, 4096); id = /FILE/i.test(tx) && /TRACK/i.test(tx) ? "cue" : null; break;
       case "nes": id = at(h, 0, "NES\u001A") ? "nes" : null; break;
       case "jar": id = at(h, 0, "PK\u0003\u0004") ? "j2me" : null; break;
       case "neo": id = at(h, 0, "NEO") ? "neogeo" : null; break;
@@ -74,14 +74,14 @@
       case "ngp": case "ngc": id = /SNK/.test(str(h, 0, 32)) ? "ngp" : null; break;
       default: D.platforms.some(function (p) { if (p.exts.indexOf(e) >= 0) { id = p.id; return true; } return false; });
     }
-    if (id === "chd") return ["ok", null, "CHD — сжатый образ диска", "Подходит для PS1, PS2, PSP, Dreamcast и Saturn. KAPSULA сама определит приставку, а если ошибётся — её можно поменять в карточке игры."];
+    if (id === "chd") return ["ok", null, t("ck.chd"), t("ck.chdd")];
     if (id === "cue") return null; // CUE проверяется вместе с BIN ниже
-    if (id === "ps1?") return ["ok", "ps1", "Образ PlayStation", (s > 700 * 1048576 ? "Скорее всего PS2. " : "Скорее всего PS1. ") + "KAPSULA точно определит по диску. " + note];
-    if (!id) return ["warn", null, "Не узнаю этот файл", "Расширение ." + (e || "—") + " без признаков игры. Может, файл повреждён, недокачан или переименован."];
+    if (id === "ps1?") return ["ok", "ps1", t("ck.psx"), tf("ck.psxd", s > 700 * 1048576 ? "PS2" : "PS1") + " " + note];
+    if (!id) return ["warn", null, t("ck.unk"), tf("ck.unkd", e || "—")];
     var p = P[id];
-    var bios = p && p.bios === 2 ? " Этой приставке нужен BIOS — проверь его здесь же." : "";
-    var exp = p && p.exp ? " Приставка тестовая: нужен мощный телефон." : "";
-    return ["ok", id, p ? p.full : id, "KAPSULA откроет эту игру." + bios + exp + (note ? " " + note : "")];
+    var bios = p && p.bios === 2 ? " " + t("ck.needbios") : "";
+    var exp = p && p.exp ? " " + t("ck.exp") : "";
+    return ["ok", id, p ? p.full : id, t("ck.ok") + bios + exp + (note ? " " + note : "")];
   }
 
   function card(name, size, v) {
@@ -95,26 +95,26 @@
   function check(files) {
     files = Array.prototype.slice.call(files);
     if (!files.length) return;
-    out.innerHTML = '<p class="hint">Смотрю…</p>';
+    out.innerHTML = '<p class="hint">' + t("ck.looking") + "</p>";
     var names = files.map(function (f) { return f.name.toLowerCase(); });
     Promise.all(files.map(function (f) {
       var b = biosGuess(f);
       if (b) return b.then(function (v) { return card(f.name, f.size, v); });
       return head(f, 40 * 1024).then(function (h) {
         if (ext(f.name) === "cue") {
-          var t = str(h, 0, h.length), need = [], re = /FILE\s+"([^"]+)"/gi, m;
-          while ((m = re.exec(t))) need.push(m[1]);
-          if (!need.length) return card(f.name, f.size, ["bad", null, "CUE без списка дорожек", "Внутри нет строк FILE — файл повреждён."]);
+          var tx = str(h, 0, h.length), need = [], re = /FILE\s+"([^"]+)"/gi, m;
+          while ((m = re.exec(tx))) need.push(m[1]);
+          if (!need.length) return card(f.name, f.size, ["bad", null, t("ck.cue0"), t("ck.cue0d")]);
           var miss = need.filter(function (n) { return names.indexOf(n.toLowerCase()) < 0; });
           return card(f.name, f.size, miss.length === need.length && files.length === 1
-            ? ["warn", "ps1", "CUE — описание диска", "Ему нужны файлы: " + need.join(", ") + ". Выбери их вместе с CUE, чтобы я проверил, что все на месте."]
-            : miss.length ? ["bad", "ps1", "Не хватает файлов диска", "Нет рядом: " + miss.join(", ") + ". Без них игра не запустится."]
-            : ["ok", "ps1", "CUE + BIN — всё на месте", "Все дорожки нашлись. Клади их вместе в одну папку."]);
+            ? ["warn", "ps1", t("ck.cue1"), tf("ck.cue1d", need.join(", "))]
+            : miss.length ? ["bad", "ps1", t("ck.cue2"), tf("ck.cue2d", miss.join(", "))]
+            : ["ok", "ps1", t("ck.cue3"), t("ck.cue3d")]);
         }
         var v = gameGuess(f, h);
         return v ? card(f.name, f.size, v) : "";
       });
-    })).then(function (cards) { out.innerHTML = cards.join(""); });
+    })).then(function (cards) { out.innerHTML = cards.join(""); var n = kstore.get("checked", 0) + files.length; kstore.set("checked", n); if (n >= 10 && window.kEgg) kEgg.unlock("detective"); });
   }
 
   input.addEventListener("change", function () { check(input.files); });

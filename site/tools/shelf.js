@@ -4,7 +4,7 @@
   var D = window.KAPSULA_DATA || { platforms: [] };
   var cv = document.querySelector(".js-cv"), g = cv.getContext("2d"), picks = document.querySelector(".js-picks");
   var chosen = ["psp", "ps1", "nes"], imgs = {}, mascot = new Image();
-  mascot.src = "img/mascot/cartbox.webp"; mascot.onload = draw;
+  mascot.src = "/img/mascot/cartbox.webp"; mascot.onload = draw;
   function load(p) { if (!imgs[p.id]) { var i = new Image(); i.onload = draw; i.src = p.img; imgs[p.id] = i; } return imgs[p.id]; }
   D.platforms.forEach(function (p) {
     load(p);
@@ -21,11 +21,11 @@
   function val(c) { return document.querySelector("." + c).value.trim(); }
   function round(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   function draw() {
-    var bg = g.createLinearGradient(0, 0, 0, 630); bg.addColorStop(0, "#1d2240"); bg.addColorStop(1, "#0b0f1c"); g.fillStyle = bg; g.fillRect(0, 0, 1200, 630);
+    var bg = g.createLinearGradient(0, 0, 0, 630); bg.addColorStop(0, "#2a2338"); bg.addColorStop(1, "#18141f"); g.fillStyle = bg; g.fillRect(0, 0, 1200, 630);
     var lamp = g.createRadialGradient(120, -40, 0, 120, -40, 720); lamp.addColorStop(0, "rgba(255,184,102,.33)"); lamp.addColorStop(1, "rgba(255,184,102,0)"); g.fillStyle = lamp; g.fillRect(0, 0, 1200, 630);
     for (var s = 0; s < 60; s++) { var x = (s * 197) % 1200, y = (s * 113) % 300; g.fillStyle = "rgba(255,244,220," + (0.15 + (s % 5) * 0.08) + ")"; g.fillRect(x, y, 2, 2); }
-    var nick = val("js-nick") || "Игрок";
-    g.fillStyle = "#f2a65a"; g.font = "700 30px 'Balsamiq Sans', sans-serif"; g.fillText("МОЯ ПОЛКА · KAPSULA", 70, 90);
+    var nick = val("js-nick") || t("sh.player");
+    g.fillStyle = "#f2a65a"; g.font = "700 30px 'Balsamiq Sans', sans-serif"; g.fillText(t("sh.title") + " · KAPSULA", 70, 90);
     g.fillStyle = "#f4eee4"; g.font = "700 66px 'Balsamiq Sans', sans-serif"; g.fillText(nick.slice(0, 20), 70, 165);
     // полка с приставками
     var shelfY = 330;
@@ -37,21 +37,21 @@
     });
     var games = [val("js-g1"), val("js-g2"), val("js-g3")].filter(Boolean);
     g.font = "700 30px 'Balsamiq Sans', sans-serif"; g.fillStyle = "#f4eee4";
-    (games.length ? games : ["Любимые игры — ещё впереди"]).forEach(function (t, k) {
+    (games.length ? games : [t("sh.empty")]).forEach(function (tx, k) {
       g.fillStyle = "#f2a65a"; g.beginPath(); g.arc(82, 470 + k * 44 - 10, 6, 0, 6.28); g.fill();
-      g.fillStyle = games.length ? "#f4eee4" : "#8891a8"; g.fillText(t.slice(0, 34), 102, 470 + k * 44);
+      g.fillStyle = games.length ? "#f4eee4" : "#8891a8"; g.fillText(tx.slice(0, 34), 102, 470 + k * 44);
     });
     if (mascot.complete && mascot.naturalWidth) g.drawImage(mascot, 830, 180, 330, 330 * mascot.naturalHeight / mascot.naturalWidth);
     g.fillStyle = "#aeb6cc"; g.font = "500 26px sans-serif"; g.fillText("kapsula.gitverse.site", 860, 590);
   }
-  function blob(cb) { draw(); cv.toBlob(cb, "image/png"); }
+  function blob(cb) { draw(); if (window.kEgg) { kEgg.unlock("shelf_star"); if (/^(сейвик|seivik|saveik)$/i.test(val("js-nick"))) { kEgg.unlock("seivik_card"); kEgg.toast(t("sh.seivik"), "💛", t("js.seivik")); } } cv.toBlob(cb, "image/png"); }
   document.querySelector(".js-save").addEventListener("click", function () {
     blob(function (b) { var a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "kapsula-polka.png"; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000); });
   });
   document.querySelector(".js-share").addEventListener("click", function () {
     blob(function (b) {
       var f = new File([b], "kapsula-polka.png", { type: "image/png" });
-      if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], text: "Моя ретро-полка в KAPSULA https://kapsula.gitverse.site/shelf.html" }).catch(function () {});
+      if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], text: t("sh.text") + " https://kapsula.gitverse.site" + (window.L || "/") + "shelf.html" }).catch(function () {});
       else { var a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "kapsula-polka.png"; a.click(); }
     });
   });
