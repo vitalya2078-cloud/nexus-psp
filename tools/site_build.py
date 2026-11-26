@@ -140,8 +140,16 @@ def latest(out: Path):
     if apk and os.path.getsize(apk) > 1_000_000:
         if os.path.abspath(apk) != os.path.abspath(out / "kapsula.apk"): shutil.copy(apk, out / "kapsula.apk")
         ver = ver or re.search(r'versionName = "([^"]+)"', (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")).group(1)
-        mb = round(os.path.getsize(out / "kapsula.apk") / 1048576)
-        (out / "latest.json").write_text(json.dumps({"ver": ver, "url": "kapsula.apk", "mb": mb}), encoding="utf-8")
+        size = os.path.getsize(out / "kapsula.apk"); mb = round(size / 1048576)
+        # куски по 8 МБ: сервер сайта не докачивает с места обрыва (Range не работает) — страница качает по кускам
+        # и при обрыве перекачивает только упавший кусок. Целый файл остаётся — для прямой ссылки и обновлений в приложении.
+        PART = 8 * 1048576; parts = 0
+        with open(out / "kapsula.apk", "rb") as src:
+            while True:
+                chunk = src.read(PART)
+                if not chunk: break
+                (out / f"kapsula.apk.{parts:02d}").write_bytes(chunk); parts += 1
+        (out / "latest.json").write_text(json.dumps({"ver": ver, "url": "kapsula.apk", "mb": mb, "size": size, "parts": parts}), encoding="utf-8")
         print(f"APK {ver} ({mb} МБ) — на сайте"); return
     # без APK — ссылка на выпуск GitVerse по версии проекта (может упереться в лимит GitVerse для гостей)
     m = re.search(r'versionName = "([^"]+)"', (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8"))

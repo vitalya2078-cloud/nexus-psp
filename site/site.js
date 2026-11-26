@@ -222,7 +222,7 @@
     }
   }
   var modal = $(".js-get"), bar = $(".js-bar"), title = $(".js-get-title"), sub = $(".js-get-sub"), pose = $(".js-get-pose"), head = $(".get-head"), steps = $$(".js-step");
-  var busy = false, ctrl = null;
+  var busy = false, ctrl = null, lastVer = null;
   function step(n) { steps.forEach(function (s, i) { s.classList.toggle("on", i === n); }); }
   function openGet() { modal.hidden = false; doc.body.style.overflow = "hidden"; }
   function closeGet() { modal.hidden = true; doc.body.style.overflow = ""; }
@@ -238,7 +238,7 @@
     location.href = url;
   }
   function done(blob) {
-    busy = false;
+    busy = false; parts = []; partGot = [];
     var u = URL.createObjectURL(new Blob([blob], { type: "application/vnd.android.package-archive" }));
     var a = doc.createElement("a"); a.href = u; a.download = "kapsula.apk"; doc.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
@@ -253,29 +253,58 @@
       e.preventDefault();
       openGet(); if (busy) return;
       head.classList.remove("done"); pose.src = P("run"); step(-1);
+      if (apk.ver !== lastVer) { parts = []; partGot = []; lastVer = apk.ver; }
       title.textContent = "Качаю KAPSULA…"; sub.textContent = "Не закрывай страницу, пока идёт загрузка.";
       bar.style.width = "0"; bar.parentNode.classList.add("wait");
-      if (!win.fetch || !win.ReadableStream || !win.AbortController) { fallback(apk.url); return; }
+      if (!win.fetch || !win.AbortController) { fallback(apk.url); return; }
       busy = true; ctrl = new AbortController();
-      var slow = setTimeout(function () { if (busy && !got) fallback(apk.url); }, 9000), got = 0;
-      fetch(apk.url, { signal: ctrl.signal, mode: "cors" }).then(function (res) {
-        if (!res.ok || !res.body) throw new Error("http " + res.status);
-        var total = +res.headers.get("Content-Length") || apk.mb * 1048576, reader = res.body.getReader(), parts = [];
-        bar.parentNode.classList.remove("wait");
-        var pump = function () {
-          return reader.read().then(function (c) {
-            if (c.done) { clearTimeout(slow); done(new Blob(parts)); return; }
-            parts.push(c.value); got += c.value.length;
-            var p = total ? Math.min(1, got / total) : 0;
-            bar.style.width = (p * 100).toFixed(1) + "%";
-            sub.textContent = (got / 1048576).toFixed(1) + " из " + (total ? (total / 1048576).toFixed(0) : "?") + " МБ";
-            return pump();
-          });
-        };
-        return pump();
-      }).catch(function () { clearTimeout(slow); if (busy) fallback(apk.url); });
+      if (!apk.parts) { fallback(apk.url); return; }
+      bar.parentNode.classList.remove("wait");
+      getParts();
     });
   });
+  // загрузка кусками: сервер сайта не умеет докачивать, поэтому при обрыве перекачиваем только упавший кусок (до 6 попыток)
+  var parts = [], partGot = [];
+  function getParts() {
+    var n = apk.parts, total = apk.size || apk.mb * 1048576, base = apk.url.replace(/\?.*$/, "");
+    function shown() {
+      var got = partGot.reduce(function (a, b) { return a + (b || 0); }, 0);
+      bar.style.width = (Math.min(1, got / total) * 100).toFixed(1) + "%";
+      sub.textContent = (got / 1048576).toFixed(1) + " из " + (total / 1048576).toFixed(0) + " МБ · не закрывай страницу";
+    }
+    function one(k, tries) {
+      if (parts[k]) return Promise.resolve();
+      var url = base + "." + (k < 10 ? "0" : "") + k + "?v=" + encodeURIComponent(apk.ver || "");
+      return fetch(url, { signal: ctrl.signal, cache: "no-store" }).then(function (res) {
+        if (!res.ok || !res.body) throw new Error("http " + res.status);
+        var reader = res.body.getReader(), chunks = []; partGot[k] = 0;
+        function pump() {
+          return reader.read().then(function (c) {
+            if (c.done) { parts[k] = new Blob(chunks); return; }
+            chunks.push(c.value); partGot[k] += c.value.length; shown(); return pump();
+          });
+        }
+        return pump();
+      }).catch(function (e) {
+        if (ctrl.signal.aborted) throw e;
+        partGot[k] = 0; shown();
+        if (tries >= 6) throw e;
+        sub.textContent = "Связь прервалась — докачиваю кусок " + (k + 1) + " из " + n + "…";
+        return new Promise(function (r) { setTimeout(r, 1500 * tries); }).then(function () { return one(k, tries + 1); });
+      });
+    }
+    // по два куска одновременно — быстрее, но не перегружая мобильную сеть
+    var next = 0;
+    function worker() { if (next >= n) return Promise.resolve(); var k = next++; return one(k, 1).then(worker); }
+    Promise.all([worker(), worker()]).then(function () {
+      busy = false; done(new Blob(parts));
+    }).catch(function () {
+      busy = false;
+      title.textContent = "Связь с сервером рвётся";
+      sub.textContent = "Скачанное не пропало — нажми «Скачать APK» ещё раз, докачаю остальное. Или скачай напрямую ссылкой ниже.";
+      pose.src = P("sad");
+    });
+  }
 
   // телефон: «Скачать APK» появляется внизу, когда главная кнопка ушла за экран
   var mainBtn = $(".cta .js-apk"), sticky = $(".sticky");
