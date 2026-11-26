@@ -337,6 +337,7 @@ private fun Grid(items: List<Cos.Item>, cell: Dp, selected: (Cos.Item) -> Boolea
                                     when {
                                         has -> onUse(item)
                                         item.price > 0 -> scope.launch { if (buy(item)) onUse(item) }
+                                        item.need?.what == "gift" -> AppState.say("${item.need.text}. Подарки выдаются на сайте KAPSULA и по коду подарка")
                                         item.need != null -> {
                                             val have = Cos.progress(item.need.what)
                                             AppState.say("Откроется: ${item.need.text}. Сейчас ${needNow(item.need, have)}")

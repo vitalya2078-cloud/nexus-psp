@@ -361,6 +361,8 @@ object Cloud {
      */
     @Synchronized fun sync(): List<Pair<String, Int>>? {
         if (!ready) return null
+        // профиль удалён самим игроком — новый не создаётся, пока он сам не попросит («Создать профиль» или восстановление по коду)
+        if (code.isEmpty() && sp.getBoolean("noAccount", false)) return null
         if (code.isEmpty()) {
             val base = JSONObject().put("play", localPlay()).put("saves", localSaves()).put("games", AppState.byId.size)
                 .put("streak", AppState.streak()).put("cons", JSONObject(localCons()))
@@ -415,7 +417,7 @@ object Cloud {
         return when {
             st == 200 && state != null -> {
                 val c = input.trim().uppercase().replace(Regex("[^A-Z0-9]"), "").removePrefix("KPS").let { "KPS-${it.take(4)}-${it.drop(4).take(4)}-${it.drop(8).take(4)}" }
-                code = c; sp.edit().putString("code", c).remove("buys").apply()
+                code = c; sp.edit().putString("code", c).remove("buys").remove("noAccount").apply()
                 snapshot() // наигранное на этом телефоне до восстановления не переносится в чужой аккаунт
                 apply(state, profile = true)
                 null
@@ -426,6 +428,47 @@ object Cloud {
             else -> "Сервер не ответил. Попробуй позже"
         }
     }
+
+    // ---------- подарки ----------
+    /** Забрать подарок по коду (с сайта или введённый вручную). Ответ: название подарка или понятная причина отказа. */
+    fun gift(input: String): Pair<String?, String?> {
+        val g = input.trim().uppercase().filter { it.isLetterOrDigit() }.take(32)
+        if (g.isEmpty()) return null to "Введи код подарка"
+        if (!ready) return null to "Нет связи с сервером"
+        if (code.isEmpty()) sync()
+        if (code.isEmpty()) return null to "Нет связи с сервером. Проверь интернет"
+        val (st, r) = call(JSONObject().put("action", "gift").put("code", code).put("gift", g))
+        if (st == 200 && r != null) { sync(); return r.optString("title") to null }
+        return null to when (r?.optString("error")) {
+            "claimed" -> "Этот подарок уже у тебя"
+            "no_gift" -> "Такого подарка нет — проверь код"
+            "not_yet" -> "Этот подарок ещё не начали выдавать"
+            "ended" -> "Время этого подарка закончилось"
+            "banned" -> "Аккаунт заблокирован"
+            else -> if (st == 0) "Нет связи с сервером. Проверь интернет" else "Сервер не ответил. Попробуй позже"
+        }
+    }
+
+    // ---------- удаление профиля ----------
+    /** Удалить профиль на сервере (прогресс, жетоны, друзья, облачные сейвы). Игры и сохранения на телефоне остаются. null — удалено. */
+    @Synchronized fun deleteProfile(): String? {
+        if (!ready) return "Нет связи с сервером"
+        if (code.isEmpty()) return "Профиля на сервере нет"
+        val (st, r) = call(JSONObject().put("action", "delete").put("code", code))
+        if (st != 200 && r?.optString("error") != "unknown_code") return when (r?.optString("error")) {
+            "admin" -> "Профиль создателя так удалить нельзя"
+            else -> if (st == 0) "Нет связи с сервером. Проверь интернет" else "Сервер не ответил. Попробуй позже"
+        }
+        val hp = hidePlay
+        sp.edit().clear().putBoolean("noAccount", true).putBoolean("hidePlay", hp).apply()
+        code = ""; server = null; shortId = ""; isAdmin = false; banned = false; creator = JSONObject(); friends = null; week = null; lastOk = 0L
+        Tokens.fromServer(0, emptySet(), 0)
+        return null
+    }
+    /** Профиль удалён и новый не создаётся. */
+    val noAccount get() = ::sp.isInitialized && code.isEmpty() && sp.getBoolean("noAccount", false)
+    /** Снова завести профиль (после удаления). */
+    fun allowAccount() { if (::sp.isInitialized) sp.edit().remove("noAccount").apply() }
 
     /** Число из статистики сервера (0 — нет). */
     fun stat(key: String): Int = server?.optInt(key) ?: 0

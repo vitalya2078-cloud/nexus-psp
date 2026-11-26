@@ -175,6 +175,22 @@ Deno.serve(async (req) => {
       if (error) throw error;
       return json({ used: data?.used ?? 0, items: data?.items ?? [] }, data?.error ? 404 : 200);
     }
+    if (body.action === "gift") {
+      const { data, error } = await db.rpc("kapsula_gift", { p_code_hash: h, p_gift: String(body.gift ?? "").slice(0, 32) });
+      if (error) throw error;
+      return json(data, data?.error ? (data.error === "unknown_code" ? 404 : 400) : 200);
+    }
+    if (body.action === "delete") {
+      // профиль игрока целиком: строки — в базе, файлы сейвов — из хранилища по id
+      const { data, error } = await db.rpc("kapsula_delete", { p_code_hash: h });
+      if (error) throw error;
+      if (data?.error) return json(data, data.error === "unknown_code" ? 404 : 400);
+      const id = String(data.id);
+      const list = await db.storage.from("saves").list(id, { limit: 1000 });
+      const names = (list.data ?? []).map((f: { name: string }) => `${id}/${f.name}`);
+      if (names.length) { const r = await db.storage.from("saves").remove(names); if (r.error) console.error("delete saves", r.error); }
+      return json({ ok: true });
+    }
     return json({ error: "action" }, 400);
   } catch (e) {
     console.error("kapsula", e);

@@ -32,6 +32,8 @@ object Cos {
     private fun cons(n: Int) = Need("consoles", n, "Игры на $n консолях")
     private fun streak(n: Int) = Need("streak", n, "$n дней подряд")
     private fun saves(n: Int) = Need("saves", n, "$n сохранений")
+    /** Подарок: открывается только кодом подарка (вещь приходит в Tokens.owned с сервера). */
+    private fun gift(why: String) = Need("gift", 1, "Подарок $why")
 
     val ITEMS: List<Item> = listOf(
         // ---------- аватары ----------
@@ -61,6 +63,9 @@ object Cos {
         Item("fr_creator", Kind.FR, "Пиксельная корона", need = Need("admin", 1, "Только у создателя")),
         Item("fr_pixel", Kind.FR, "Пиксели", 300), Item("fr_leaf", Kind.FR, "Листья", 300),
         Item("fr_laurel", Kind.FR, "Лавры", 500), Item("fr_flame", Kind.FR, "Пламя", 500), Item("fr_crown", Kind.FR, "Корона", 800),
+        // подарочные: не продаются, приходят подарком (сайт, код подарка) — Need("gift")
+        Item("fr_pioneer", Kind.FR, "Первопроходец", need = gift("первым игрокам KAPSULA")), Item("fr_winter", Kind.FR, "Зима", need = gift("к Новому году")),
+        Item("fr_pumpkin", Kind.FR, "Тыквенная ночь", need = gift("на Хеллоуин")), Item("fr_birthday", Kind.FR, "День рождения", need = gift("в день рождения KAPSULA")),
         // ---------- баннеры профиля (g0…g5 — прежние градиенты, game — обложка любимой игры) ----------
         Item("g0", Kind.BN, "Ночь"), Item("g1", Kind.BN, "Закат"), Item("g2", Kind.BN, "Океан"), Item("g3", Kind.BN, "Лес"),
         Item("g4", Kind.BN, "Аврора"), Item("g5", Kind.BN, "Графит"), Item("game", Kind.BN, "Любимая игра"),
@@ -99,6 +104,7 @@ object Cos {
             what == "streak" -> maxOf(AppState.streak(), Cloud.stat("streak"))
             what == "saves" -> maxOf(lib.values.sumOf { it.saves }, Cloud.stat("saves"))
             what == "admin" -> if (Cloud.isAdmin) 1 else 0
+            what == "gift" -> 0 // подарок — только в Tokens.owned
             what.startsWith("con:") -> { val p = what.substringAfter(':'); maxOf(lib.entries.filter { AppState.byId[it.key]?.p == p }.sumOf { it.value.play }, Cloud.consoleMinutes(p)) }
             else -> 0
         }
