@@ -186,6 +186,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private var lastCore = -1L
     private var tooFast = 0
     private var timerPacing = false
+    private var paceTries = 0
+    /** Измеренная (настоящая) частота экрана перед запуском, 0 — не измерили. */
+    private var realHz = 0f
     private var hz60 = false
     @Volatile private var glTid = 0
 
@@ -284,6 +287,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             ui.hasState = withContext(Dispatchers.IO) { stateFile(0).exists() }
             refreshSlots()
             if (hz60) perf.await60Hz()
+            // не верим названной частоте: меряем, как часто экран обновляется на самом деле
+            realHz = kotlinx.coroutines.withTimeoutOrNull(1500) { perf.measureHz() } ?: 0f
+            Log.i(TAG, "экран: телефон называет ${perf.refreshRate()} Гц, на деле ${realHz.toInt()} Гц")
             netCheck()
             startCore()
         }
@@ -325,6 +331,8 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                     perf.frame()
                     if (ui.phase == "loading") {
                         ui.phase = "ready"; updateControlsVisibility()
+                        // экран на деле не 60 Гц (90/120/144) — движок сразу по таймеру: ровно 60 кадров на любом экране
+                        if (realHz > 0f && kotlin.math.abs(realHz - 60f) > 5f) timerPace("экран на деле ${realHz.toInt()} Гц")
                         com.nexus.psp.data.Presence.send(applicationContext, title, platform, true)
                         // через пару секунд игры — какие потоки самые занятые, их и держим на больших ядрах
                         lifecycleScope.launch(Dispatchers.IO) { delay(4000); perf.startHints(glTid) }
@@ -354,12 +362,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 lastCore = core; ui.fps = f; frames = 0; if (isPsp) autoResTick(ui.fps)
                 // страховка скорости: без ускорения игра 2 секунды подряд даёт больше 66 кадров — телефон назвал не ту
                 // частоту экрана. Переводим движок на подгонку таймером (всегда правильная скорость), один раз за игру
-                if (ui.phase == "ready" && !ui.paused && !ui.fast && core >= 0 && f > 66) {
-                    if (++tooFast >= 2 && !timerPacing) {
-                        timerPacing = true
-                        Log.i(TAG, "игра быстрее нормы ($f к/с) — подгонка кадров по таймеру")
-                        retro?.queueEvent { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(1f) }
-                    }
+                // (по любому счётчику; повторяем, если с первого раза не помогло — до 3 раз за игру)
+                if (ui.phase == "ready" && !ui.paused && !ui.fast && f > 66) {
+                    if (++tooFast >= 2 && paceTries < 3) { tooFast = 0; paceTries++; timerPace("игра быстрее нормы ($f к/с)") }
                 } else tooFast = 0
                 if (ui.phase == "ready" && !ui.paused && !ui.fast) jank?.second(f, autoAt)
                 // диагностика Vulkan — только в журнал (для разработчика), игроку не показываем
@@ -414,6 +419,13 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         // Vulkan раскрывается, когда видеокарта рисует один кадр, пока готовится следующий
         if (vkOn && v["ppsspp_inflight_frames"] != "No buffer") v["ppsspp_inflight_frames"] = "Up to 2"
         return v.map { Variable(it.key, it.value) }.toTypedArray()
+    }
+
+    /** Подгонка кадров по таймеру: игра идёт с правильной скоростью, какую бы частоту экрана ни назвал телефон. */
+    private fun timerPace(why: String) {
+        timerPacing = true
+        Log.i(TAG, "$why — подгонка кадров по таймеру")
+        retro?.queueEvent { try { com.swordfish.libretrodroid.LibretroDroid.setScreenRefreshRate(1f) } catch (e: Throwable) { } }
     }
 
     // ---------- Vulkan (пробный режим) ----------
@@ -1565,7 +1577,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         if (isFinishing && ui.phase == "ready") com.nexus.psp.data.Presence.send(applicationContext, title, platform, false)
         if (raStarted) try { RA.nUnload() } catch (e: Throwable) { }
         perf.close()
-        jank?.save(this, "${title} · ${platform} · ${if (vkOn) "Vulkan" else "OpenGL"} · экран ${perf.refreshRate()} Гц (умеет ${perf.modes()}) · ${vars.optString("ppsspp_internal_resolution")}")
+        jank?.save(this, "${title} · ${platform} · ${if (vkOn) "Vulkan" else "OpenGL"} · экран ${perf.refreshRate()} Гц (на деле ${realHz.toInt()}, умеет ${perf.modes()}${if (timerPacing) ", по таймеру" else ""}) · ${vars.optString("ppsspp_internal_resolution")}")
         // обычный выход после того, как Vulkan показал картинку, — не сбой
         if (vkOn && vkSeen && isFinishing) Vk.confirm(this)
         if (tilt) getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(tiltListener)

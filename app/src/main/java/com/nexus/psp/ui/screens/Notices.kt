@@ -68,43 +68,53 @@ fun changesFor(ctx: android.content.Context, ver: String): List<String>? = try {
         ?.optJSONArray("items")?.let { i -> (0 until i.length()).map { i.getString(it) } }?.takeIf { it.isNotEmpty() }
 } catch (e: Exception) { null }
 
+/**
+ * Окно поверх главного: альбомный экран телефона низкий (~360 dp), поэтому маскот слева, текст и кнопки справа,
+ * текст прокручивается, а кнопки всегда видны. «Назад» и касание мимо закрывают окно (onDismiss).
+ */
 @Composable
-private fun Sheet(content: @Composable () -> Unit) {
-    androidx.compose.ui.window.Dialog({ }, androidx.compose.ui.window.DialogProperties(dismissOnClickOutside = false)) {
-        Column(
-            Modifier.widthIn(max = 520.dp).clip(RoundedCornerShape(24.dp)).background(K.s1).border(1.dp, K.acc.copy(alpha = .28f), RoundedCornerShape(24.dp)).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally,
-        ) { content() }
+private fun Sheet(pose: String, onDismiss: () -> Unit, buttons: @Composable () -> Unit, content: @Composable () -> Unit) {
+    val maxH = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * .86f).dp
+    androidx.compose.ui.window.Dialog(onDismiss) {
+        Row(
+            Modifier.widthIn(max = 600.dp).heightIn(max = maxH).clip(RoundedCornerShape(24.dp)).background(K.s1)
+                .border(1.dp, K.acc.copy(alpha = .28f), RoundedCornerShape(24.dp)).padding(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LiveMascot(pose, 96.dp)
+            Column(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { buttons() }
+            }
+        }
     }
 }
 
 @Composable
-private fun WhatsNew(items: List<String>, onClose: () -> Unit) = Sheet {
-    LiveMascot("scroll", 104.dp)
+private fun WhatsNew(items: List<String>, onClose: () -> Unit) = Sheet("scroll", onClose, { KButton("Отлично!", kind = BtnKind.Main) { onClose() } }) {
     Text("Что нового в ${BuildConfig.VERSION_NAME}", style = T.h3)
-    Column(Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items.forEach { t ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.padding(top = 8.dp).size(7.dp).clip(CircleShape).background(K.acc))
-                Text(t, style = T.body)
-            }
+    items.forEach { t ->
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.padding(top = 8.dp).size(7.dp).clip(CircleShape).background(K.acc))
+            Text(t, style = T.body)
         }
     }
-    KButton("Отлично!", kind = BtnKind.Main) { onClose() }
 }
 
 /** Анонимная статистика — только с согласия: один раз спросить, ответ можно поменять в «Настройки → Общие». */
 @Composable
-private fun StatsAsk() = Sheet {
-    LiveMascot("checklist", 104.dp)
-    Text("Поможешь KAPSULA стать лучше?", style = T.h3, textAlign = TextAlign.Center)
-    Text(
-        "Можно присылать нам анонимные счётчики: сколько раз запускались игры, на каких консолях, были ли вылеты. " +
-            "Без названий игр, без файлов и без твоего ID — только общие суммы. Поменять ответ можно в «Настройки → Общие».",
-        style = T.body, textAlign = TextAlign.Center,
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun StatsAsk() {
+    // «Назад» / мимо окна — как «Не сейчас»: окно не должно запирать игрока
+    val no = { S.stats = false; S.statsAsked = true; com.nexus.psp.data.Telemetry.clear() }
+    Sheet("checklist", no, {
         KButton("Помогать", kind = BtnKind.Main) { S.stats = true; S.statsAsked = true }
-        KButton("Не сейчас") { S.stats = false; S.statsAsked = true; com.nexus.psp.data.Telemetry.clear() }
+        KButton("Не сейчас") { no() }
+    }) {
+        Text("Поможешь KAPSULA стать лучше?", style = T.h3)
+        Text(
+            "Можно присылать нам анонимные счётчики: сколько раз запускались игры, на каких консолях, были ли вылеты. " +
+                "Без названий игр, без файлов и без твоего ID — только общие суммы. Поменять ответ можно в «Настройки → Общие».",
+            style = T.body,
+        )
     }
 }
