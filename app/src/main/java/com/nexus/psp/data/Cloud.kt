@@ -374,7 +374,7 @@ object Cloud {
             code = c; sp.edit().putString("code", c).apply()
             snapshot()
             apply(state, profile = false)
-            AppState.alerts.add(0, Alert("Твой код восстановления: $c", "Сохрани его — по нему вернутся жетоны и оформление на новом телефоне. Он есть в «Настройки → Общие»", true))
+            AppState.alerts.add(0, Alert("Твой код восстановления: $c", "Сохрани его — по нему вернутся жетоны и оформление на новом телефоне. Он есть в «Настройки → Профиль и облако»", true))
             AppState.save()
             // сразу отправить оформление профиля и покупки, сделанные до регистрации
             return got(state) + (push() ?: emptyList())

@@ -346,12 +346,14 @@ fun GameSettingsScreen(id: String) {
                 }
             }
             if (own) {
+                // те же блоки, что в «Настройки → Графика и скорость» и в паузе игры
                 if (g.p == "ps1") {
-                    Sub("Картинка"); CoreRows(com.nexus.psp.data.CoreOptions.PS1_QUALITY, store)
+                    Sub("Качество"); CoreRows(com.nexus.psp.data.CoreOptions.PS1_QUALITY, store)
+                    Sub("Плавность"); CoreRows(com.nexus.psp.data.CoreOptions.PS1_SMOOTH, store)
                     Sub("Система"); CoreRows(com.nexus.psp.data.CoreOptions.PS1_SYSTEM, store)
-                } else {
-                    CoreQuality(store)
-                    Sub("Скорость"); CoreRows(com.nexus.psp.data.CoreOptions.SPEED, store)
+                } else if (g.p == "psp") {
+                    Sub("Качество"); CoreQuality(store)
+                    Sub("Плавность"); CoreRows(com.nexus.psp.data.CoreOptions.SMOOTH, store)
                     Sub("Система"); CoreRows(com.nexus.psp.data.CoreOptions.SYSTEM, store)
                 }
                 Sub("Управление")
@@ -361,7 +363,7 @@ fun GameSettingsScreen(id: String) {
                 var fps by remember(id, tick) { mutableStateOf(cfg.read().optBoolean("fps", S.fps)) }
                 Opt("Счётчик кадров", null) { Toggle(fps) { fps = it; cfg.edit { o -> o.put("fps", it) } } }
                 Text("То же можно менять прямо в игре: пауза → «Настройки».", style = T.small, modifier = Modifier.padding(vertical = 10.dp))
-            } else StateCard(null, null, "Общие настройки ${g.plat.short} — в «Настройки → Эмулятор ${g.plat.short}». Включи переключатель выше, чтобы задать этой игре свои: например, ×3 для одной игры и «Батарея» для другой.", tint = K.acc)
+            } else StateCard(null, null, "Общие настройки — в «Настройки → Графика и скорость». Включи переключатель выше, чтобы задать этой игре свои: например, ×3 для одной игры и «Батарея» для другой.", tint = K.acc)
         }
     }
 }
