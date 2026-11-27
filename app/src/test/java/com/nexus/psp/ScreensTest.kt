@@ -80,6 +80,8 @@ class ScreensTest {
     @Test fun h05_settings_profile() = shot("h05-settings-profile", true) { Nav.settingsTab = "profile"; Nav.open(Ov.Settings) }
     @Test fun h06_settings_saves() = shot("h06-settings-saves", true) { Nav.settingsTab = "saves"; Nav.open(Ov.Settings) }
     @Test fun h07_settings_gfx_other() = shot("h07-settings-gfx-other", true) { com.nexus.psp.ui.screens.gfxPlat = "other"; Nav.settingsTab = "gfx"; Nav.open(Ov.Settings) }
+    @Test fun p10_pet() = shot("p10-pet", true) { Nav.open(Ov.Pet) }
+    @Test fun p11_pet_hungry() = shot("p11-pet-hungry", true) { com.nexus.psp.data.Pet.food = 15f; com.nexus.psp.data.Pet.update(); Nav.open(Ov.Pet) }
     @Test fun h04_settings_about() = shot("h04-settings-about", true) { Nav.settingsTab = "about"; Nav.open(Ov.Settings) }
     @Test fun h05_game_settings() = shot("h05-game-settings", true) { Nav.open(Ov.GSet(firstId())) }
     @Test fun h06_pad_classic() = shot("h06-pad-classic", true) { AppState.S.ctlMode = "classic"; Nav.open(Ov.Pad) }

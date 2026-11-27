@@ -237,6 +237,17 @@ private fun HomeBuddy(modifier: Modifier) {
         // ночью продолжает спать, в остальное время — обычная поза
         if (pose != "sleep") { kotlinx.coroutines.delay(600); pose = "idle" }
     }
+    // питомец: раз в пару минут показывает, чего ему не хватает (голоден, пыльный, скучает), — тап ведёт в его уголок
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(9000)
+        while (true) {
+            com.nexus.psp.data.Pet.update()
+            val need = com.nexus.psp.data.Pet.need()
+            if (need != null && bubble == null) { pose = com.nexus.psp.data.Pet.pose(); bubble = need; kotlinx.coroutines.delay(5000); bubble = null }
+            else if (pose != "sleep") pose = com.nexus.psp.data.Pet.pose().let { if (it == "joy" || it == "bed") "idle" else it }
+            kotlinx.coroutines.delay(120_000)
+        }
+    }
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.animation.AnimatedVisibility(bubble != null, enter = fadeIn(tween(300)), exit = fadeOut(tween(400))) {
             Text(
@@ -247,8 +258,9 @@ private fun HomeBuddy(modifier: Modifier) {
             )
         }
         com.nexus.psp.ui.kit.LiveMascot(pose, 96.dp) {
-            // касание: смех (внутри LiveMascot); спящий — просыпается
+            // касание: смех (внутри LiveMascot), потом — в уголок Сейвика
             if (pose == "sleep") pose = "idle"
+            Nav.open(Ov.Pet)
         }
     }
 }

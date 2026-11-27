@@ -169,6 +169,7 @@ private fun Overlay(top: Ov) {
             Ov.Downloads -> DownloadsDrawer()
             Ov.Alerts -> AlertsDrawer()
             Ov.Quick -> QuickPanel()
+            Ov.Pet -> com.nexus.psp.ui.screens.PetScreen()
             is Ov.Look -> com.nexus.psp.ui.screens.LooksScreen(top.tab)
             is Ov.Player -> com.nexus.psp.ui.screens.PlayerScreen(top.id)
             Ov.Settings -> SettingsScreen()
