@@ -52,13 +52,22 @@ Deno.serve(async (req) => {
     if (!raw) return new Response("no FCM_SERVICE_ACCOUNT", { status: 503 });
     const sa = JSON.parse(raw) as SA;
     const body = await req.json().catch(() => ({}));
+    // проверка ключа Firebase без отправки (validate_only) — безопасно вызывать кому угодно
+    if (body.kind === "test") {
+      const r = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
+        method: "POST", headers: { "Authorization": `Bearer ${await accessToken(sa)}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ validate_only: true, message: { topic: "news", data: { kind: "test" } } }),
+      });
+      return new Response(`fcm ${r.status}`, { status: r.ok ? 200 : 502 });
+    }
     const kind = body.kind === "news" ? "news" : body.kind === "inbox" ? "inbox" : null;
     const id = Number(body.id);
     if (!kind || !Number.isFinite(id) || id <= 0) return new Response("bad", { status: 400 });
     const { data: it, error } = await db.rpc("kapsula_push_take", { p_kind: kind, p_id: id });
     if (error) throw error;
     if (!it) return new Response("skip");
-    const data = { kind: String(it.kind ?? kind), id: String(it.id), title: String(it.title ?? "").slice(0, 120), body: String(it.body ?? "").slice(0, 400), src: kind };
+    const data = { kind: String(it.kind ?? kind), id: String(it.id), title: String(it.title ?? "").slice(0, 120), body: String(it.body ?? "").slice(0, 400), src: kind,
+      image: /^https:\/\//.test(String(it.image ?? "")) ? String(it.image).slice(0, 500) : "" };
     if (kind === "news") { await send(sa, { topic: "news" }, data); return new Response("ok"); }
     const gone: string[] = [];
     for (const t of (it.tokens ?? []) as string[]) {

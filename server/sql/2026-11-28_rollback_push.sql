@@ -8,3 +8,4 @@ drop function if exists public.kapsula_push_forget(text[]);
 drop table if exists public.push_tokens;
 alter table public.inbox drop column if exists pushed;
 alter table public.news drop column if exists pushed;
+alter table public.news drop column if exists image;

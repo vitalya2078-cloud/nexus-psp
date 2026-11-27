@@ -83,3 +83,7 @@ create trigger kapsula_push_inbox after insert on public.inbox for each row exec
 drop trigger if exists kapsula_push_news on public.news;
 create trigger kapsula_push_news after insert or update of active on public.news for each row
   when (new.active and not new.pushed) execute function public.kapsula_push_notify('news');
+
+-- картинка в push (применено отдельно, миграция push_images): news.image и inbox.data->>'image'
+alter table public.news add column if not exists image text;
+-- kapsula_push_take отдаёт поле image (см. миграцию push_images в базе)

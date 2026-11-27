@@ -49,17 +49,31 @@ object Push {
         val src = d["src"] ?: "inbox"
         if (Inbox.foreground) { Thread { try { Cloud.pollNow(c) } catch (e: Exception) { } }.start(); return }
         val sp = prefs(c)
+        val pic = d["image"]?.takeIf { it.startsWith("https://") }?.let { picture(it) }
         if (src == "news") {
             if (id <= maxOf(sp.getLong("newsNotifAfter", 0L), sp.getLong("newsAfter", 0L))) return
-            Inbox.notify(c, (id % 100000).toInt() + 200000, d["title"].orEmpty().ifBlank { "Новости KAPSULA" }, d["body"].orEmpty(), false)
+            Inbox.notify(c, (id % 100000).toInt() + 200000, d["title"].orEmpty().ifBlank { "Новости KAPSULA" }, d["body"].orEmpty(), false, pic = pic)
             sp.edit().putLong("newsNotifAfter", id).apply()
         } else {
             if (id <= maxOf(sp.getLong("notifAfter", 0L), sp.getLong("inboxAfter", 0L))) return
-            Inbox.notify(c, (id % 100000).toInt() + 1000, d["title"].orEmpty(), d["body"].orEmpty(), Inbox.isFriend(d["kind"].orEmpty()))
+            Inbox.notify(c, (id % 100000).toInt() + 1000, d["title"].orEmpty(), d["body"].orEmpty(), Inbox.isFriend(d["kind"].orEmpty()), pic = pic)
             sp.edit().putLong("notifAfter", id).apply()
         }
     }
 }
+
+/** Картинка для уведомления (адрес https из push): до 2 МБ, уменьшается до 1024 px по ширине. */
+private fun picture(url: String): android.graphics.Bitmap? = try {
+    val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+    c.connectTimeout = 8000; c.readTimeout = 10000
+    val bytes = c.inputStream.use { it.readBytes() }
+    if (bytes.size > 2 * 1024 * 1024) null else {
+        val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, o)
+        var k = 1; while (o.outWidth / (k * 2) >= 1024) k *= 2
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, android.graphics.BitmapFactory.Options().apply { inSampleSize = k })
+    }
+} catch (e: Exception) { null }
 
 /** Служба Firebase: новый токен и входящие push. */
 class KapsulaFcm : FirebaseMessagingService() {
