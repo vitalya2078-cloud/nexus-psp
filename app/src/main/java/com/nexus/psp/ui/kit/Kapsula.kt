@@ -81,14 +81,14 @@ object K {
     /** Свой акцент (уже подогнан под текущую тему); null — фирменный. */
     var accent by mutableStateOf<Color?>(null)
     private val light get() = theme == "light"
-    /** «Вечер»: ночная синева, янтарный акцент, тёплый свет лампы, мягкие шрифты. */
+    /** «Вечер»: тёплые какао-сливовые сумерки, янтарный акцент, свет лампы, мягкие шрифты (с 0.51 — без синевы). */
     val evening get() = theme == "evening"
 
-    val bg get() = when (theme) { "oled" -> Color(0xFF000000); "light" -> Color(0xFFE7E5E0); "evening" -> Color(0xFF121828); else -> Color(0xFF0B0C0F) }
-    val s1 get() = when (theme) { "oled" -> Color(0xFF0B0B0D); "light" -> Color(0xFFF1EFEB); "evening" -> Color(0xFF1B2238); else -> Color(0xFF131419) }
-    val s2 get() = when (theme) { "oled" -> Color(0xFF121215); "light" -> Color(0xFFFAF9F6); "evening" -> Color(0xFF242C48); else -> Color(0xFF1A1C22) }
-    val s3 get() = when (theme) { "oled" -> Color(0xFF1A1A1F); "light" -> Color(0xFFFFFFFF); "evening" -> Color(0xFF2F3858); else -> Color(0xFF23262E) }
-    val ink get() = when { light -> Color(0xFF1C1D20); evening -> Color(0xFFF4EEE4); else -> Color(0xFFF2F1EC) }
+    val bg get() = when (theme) { "oled" -> Color(0xFF000000); "light" -> Color(0xFFE7E5E0); "evening" -> Color(0xFF1C1620); else -> Color(0xFF0B0C0F) }
+    val s1 get() = when (theme) { "oled" -> Color(0xFF0B0B0D); "light" -> Color(0xFFF1EFEB); "evening" -> Color(0xFF28202D); else -> Color(0xFF131419) }
+    val s2 get() = when (theme) { "oled" -> Color(0xFF121215); "light" -> Color(0xFFFAF9F6); "evening" -> Color(0xFF33293A); else -> Color(0xFF1A1C22) }
+    val s3 get() = when (theme) { "oled" -> Color(0xFF1A1A1F); "light" -> Color(0xFFFFFFFF); "evening" -> Color(0xFF413448); else -> Color(0xFF23262E) }
+    val ink get() = when { light -> Color(0xFF1C1D20); evening -> Color(0xFFFBF0E4); else -> Color(0xFFF2F1EC) }
     val ink2 get() = ink.copy(alpha = if (contrast) .9f else .74f)
     // второстепенный текст: не тусклее ~4.5:1 даже на поверхностях s1 (мелкий шрифт)
     val ink3 get() = ink.copy(alpha = if (contrast) .78f else .58f)

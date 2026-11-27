@@ -23,6 +23,10 @@ sealed interface Ov {
     data object Downloads : Ov
     data object Alerts : Ov
     data object Quick : Ov
+    /** Уголок Сейвика: покормить, уложить, помыть, поиграть. */
+    data object Pet : Ov
+    /** «Секреты»: найденные пасхалки и подсказки к остальным. */
+    data object Secrets : Ov
     /** «Оформление»: tab — theme / wall / profile. */
     data class Look(val tab: String = "theme") : Ov
     /** Профиль другого игрока по короткому ID. */

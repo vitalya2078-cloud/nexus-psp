@@ -75,7 +75,7 @@ object Cos {
         Item("bn_forest", Kind.BN, "Лес на закате", need = streak(14)), Item("bn_reef", Kind.BN, "Подводные руины", need = hours(50)),
         // ---------- фоны главного экрана ----------
         Item("none", Kind.WP, "Без фона"), Item("game", Kind.WP, "Обложка игры"), Item("photo", Kind.WP, "Своё фото"),
-        Item("wp_grid", Kind.WP, "Горизонт"), Item("wp_aurora", Kind.WP, "Сияние"),
+        Item("wp_room", Kind.WP, "Комната с лампой"), Item("wp_grid", Kind.WP, "Горизонт"), Item("wp_aurora", Kind.WP, "Сияние"),
         Item("wp_rain", Kind.WP, "Дождливая улица", 500), Item("wp_shop", Kind.WP, "Магазин игр", 600),
         Item("wp_attic", Kind.WP, "Чердак", 600), Item("wp_islands", Kind.WP, "Парящие острова", need = lvl(8)),
         // ---------- титулы ("" — по уровню) ----------
@@ -85,6 +85,7 @@ object Cos {
         Item("tt_traveler", Kind.TT, "Путешественник", need = cons(5)), Item("tt_loyal", Kind.TT, "Верный игрок", need = streak(14)),
         Item("tt_legend", Kind.TT, "Легенда KAPSULA", need = lvl(15)),
         Item("tt_creator", Kind.TT, "Создатель KAPSULA", need = Need("admin", 1, "Только у создателя")),
+        Item("tt_seeker", Kind.TT, "Искатель секретов", need = gift("за секреты на сайте KAPSULA")),
         Item("tt_retro", Kind.TT, "Ретро-душа", 200), Item("tt_ninja", Kind.TT, "Кнопочный ниндзя", 200), Item("tt_keeper", Kind.TT, "Хранитель картриджей", 300),
     )
 

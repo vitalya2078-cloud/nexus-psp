@@ -80,7 +80,7 @@ fun KapsulaApp() {
     val tint by androidx.compose.animation.animateColorAsState(Ambient.color, tween(900), label = "amb")
     val bright = S.bright / 100f
     Box(
-        Modifier.fillMaxSize().then(if (K.evening) Modifier.background(Brush.verticalGradient(listOf(Color(0xFF161D33), Color(0xFF0E1222)))) else Modifier.background(K.bg))
+        Modifier.fillMaxSize().then(if (K.evening) Modifier.background(Brush.verticalGradient(listOf(Color(0xFF241C27), Color(0xFF15111A)))) else Modifier.background(K.bg))
             .drawBehind { if (tint.alpha > 0f) drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = if (K.dark) .22f else .1f), Color.Transparent), Offset(size.width * .7f, size.height * .2f), size.maxDimension * .7f), size.maxDimension, Offset(size.width * .7f, size.height * .2f)) }
             .graphicsLayer { if (bright < 1f) alpha = 1f },
     ) {
@@ -113,11 +113,21 @@ fun KapsulaApp() {
         // после знакомства — по одному: «Что нового», вопрос про статистику, подарок по ссылке
         if (!onb && !splash) com.nexus.psp.ui.screens.Notices()
         if (splash) Splash(full = !S.launched) { splash = false; S.launched = true }
+        if (S.grain && !S.contrast) Grain()
         // яркость интерфейса (быстрая панель)
         if (bright < 1f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 1f - bright)))
     }
     BackHandler(enabled = Nav.stack.isNotEmpty() && Ctx.id == null) { Nav.back() }
     BackHandler(enabled = Nav.stack.isEmpty() && (Nav.tab == "my" || Nav.tab == "ctl") && Ctx.id == null) { Nav.go("games") }
+}
+
+/** Зерно «как на плёнке»: маленькая плитка шума (img/bg/grain.png) повторяется по всему экрану, 5 %, без анимации. */
+@Composable
+private fun Grain() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val img = remember { try { ctx.assets.open("img/bg/grain.png").use { android.graphics.BitmapFactory.decodeStream(it)?.asImageBitmap() } } catch (e: Exception) { null } } ?: return
+    val brush = remember(img) { androidx.compose.ui.graphics.ShaderBrush(androidx.compose.ui.graphics.ImageShader(img, androidx.compose.ui.graphics.TileMode.Repeated, androidx.compose.ui.graphics.TileMode.Repeated)) }
+    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) { drawRect(brush, alpha = .05f) }
 }
 
 /** «Вечер»: тёплое пятно настольной лампы сверху слева и мягкая виньетка — рисуются один раз, без анимации. */
@@ -126,7 +136,7 @@ private fun LampLight() {
     androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
         val c = Offset(size.width * .1f, -size.height * .06f)
         drawRect(Brush.radialGradient(listOf(Color(0xFFFFB866).copy(alpha = .2f), Color(0xFFF2A65A).copy(alpha = .07f), Color.Transparent), c, size.maxDimension * .62f))
-        drawRect(Brush.radialGradient(listOf(Color.Transparent, Color(0xFF05070D).copy(alpha = .45f)), Offset(size.width * .45f, size.height * .4f), size.maxDimension * .75f))
+        drawRect(Brush.radialGradient(listOf(Color.Transparent, Color(0xFF0B0609).copy(alpha = .45f)), Offset(size.width * .45f, size.height * .4f), size.maxDimension * .75f))
     }
 }
 
@@ -159,6 +169,8 @@ private fun Overlay(top: Ov) {
             Ov.Downloads -> DownloadsDrawer()
             Ov.Alerts -> AlertsDrawer()
             Ov.Quick -> QuickPanel()
+            Ov.Pet -> com.nexus.psp.ui.screens.PetScreen()
+            Ov.Secrets -> com.nexus.psp.ui.screens.SecretsScreen()
             is Ov.Look -> com.nexus.psp.ui.screens.LooksScreen(top.tab)
             is Ov.Player -> com.nexus.psp.ui.screens.PlayerScreen(top.id)
             Ov.Settings -> SettingsScreen()

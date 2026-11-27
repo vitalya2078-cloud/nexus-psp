@@ -150,7 +150,7 @@ private fun Sep() = Box(Modifier.width(1.dp).height(20.dp).background(K.line2))
 @Composable
 fun SearchScreen() {
     var q by rememberSaveable { mutableStateOf("") }
-    LaunchedEffect(q) { if (q.isNotBlank()) { delay(1200); AppState.addRecent(q) } }
+    LaunchedEffect(q) { if (q.isNotBlank()) { delay(700); com.nexus.psp.data.Secrets.search(q); delay(500); AppState.addRecent(q) } }
     fun match(g: Game, t: String) = (g.t + " " + g.file + " " + g.plat.full + " " + g.plat.short).contains(t, true)
     Full {
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

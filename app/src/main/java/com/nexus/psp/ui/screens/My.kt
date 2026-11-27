@@ -115,6 +115,8 @@ fun MyScreen() {
             if (AppState.byId.size < 3) AddGuide()
             ContinueRow()
             MomentsRow { view = it }
+            Section("Секреты")
+            SecretsCard()
             Section("Награды")
             Badges(st)
             RaCard()

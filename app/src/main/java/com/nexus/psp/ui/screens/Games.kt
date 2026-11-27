@@ -51,6 +51,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -177,18 +178,13 @@ private fun Detail(g: Game) {
     val e = AppState.lib[g.id]
     val ctx = LocalContext.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val coverH = maxHeight * .94f
-        val coverW = minOf(coverH * .75f, maxWidth * .44f)
+        // игра стоит в футляре своей приставки (UMD, диск, картридж, телефон…): тап — играть, долгое — меню игры
+        val case = com.nexus.psp.ui.Cases.of(g.p)
+        val caseH = maxHeight * .9f
+        val caseW = minOf(caseH * case.w / case.h, maxWidth * .46f)
         Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            Box(
-                Modifier.width(coverW).height(coverW / .75f).clip(RoundedCornerShape(18.dp))
-                    .border(if (K.evening) 3.dp else 1.5.dp, if (K.evening) K.ink.copy(alpha = .85f) else K.ink.copy(alpha = .5f), RoundedCornerShape(18.dp))
-                    .combinedClickable(remember { MutableInteractionSource() }, null, onLongClick = { Act.buzzLong(); Ctx.open(g.id) }) { Act.play(ctx, g.id) },
-            ) {
-                Cover(g, 300, 400, modifier = Modifier.fillMaxSize())
-                PlatformTag(g)
-                com.nexus.psp.ui.FormatBadge(g, Modifier.align(Alignment.BottomStart).padding(8.dp))
-            }
+            com.nexus.psp.ui.CaseCover(g, Modifier.width(caseW)
+                .combinedClickable(remember { MutableInteractionSource() }, null, onLongClick = { Act.buzzLong(); Ctx.open(g.id) }) { Act.play(ctx, g.id) })
             Column(Modifier.weight(1f).fillMaxHeight().padding(top = 8.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     ConsolePill(g.plat.short, g.plat.color)
@@ -200,7 +196,29 @@ private fun Detail(g: Game) {
                     ActButton(g)
                     KButton("Карточка") { Nav.open(Ov.Game(g.id)) }
                 }
+                ExitPolaroid(g)
             }
+        }
+    }
+}
+
+/** «Полароид» места выхода: кадр, где игрок остановился, — тап продолжает игру прямо с него. */
+@Composable
+private fun ExitPolaroid(g: Game) {
+    val ctx = LocalContext.current
+    val f = remember(g.id, AppState.storageTick) { AppState.stateFile(g, 4) }
+    val thumb = java.io.File(f.path + ".jpg")
+    if (!f.exists() || !thumb.exists()) return
+    Row(
+        Modifier.padding(top = 6.dp).graphicsLayer { rotationZ = -2.5f }.clip(RoundedCornerShape(6.dp)).background(Color(0xFFF6EBDD))
+            .press { Act.play(ctx, g.id, 4) }.padding(start = 6.dp, top = 6.dp, bottom = 6.dp, end = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(Modifier.width(112.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(3.dp)).background(Color(0xFF2A2230))) { com.nexus.psp.ui.FileImage(thumb, Modifier.fillMaxSize()) }
+        Column {
+            Text("Место выхода", style = T.label.copy(fontSize = 13.sp, color = Color(0xFF3A2A20)).let { if (K.evening) it.copy(fontFamily = com.nexus.psp.ui.kit.Balsamiq) else it })
+            Text(java.text.SimpleDateFormat("d MMM, HH:mm", java.util.Locale("ru")).format(java.util.Date(f.lastModified())), style = T.small.copy(fontSize = 11.sp, color = Color(0xFF6B5546)))
+            Text("Нажми — продолжить", style = T.small.copy(fontSize = 11.sp, color = Color(0xFFB4652A)))
         }
     }
 }
@@ -210,7 +228,7 @@ private fun Detail(g: Game) {
 private fun HomeBuddy(modifier: Modifier) {
     if (!S.mascot) return
     val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    var pose by remember { mutableStateOf(if (com.nexus.psp.ui.kit.Buddy.greeted) "idle" else com.nexus.psp.ui.kit.Buddy.greetPose(hour)) }
+    var pose by remember { mutableStateOf(if (com.nexus.psp.ui.kit.Buddy.greeted) "idle" else com.nexus.psp.data.Secrets.seasonPose() ?: com.nexus.psp.ui.kit.Buddy.greetPose(hour)) }
     var bubble by remember { mutableStateOf(if (com.nexus.psp.ui.kit.Buddy.greeted) null else com.nexus.psp.ui.kit.Buddy.greetText(hour, S.nick)) }
     LaunchedEffect(Unit) {
         if (com.nexus.psp.ui.kit.Buddy.greeted) return@LaunchedEffect
@@ -218,6 +236,17 @@ private fun HomeBuddy(modifier: Modifier) {
         kotlinx.coroutines.delay(5000); bubble = null
         // ночью продолжает спать, в остальное время — обычная поза
         if (pose != "sleep") { kotlinx.coroutines.delay(600); pose = "idle" }
+    }
+    // питомец: раз в пару минут показывает, чего ему не хватает (голоден, пыльный, скучает), — тап ведёт в его уголок
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(9000)
+        while (true) {
+            com.nexus.psp.data.Pet.update()
+            val need = com.nexus.psp.data.Pet.need()
+            if (need != null && bubble == null) { pose = com.nexus.psp.data.Pet.pose(); bubble = need; kotlinx.coroutines.delay(5000); bubble = null }
+            else if (pose != "sleep") pose = com.nexus.psp.data.Pet.pose().let { if (it == "joy" || it == "bed") "idle" else it }
+            kotlinx.coroutines.delay(120_000)
+        }
     }
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.animation.AnimatedVisibility(bubble != null, enter = fadeIn(tween(300)), exit = fadeOut(tween(400))) {
@@ -229,8 +258,9 @@ private fun HomeBuddy(modifier: Modifier) {
             )
         }
         com.nexus.psp.ui.kit.LiveMascot(pose, 96.dp) {
-            // касание: смех (внутри LiveMascot); спящий — просыпается
+            // касание: смех (внутри LiveMascot), потом — в уголок Сейвика
             if (pose == "sleep") pose = "idle"
+            Nav.open(Ov.Pet)
         }
     }
 }

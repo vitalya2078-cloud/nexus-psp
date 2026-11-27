@@ -90,7 +90,7 @@ fun Header() {
             Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(if (w >= 700.dp) 4.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (status) HeadStatus()
-                if (extra) IconBtn(R.drawable.sl_library) { Nav.open(Ov.Library) }
+                // библиотека — в быстрой панели и в конце списка игр; шапка — только поиск, колокольчик, панель, профиль
                 IconBtn(R.drawable.sl_search) { Nav.open(Ov.Search) }
                 if (dl) DownloadsBtn()
                 BellBtn()

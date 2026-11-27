@@ -158,6 +158,7 @@ fun QuickPanel() {
                 Tile(R.drawable.sd_pad, "Геймпад", padState(), false) { Nav.settingsTab = "ctl"; Nav.replace(Ov.Settings) },
                 // тема, цвет, фон и профиль — в отдельном экране «Оформление»
                 Tile(R.drawable.sd_brush, "Оформление", "Цвет, фон, профиль", false) { Nav.replace(Ov.Look()) },
+                Tile(R.drawable.sd_heart, "Сейвик", "Покормить, поиграть", false) { Nav.replace(Ov.Pet) },
                 Tile(R.drawable.ph_hand, "Вибрация", if (S.vib) "Вкл" else "Выкл", S.vib) { S.vib = !S.vib },
                 Tile(R.drawable.sd_music, "Звуки", if (S.sound) "Вкл" else "Выкл", S.sound) { S.sound = !S.sound },
                 Tile(R.drawable.sd_touch, "Экранный геймпад", mapOf("touch" to "KAPSULA Touch", "classic" to "Классика", "pad" to "Геймпад")[S.ctlMode] ?: "", false) { Nav.replace(Ov.Pad) },
