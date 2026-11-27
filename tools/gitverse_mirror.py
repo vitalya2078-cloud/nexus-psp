@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Зеркало KAPSULA на GitVerse (работает без VPN): после сборки на GitHub
-  1) отправляет код (ветку и тег версии) в репозиторий GitVerse;
+  1) ветка main на GitVerse — только README со ссылкой на код и лицензии на GitHub (на GitVerse — только готовое);
   2) создаёт выпуск «KAPSULA <версия>» с тегом v<версия> и прикладывает kapsula.apk;
   3) удаляет старые выпуски, оставляя последние KEEP (лимит места на GitVerse — 4 ГБ).
 
@@ -44,33 +44,167 @@ def req(method, path, body=None, data=None, ctype=None):
         time.sleep(10 * 2 ** attempt)
 
 
+GITHUB = "https://github.com/vitalya2078-cloud/nexus-psp"
+SITE = "https://kapsula.gitverse.site/"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DESCRIPTION = "KAPSULA — уютный эмулятор ретро-приставок для Android: PSP, PS1, Sega, Денди и ещё дюжина консолей плюс Java-игры. Бесплатно и без рекламы. Здесь — готовые APK; код и лицензии — на GitHub."
+
+
+def changes():
+    try: return json.load(open(os.path.join(ROOT, "site/changes.json"), encoding="utf-8"))
+    except Exception: return []
+
+
+def notes(ver):
+    """Текст выпуска — из site/changes.json (тот же список, что «Что нового» в приложении и на сайте)."""
+    r = next((x for x in changes() if x.get("ver") == ver), None)
+    head = f"## KAPSULA {ver}\n\n"
+    items = "".join(f"- {i}\n" for i in (r or {}).get("items", []))
+    return (head + (items or "Обновление KAPSULA.\n") +
+            f"\n**Как установить:** скачай `kapsula.apk` ниже и открой его на телефоне (Android 8+). Если телефон спросит — разреши установку из браузера.\n"
+            f"\nСайт: {SITE} · Код и лицензии: {GITHUB}\n")
+
+
+def readme():
+    """README для GitVerse: что это, как скачать, приставки, возможности, что нового. Код и лицензии — ссылкой на GitHub."""
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "tools")); import site_build
+        pl = site_build.platforms()
+        cons = "\n".join(f"| {p['full']} | " + ("тестовая — нужен мощный телефон" if p["exp"] else "") +
+                         ("; " if p["exp"] and p["bios"] else "") + ("нужен BIOS" if p["bios"] == 2 else "BIOS по желанию" if p["bios"] == 1 else "") + (" " if p["exp"] or p["bios"] else "—") + " |"
+                         for p in pl)
+    except Exception as e:
+        print("список приставок не прочитался:", e); cons = ""
+    ch = changes()[:3]
+    news = "\n".join(f"**{r['ver']}** · {r['date']}\n" + "".join(f"- {i}\n" for i in r["items"]) for r in ch)
+    apk = f"https://gitverse.ru/{REPO}/releases"
+    return f"""<p align="center"><img src="img/logo.svg" width="96" alt="KAPSULA"></p>
+
+<h1 align="center">KAPSULA</h1>
+<p align="center"><b>Ретро-игры в уютной капсуле</b><br>Эмулятор ретро-приставок для Android — бесплатно и без рекламы</p>
+
+<p align="center"><img src="img/mascot.webp" width="200" alt="Сейвик — маскот KAPSULA"></p>
+
+## Скачать
+
+- **[Последняя версия ({VER}) — раздел «Выпуски»]({apk})** → файл `kapsula.apk`
+- Сайт: **{SITE}** — там же подсказки по установке, проверка файлов игр и тестер геймпада
+- Нужен **Android 8+** и 64-битный процессор (почти любой телефон последних лет). На iPhone не работает.
+
+**Как установить:** скачай `kapsula.apk`, открой его на телефоне. Если телефон спросит про «неизвестные источники» — разреши установку для браузера (один раз). Дальше KAPSULA сама подскажет, когда выйдет обновление.
+
+## Как выглядит
+
+<p align="center"><img src="img/screen-home.webp" width="49%" alt="Главный экран"> <img src="img/screen-game.webp" width="49%" alt="Карточка игры"></p>
+
+## Что умеет
+
+- **16 приставок и Java-игры** в одном приложении — все игры на одной полке, с обложками и временем в игре
+- **Сейвы в облаке** — сменил телефон, продолжил с того же места
+- **Удобное управление** — кнопки двигаются и масштабируются, турбо и комбо, геймпад подхватывается сам
+- **«Играть» возвращает туда, где остановился** — даже если игру закрыли на самом интересном месте
+- **Друзья, испытания недели, достижения RetroAchievements**, «Позвать в игру» по Wi-Fi
+- **Сейвик** — живой маскот: здоровается, радуется победам и грустит вместе с тобой
+- Без рекламы, без покупок, без регистрации
+
+## Приставки
+
+| Приставка | Примечание |
+|---|---|
+{cons}
+
+Игры и BIOS мы не раздаём и не подсказываем, где их взять: сделай образ своего диска или картриджа. Если приставке нужен BIOS — KAPSULA скажет, какой файл и куда положить.
+
+## Что нового
+
+{news}
+Полный список — в приложении («О приложении → Что нового») и на сайте.
+
+## Код и лицензии
+
+Здесь лежит только готовое: сборки APK и сайт. **Исходный код, история изменений и лицензии** — на GitHub:
+**{GITHUB}**
+
+Ядра эмуляции — открытые проекты (PPSSPP, PCSX-ReARMed, Flycast и другие) под GNU GPL; полный список и тексты лицензий — в приложении (Настройки → О приложении) и на GitHub. Названия приставок принадлежат их владельцам и указаны только для совместимости.
+
+## Связь
+
+- Написать нам и сообщить об ошибке: https://vk.ru/glasty (или в приложении: Настройки → О приложении → «Сообщить об ошибке»)
+- Конфиденциальность: {SITE}privacy.html
+"""
+
+
+def readme_files(tmp):
+    """README и картинки к нему (логотип, маскот, два снимка экрана)."""
+    open(os.path.join(tmp, "README.md"), "w", encoding="utf-8").write(readme())
+    os.makedirs(os.path.join(tmp, "img"), exist_ok=True)
+    import shutil
+    for src, dst in (("ui/img/mascot-l-wave.webp", "mascot.webp"), ("site/screens/1-home.webp", "screen-home.webp"), ("site/screens/2-game.webp", "screen-game.webp")):
+        try: shutil.copy(os.path.join(ROOT, src), os.path.join(tmp, "img", dst))
+        except Exception as e: print("картинка для README не скопировалась:", src, e)
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "tools")); import site_build
+        open(os.path.join(tmp, "img/logo.svg"), "w", encoding="utf-8").write(site_build.LOGO)
+    except Exception as e: print("логотип не записался:", e)
+
+
+def repo_info():
+    """Описание и адрес сайта репозитория на GitVerse (PATCH /repos/{owner}/{repo})."""
+    st, r = req("PATCH", f"/repos/{REPO}", body={"description": DESCRIPTION, "homepage": SITE})
+    print("описание репозитория:", "обновлено" if st in (200, 201) else f"не обновилось ({st} {str(r)[:200]})")
+
+
+def git_url(user):
+    return f"https://{user}:{TOKEN}@gitverse.ru/{REPO}.git"
+
+
 def push_code():
-    """Код и тег версии — в GitVerse. Токен как пароль HTTPS; пробуем принятые варианты имени пользователя."""
+    """На GitVerse — только готовое (решение пользователя 2026-11-27): ветка main — один коммит с README
+    (ссылка на код и лицензии на GitHub), тег версии — на нём. Старый код с GitVerse убираем: лишние ветки
+    удаляем (кроме main и pages — там сайт), теги версий переводим на этот же коммит."""
+    import tempfile
     owner = REPO.split("/")[0]
-    for attempt in range(4):
-        for user in (owner, "oauth2", "token"):
-            url = f"https://{user}:{TOKEN}@gitverse.ru/{REPO}.git"
-            subprocess.run(["git", "tag", "-f", TAG], check=False)
-            r = subprocess.run(["git", "push", "--force", url, "HEAD:refs/heads/main", f"refs/tags/{TAG}"], capture_output=True, text=True)
-            if r.returncode == 0:
-                print(f"код отправлен в GitVerse (пользователь «{user}»), тег {TAG}")
+    with tempfile.TemporaryDirectory() as tmp:
+        g = lambda *a: subprocess.run(["git", *a], cwd=tmp, capture_output=True, text=True)
+        g("init", "-q", "-b", "main")
+        readme_files(tmp)
+        g("add", "-A")
+        g("-c", "user.name=KAPSULA", "-c", "user.email=build@kapsula.invalid", "commit", "-q", "-m", f"KAPSULA {VER}")
+        g("tag", "-f", TAG)
+        for attempt in range(4):
+            for user in (owner, "oauth2", "token"):
+                r = g("push", "--force", git_url(user), "HEAD:refs/heads/main", f"+refs/tags/{TAG}:refs/tags/{TAG}")
+                if r.returncode != 0:
+                    print(f"git push как «{user}» не прошёл: " + r.stderr.replace(TOKEN, "***")[-300:]); continue
+                print(f"GitVerse: main — только README, тег {TAG}")
+                # что ещё лежит на GitVerse: ветки с кодом — удалить, старые теги — на коммит с README
+                ls = g("ls-remote", git_url(user)).stdout.split("\n")
+                refs = [l.split("\t")[1] for l in ls if "\t" in l and not l.endswith("^{}")]
+                drop = [x for x in refs if x.startswith("refs/heads/") and x not in ("refs/heads/main", "refs/heads/pages")]
+                tags = [x for x in refs if x.startswith("refs/tags/") and x != f"refs/tags/{TAG}"]
+                if drop:
+                    r2 = g("push", git_url(user), *[":" + x for x in drop])
+                    print("удалены ветки:", drop, "" if r2.returncode == 0 else r2.stderr.replace(TOKEN, "***")[-200:])
+                if tags:
+                    r2 = g("push", "--force", git_url(user), *[f"HEAD:{x}" for x in tags])
+                    print("теги переведены на README:", len(tags), "" if r2.returncode == 0 else r2.stderr.replace(TOKEN, "***")[-200:])
                 return True
-            print(f"git push как «{user}» не прошёл: " + r.stderr.replace(TOKEN, "***")[-300:])
-        if attempt < 3:
-            print(f"GitVerse недоступен — повтор отправки через {15 * 2 ** attempt} с"); time.sleep(15 * 2 ** attempt)
+            if attempt < 3:
+                print(f"GitVerse недоступен — повтор отправки через {15 * 2 ** attempt} с"); time.sleep(15 * 2 ** attempt)
     return False
 
 
 def release():
     st, rel = req("GET", f"/repos/{REPO}/releases/tags/{TAG}")
     if st == 200 and isinstance(rel, dict):
-        print(f"выпуск {TAG} уже есть (id {rel['id']}) — заменяю APK")
+        print(f"выпуск {TAG} уже есть (id {rel['id']}) — заменяю APK и описание")
+        req("PATCH", f"/repos/{REPO}/releases/{rel['id']}", body={"name": f"KAPSULA {VER}", "body": NOTES or notes(VER)})
         for a in rel.get("assets") or []:
             if a.get("name") == "kapsula.apk":
                 req("DELETE", f"/repos/{REPO}/releases/{rel['id']}/assets/{a['id']}")
     else:
         st, rel = req("POST", f"/repos/{REPO}/releases", body={
-            "tag_name": TAG, "target_commitish": "main", "name": f"KAPSULA {VER}", "body": NOTES or f"KAPSULA {VER}",
+            "tag_name": TAG, "target_commitish": "main", "name": f"KAPSULA {VER}", "body": NOTES or notes(VER),
             "draft": False, "prerelease": False,
         })
         if st not in (200, 201) or not isinstance(rel, dict):
@@ -112,6 +246,7 @@ if __name__ == "__main__":
     if not TOKEN or not REPO or not VER:
         print("::warning::зеркало GitVerse не настроено (нет GITVERSE_TOKEN / GITVERSE_REPO) — пропускаю"); sys.exit(0)
     ok_code = push_code()
+    repo_info()
     rel = release()
     if rel: cleanup()
     sys.exit(0 if rel else 1)
