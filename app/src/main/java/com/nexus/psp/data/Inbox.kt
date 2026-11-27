@@ -57,7 +57,7 @@ object Inbox {
     }
 
     /** Системное уведомление; тап — открыть KAPSULA (для друзей — сразу «Моё → Друзья»). */
-    fun notify(c: Context, id: Int, title: String, text: String, friends: Boolean, open: String? = null) {
+    fun notify(c: Context, id: Int, title: String, text: String, friends: Boolean, open: String? = null, pic: android.graphics.Bitmap? = null) {
         val nm = c.getSystemService(NotificationManager::class.java) ?: return
         if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
         channels(c)
@@ -67,7 +67,9 @@ object Inbox {
         val b = if (Build.VERSION.SDK_INT >= 26) android.app.Notification.Builder(c, if (friends) CH_FRIENDS else CH_SYSTEM)
             else @Suppress("DEPRECATION") android.app.Notification.Builder(c)
         val n = b.setSmallIcon(com.nexus.psp.R.drawable.ic_stat_kapsula).setContentTitle(title).setContentText(text)
-            .setStyle(android.app.Notification.BigTextStyle().bigText(text)).setContentIntent(pi).setAutoCancel(true).build()
+            .setStyle(if (pic != null) android.app.Notification.BigPictureStyle().bigPicture(pic).setSummaryText(text) else android.app.Notification.BigTextStyle().bigText(text))
+            .apply { if (pic != null) setLargeIcon(pic) }
+            .setContentIntent(pi).setAutoCancel(true).build()
         try { nm.notify(id, n) } catch (e: SecurityException) { }
     }
 

@@ -259,6 +259,8 @@ class MainActivity : ComponentActivity() {
         setContent { KapsulaTheme { KapsulaApp() } }
         com.nexus.psp.data.Inbox.channels(this)
         com.nexus.psp.data.Inbox.schedule(applicationContext)
+        // push-уведомления: токен телефона уходит на сервер, когда есть аккаунт (Push.flush — и при каждом возврате)
+        com.nexus.psp.data.Push.init(applicationContext)
         openFrom(intent)
     }
 
@@ -298,6 +300,7 @@ class MainActivity : ComponentActivity() {
         com.nexus.psp.data.AppState.applyLook()
         // пока KAPSULA на экране — заявки, жетоны и новости проверяются раз в минуту (без перезапуска)
         com.nexus.psp.data.Inbox.foreground = true
+        com.nexus.psp.data.Push.flush(applicationContext)
         getSystemService(android.app.NotificationManager::class.java)?.cancelAll()
         pollJob?.cancel()
         pollJob = lifecycleScope.launch {

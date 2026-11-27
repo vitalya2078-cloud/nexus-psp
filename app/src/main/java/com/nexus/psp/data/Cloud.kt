@@ -61,7 +61,7 @@ object Cloud {
     }
     /** В автотестах (Robolectric) на настоящий сервер не ходим — иначе тесты создавали бы аккаунты. */
     private val offline get() = android.os.Build.FINGERPRINT == "robolectric"
-    private val ready get() = ::sp.isInitialized && !offline
+    internal val ready get() = ::sp.isInitialized && !offline
 
     // ---------- что считается на телефоне ----------
     private fun localPlay() = AppState.lib.values.sumOf { it.play }
@@ -176,6 +176,7 @@ object Cloud {
      */
     fun pollNow(c: android.content.Context) {
         if (!ready || code.isEmpty()) return
+        Push.flush(c) // аккаунт появился позже токена — отправить токен сейчас
         val after = sp.getLong("inboxAfter", 0L)
         val r = Inbox.poll(c, after, sp.getLong("newsAfter", 0L)) ?: return
         val items = r.optJSONArray("items") ?: org.json.JSONArray()
