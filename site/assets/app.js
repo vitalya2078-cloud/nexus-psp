@@ -16,6 +16,9 @@
   var ua = navigator.userAgent || "";
   if (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) root.classList.add("is-ios");
 
+  // GitVerse Pages не открывает index.html в папках: /en/ попадает на «не найдено» — ведём на /en/index.html
+  var dirm = location.pathname.match(/^\/(en|es|pt|de|fr|it|pl|tr|uk|ja|zh|ko)\/?$/);
+  if (dirm) { location.replace("/" + dirm[1] + "/index.html" + location.search + location.hash); return; }
   // ---------- язык: первый заход — по браузеру; дальше — выбор ----------
   var LANGS = W.KLANGS || [];
   var saved = store.get("lang", null);
@@ -23,7 +26,7 @@
     var want = (navigator.languages || [navigator.language || "ru"]).map(function (x) { return x.slice(0, 2).toLowerCase(); })
       .filter(function (c) { return LANGS.some(function (l) { return l[0] === c; }); })[0];
     store.set("lang", want || LANG);
-    if (want && want !== LANG) { var tgt = (want === "ru" ? "/" : "/" + want + "/") + (location.pathname.replace(/^\/(en|es|pt|de|fr|it|pl|tr|uk|ja|zh|ko)\//, "/").slice(1)); location.replace(tgt + location.hash); return; }
+    if (want && want !== LANG) { var rest = location.pathname.replace(/^\/(en|es|pt|de|fr|it|pl|tr|uk|ja|zh|ko)\//, "/").slice(1); if (want !== "ru" && !rest) rest = "index.html"; var tgt = (want === "ru" ? "/" : "/" + want + "/") + rest; location.replace(tgt + location.hash); return; }
   }
   var lb = $(".lang-b"), lm = $(".langs");
   if (lb && lm) {

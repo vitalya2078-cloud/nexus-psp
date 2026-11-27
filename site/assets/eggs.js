@@ -112,7 +112,7 @@
   function levelSelect() {
     var pages = [["index", "js.p.home"], ["consoles", "js.p.consoles"], ["tools", "js.p.tools"], ["game", "js.p.game"], ["faq", "js.p.faq"], ["news", "js.p.news"], ["secrets", "js.p.secrets"]];
     var o = overlay('<div style="background:#120e18;border:3px solid #f4b26b;padding:22px 30px;border-radius:12px;font:700 18px/2 ui-monospace,monospace;color:#9fd6b4;min-width:260px"><div style="color:#f4b26b;margin-bottom:6px">LEVEL SELECT</div>' +
-      pages.map(function (p, i) { return '<a href="' + L + (p[0] === "index" ? "" : p[0] + ".html") + '" style="display:block;color:inherit;text-decoration:none">' + (i + 1) + ". " + t(p[1], p[0]).toUpperCase() + "</a>"; }).join("") + "</div>", "background:rgba(0,0,0,.6);pointer-events:auto", 15000);
+      pages.map(function (p, i) { return '<a href="' + L + (p[0] === "index" ? (L === "/" ? "" : "index.html") : p[0] + ".html") + '" style="display:block;color:inherit;text-decoration:none">' + (i + 1) + ". " + t(p[1], p[0]).toUpperCase() + "</a>"; }).join("") + "</div>", "background:rgba(0,0,0,.6);pointer-events:auto", 15000);
     o.addEventListener("click", function (e) { if (e.target === o) o.remove(); });
   }
   var actx; function beep(fr, d) { try { actx = actx || new (W.AudioContext || W.webkitAudioContext)(); fr.forEach(function (f, i) { var o = actx.createOscillator(), g = actx.createGain(); o.type = "square"; o.frequency.value = f; g.gain.value = .05; o.connect(g); g.connect(actx.destination); o.start(actx.currentTime + i * d); o.stop(actx.currentTime + (i + 1) * d); }); } catch (e) {} }
