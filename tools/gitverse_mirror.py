@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Зеркало KAPSULA на GitVerse (работает без VPN): после сборки на GitHub
-  1) отправляет код (ветку и тег версии) в репозиторий GitVerse;
+  1) ветка main на GitVerse — только README со ссылкой на код и лицензии на GitHub (на GitVerse — только готовое);
   2) создаёт выпуск «KAPSULA <версия>» с тегом v<версия> и прикладывает kapsula.apk;
   3) удаляет старые выпуски, оставляя последние KEEP (лимит места на GitVerse — 4 ГБ).
 
@@ -44,20 +44,53 @@ def req(method, path, body=None, data=None, ctype=None):
         time.sleep(10 * 2 ** attempt)
 
 
+GITHUB = "https://github.com/vitalya2078-cloud/nexus-psp"
+README = f"""# KAPSULA
+
+Здесь — только готовое: сборки KAPSULA (APK в разделе «Выпуски») и сайт https://kapsula.gitverse.site/.
+
+Исходный код, история изменений и лицензии (GNU GPL ядер эмуляции, шрифты OFL и др.) — на GitHub:
+{GITHUB}
+"""
+
+
+def git_url(user):
+    return f"https://{user}:{TOKEN}@gitverse.ru/{REPO}.git"
+
+
 def push_code():
-    """Код и тег версии — в GitVerse. Токен как пароль HTTPS; пробуем принятые варианты имени пользователя."""
+    """На GitVerse — только готовое (решение пользователя 2026-11-27): ветка main — один коммит с README
+    (ссылка на код и лицензии на GitHub), тег версии — на нём. Старый код с GitVerse убираем: лишние ветки
+    удаляем (кроме main и pages — там сайт), теги версий переводим на этот же коммит."""
+    import tempfile
     owner = REPO.split("/")[0]
-    for attempt in range(4):
-        for user in (owner, "oauth2", "token"):
-            url = f"https://{user}:{TOKEN}@gitverse.ru/{REPO}.git"
-            subprocess.run(["git", "tag", "-f", TAG], check=False)
-            r = subprocess.run(["git", "push", "--force", url, "HEAD:refs/heads/main", f"refs/tags/{TAG}"], capture_output=True, text=True)
-            if r.returncode == 0:
-                print(f"код отправлен в GitVerse (пользователь «{user}»), тег {TAG}")
+    with tempfile.TemporaryDirectory() as tmp:
+        g = lambda *a: subprocess.run(["git", *a], cwd=tmp, capture_output=True, text=True)
+        g("init", "-q", "-b", "main")
+        open(os.path.join(tmp, "README.md"), "w", encoding="utf-8").write(README)
+        g("add", "README.md")
+        g("-c", "user.name=KAPSULA", "-c", "user.email=build@kapsula.invalid", "commit", "-q", "-m", f"KAPSULA {VER}")
+        g("tag", "-f", TAG)
+        for attempt in range(4):
+            for user in (owner, "oauth2", "token"):
+                r = g("push", "--force", git_url(user), "HEAD:refs/heads/main", f"+refs/tags/{TAG}:refs/tags/{TAG}")
+                if r.returncode != 0:
+                    print(f"git push как «{user}» не прошёл: " + r.stderr.replace(TOKEN, "***")[-300:]); continue
+                print(f"GitVerse: main — только README, тег {TAG}")
+                # что ещё лежит на GitVerse: ветки с кодом — удалить, старые теги — на коммит с README
+                ls = g("ls-remote", git_url(user)).stdout.split("\n")
+                refs = [l.split("\t")[1] for l in ls if "\t" in l and not l.endswith("^{}")]
+                drop = [x for x in refs if x.startswith("refs/heads/") and x not in ("refs/heads/main", "refs/heads/pages")]
+                tags = [x for x in refs if x.startswith("refs/tags/") and x != f"refs/tags/{TAG}"]
+                if drop:
+                    r2 = g("push", git_url(user), *[":" + x for x in drop])
+                    print("удалены ветки:", drop, "" if r2.returncode == 0 else r2.stderr.replace(TOKEN, "***")[-200:])
+                if tags:
+                    r2 = g("push", "--force", git_url(user), *[f"HEAD:{x}" for x in tags])
+                    print("теги переведены на README:", len(tags), "" if r2.returncode == 0 else r2.stderr.replace(TOKEN, "***")[-200:])
                 return True
-            print(f"git push как «{user}» не прошёл: " + r.stderr.replace(TOKEN, "***")[-300:])
-        if attempt < 3:
-            print(f"GitVerse недоступен — повтор отправки через {15 * 2 ** attempt} с"); time.sleep(15 * 2 ** attempt)
+            if attempt < 3:
+                print(f"GitVerse недоступен — повтор отправки через {15 * 2 ** attempt} с"); time.sleep(15 * 2 ** attempt)
     return False
 
 
