@@ -216,10 +216,11 @@ def build(out: Path):
             if page == "404" and code != "ru": continue
             fname = "index.html" if page == "index" else f"{page}.html"
             path = "" if page in ("index", "404") else fname
-            langs = "".join(f'<a href="{"/" if c == "ru" else "/" + c + "/"}{path}" data-l="{c}" hreflang="{c}" lang="{c}"{" class=\"on\"" if c == code else ""}>{f}{n}</a>' for c, n, f in LANGS)
-            hreflang = "\n".join([f'<link rel="alternate" hreflang="{c}" href="{SITE_URL}{"" if c == "ru" else c + "/"}{path}">' for c, _, _ in LANGS]
-                                 + [f'<link rel="alternate" hreflang="x-default" href="{SITE_URL}{path}">', f'<link rel="canonical" href="{SITE_URL}{"" if code == "ru" else code + "/"}{path}">']) if page != "404" else ""
-            ctx = {"L": L, "LANG": code, "LANGNAME": name, "FLAG": flag, "LANGS": langs, "HREFLANG": hreflang, "MW": mw, "MH": mh, "V": v, "SITE": SITE_URL,
+            lpath = lambda c: path or ("" if c == "ru" else "index.html")  # /en/ на GitVerse Pages не открывается — нужен index.html
+            langs = "".join(f'<a href="{"/" if c == "ru" else "/" + c + "/"}{lpath(c)}" data-l="{c}" hreflang="{c}" lang="{c}"{" class=\"on\"" if c == code else ""}>{f}{n}</a>' for c, n, f in LANGS)
+            hreflang = "\n".join([f'<link rel="alternate" hreflang="{c}" href="{SITE_URL}{"" if c == "ru" else c + "/"}{lpath(c)}">' for c, _, _ in LANGS]
+                                 + [f'<link rel="alternate" hreflang="x-default" href="{SITE_URL}{path}">', f'<link rel="canonical" href="{SITE_URL}{"" if code == "ru" else code + "/"}{lpath(code)}">']) if page != "404" else ""
+            ctx = {"L": L, "HOME": "/" if code == "ru" else L + "index.html", "LANG": code, "LANGNAME": name, "FLAG": flag, "LANGS": langs, "HREFLANG": hreflang, "MW": mw, "MH": mh, "V": v, "SITE": SITE_URL,
                    "RIBBON": render(ribbon, T, {"L": L}, page), "CONSOLES": cons, "CHANGES": changes_html(code),
                    "NEWSNOTE": "" if code == "ru" else f'<p class="hint">{html.escape(T["news.ru"])}</p>',
                    "PRIVNOTE": "" if code in ("ru", "en") else f'<p class="hint">{html.escape(T["priv.en"])}</p>',
