@@ -14,6 +14,9 @@ object Pet {
     var food = 80f; var energy = 80f; var clean = 80f; var fun_ = 80f
     var asleep = false
     private var at = 0L
+    /** Для секретов: сколько раз играли, в какие дни заходили в уголок (последние 7). */
+    private var plays = 0
+    private var days = ""
     /** Перерисовать экран после изменения. */
     var tick by mutableIntStateOf(0)
 
@@ -24,12 +27,13 @@ object Pet {
         food = o.optDouble("food", 80.0).toFloat(); energy = o.optDouble("energy", 80.0).toFloat()
         clean = o.optDouble("clean", 80.0).toFloat(); fun_ = o.optDouble("fun", 80.0).toFloat()
         asleep = o.optBoolean("asleep", false); at = o.optLong("at", System.currentTimeMillis())
+        plays = o.optInt("plays", 0); days = o.optString("days", "")
         update()
     }
 
     private fun save() {
         AppState.S.pet = JSONObject().put("food", food).put("energy", energy).put("clean", clean).put("fun", fun_)
-            .put("asleep", asleep).put("at", at).toString()
+            .put("asleep", asleep).put("at", at).put("plays", plays).put("days", days).toString()
         tick++
     }
 
@@ -45,13 +49,25 @@ object Pet {
         save()
     }
 
-    fun feed(): String { update(); asleep = false; food = (food + 35).coerceAtMost(100f); fun_ = (fun_ + 5).coerceAtMost(100f); save(); return if (food >= 100f) "Объелся! Больше не влезет" else "Ням! Спасибо" }
-    fun sleep(): String { update(); asleep = !asleep; save(); return if (asleep) "Спокойной ночи…" else "Я проснулся!" }
+    /** Зашли в уголок: день в копилку «Постоянного гостя». */
+    fun visit() {
+        val c = java.util.Calendar.getInstance()
+        val d = "%d%03d".format(c.get(java.util.Calendar.YEAR), c.get(java.util.Calendar.DAY_OF_YEAR))
+        val list = days.split(',').filter { it.isNotBlank() }
+        if (d !in list) { days = (list + d).takeLast(7).joinToString(","); save() }
+        if (days.split(',').size >= 5) Secrets.find("visits")
+    }
+
+    fun perfectCheck() { if (food >= 95 && energy >= 95 && clean >= 95 && fun_ >= 95) Secrets.find("perfect") }
+
+    fun feed(): String { update(); if (food >= 100f) Secrets.find("glutton"); asleep = false; food = (food + 35).coerceAtMost(100f); fun_ = (fun_ + 5).coerceAtMost(100f); save(); return if (food >= 100f) "Объелся! Больше не влезет" else "Ням! Спасибо" }
+    fun sleep(): String { update(); if (asleep) Secrets.find("alarm"); asleep = !asleep; save(); return if (asleep) "Спокойной ночи…" else "Я проснулся!" }
     fun wash(): String { update(); asleep = false; clean = 100f; fun_ = (fun_ + 5).coerceAtMost(100f); save(); return "Буль-буль! Как новенький" }
     fun play(): String {
         update(); asleep = false
         if (energy < 20f) { save(); return "Сил нет… Уложи меня поспать" }
-        fun_ = (fun_ + 30).coerceAtMost(100f); energy = (energy - 8).coerceAtLeast(MIN); food = (food - 4).coerceAtLeast(MIN); save()
+        fun_ = (fun_ + 30).coerceAtMost(100f); energy = (energy - 8).coerceAtLeast(MIN); food = (food - 4).coerceAtLeast(MIN); plays++; save()
+        if (plays >= 30) Secrets.find("bestie")
         return "Ещё! Ещё!"
     }
 

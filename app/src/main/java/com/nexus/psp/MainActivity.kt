@@ -264,6 +264,20 @@ class MainActivity : ComponentActivity() {
         openFrom(intent)
     }
 
+    /** Кнопки геймпада в меню: только подсматриваем (код Конами), обработка — как обычно. */
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            when (event.keyCode) {
+                android.view.KeyEvent.KEYCODE_DPAD_UP -> "u"; android.view.KeyEvent.KEYCODE_DPAD_DOWN -> "d"
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT -> "l"; android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> "r"
+                android.view.KeyEvent.KEYCODE_BUTTON_B, android.view.KeyEvent.KEYCODE_B -> "b"
+                android.view.KeyEvent.KEYCODE_BUTTON_A, android.view.KeyEvent.KEYCODE_A -> "a"
+                else -> null
+            }?.let { com.nexus.psp.data.Secrets.key(it) }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -296,6 +310,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // секреты по времени и цифрам (ночью, в праздники, неделя подряд…)
+        window.decorView.postDelayed({ com.nexus.psp.data.Secrets.check() }, 2500)
         // «Вечер» по часам: тема сверяется при каждом возвращении в KAPSULA
         com.nexus.psp.data.AppState.applyLook()
         // пока KAPSULA на экране — заявки, жетоны и новости проверяются раз в минуту (без перезапуска)

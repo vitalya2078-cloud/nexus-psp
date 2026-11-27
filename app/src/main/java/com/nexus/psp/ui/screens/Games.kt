@@ -228,7 +228,7 @@ private fun ExitPolaroid(g: Game) {
 private fun HomeBuddy(modifier: Modifier) {
     if (!S.mascot) return
     val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    var pose by remember { mutableStateOf(if (com.nexus.psp.ui.kit.Buddy.greeted) "idle" else com.nexus.psp.ui.kit.Buddy.greetPose(hour)) }
+    var pose by remember { mutableStateOf(if (com.nexus.psp.ui.kit.Buddy.greeted) "idle" else com.nexus.psp.data.Secrets.seasonPose() ?: com.nexus.psp.ui.kit.Buddy.greetPose(hour)) }
     var bubble by remember { mutableStateOf(if (com.nexus.psp.ui.kit.Buddy.greeted) null else com.nexus.psp.ui.kit.Buddy.greetText(hour, S.nick)) }
     LaunchedEffect(Unit) {
         if (com.nexus.psp.ui.kit.Buddy.greeted) return@LaunchedEffect

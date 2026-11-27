@@ -77,6 +77,7 @@ fun SettingsScreen() {
     // старые адреса разделов («Эмулятор PSP / PS1») ведут в «Графика и скорость» на нужную приставку
     if (Nav.settingsTab == "core" || Nav.settingsTab == "ps1") { gfxPlat = if (Nav.settingsTab == "ps1") "ps1" else "psp"; Nav.settingsTab = "gfx" }
     val tab = Nav.settingsTab
+    androidx.compose.runtime.LaunchedEffect(tab) { com.nexus.psp.data.Secrets.settingsTab(tab, nav.size) }
     Full {
         OvHead("Настройки")
         Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -121,7 +122,7 @@ private fun General() {
     Opt("Звуки интерфейса", "Тихий щелчок в карусели") { Toggle(S.sound) { S.sound = it } }
     Opt("Часы и заряд в шапке", "Время и батарея на главном экране — системная строка там скрыта") { Toggle(S.headClock) { S.headClock = it } }
     Opt("Экономия батареи", "При заряде 15% и ниже — пресет «Батарея» до зарядки") { Toggle(S.batterySaver) { S.batterySaver = it } }
-    Opt("Зерно как на плёнке", "Лёгкая тёплая зернистость поверх меню. В игре её нет") { Toggle(S.grain) { S.grain = it } }
+    Opt("Зерно как на плёнке", "Лёгкая тёплая зернистость поверх меню. В игре её нет") { Toggle(S.grain) { S.grain = it; com.nexus.psp.data.Secrets.grainFlip() } }
 }
 
 /** Аккаунт KAPSULA (код игрока, код подарка, удаление профиля) и статистика. */
@@ -232,7 +233,9 @@ private fun A11y() {
 private fun About() {
     val ctx = LocalContext.current
     val ver = try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { "" }
-    Opt("KAPSULA", sub = "Версия $ver") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
+    Box(Modifier.tap { com.nexus.psp.data.Secrets.versionTap() }) {
+        Opt("KAPSULA", sub = "Версия $ver") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
+    }
     val scopeU = androidx.compose.runtime.rememberCoroutineScope()
     var checking by remember { mutableStateOf(false) }
     val dl = com.nexus.psp.data.UpdateService.progress

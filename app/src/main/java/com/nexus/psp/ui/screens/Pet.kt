@@ -57,13 +57,13 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun PetScreen() {
-    LaunchedEffect(Unit) { Pet.update() }
+    LaunchedEffect(Unit) { Pet.update(); Pet.visit() }
     @Suppress("UNUSED_VARIABLE") val t = Pet.tick // перерисовка после действий
     var act by remember { mutableStateOf<String?>(null) }   // поза действия на пару секунд
     var say by remember { mutableStateOf<String?>(Pet.need() ?: "Привет! Я тут, в своём уголке") }
     LaunchedEffect(act) { if (act != null) { delay(1800); act = null } }
     LaunchedEffect(say) { if (say != null) { delay(4000); say = null } }
-    fun go(pose: String, text: String) { act = pose; say = text; com.nexus.psp.ui.Act.buzz() }
+    fun go(pose: String, text: String) { act = pose; say = text; com.nexus.psp.ui.Act.buzz(); Pet.perfectCheck() }
 
     Box(Modifier.fillMaxSize().background(K.bg).press { }) {
         AssetImage("look/wp_room.webp", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -84,7 +84,7 @@ fun PetScreen() {
                     Text(say ?: "", maxLines = 2, style = T.label.copy(fontFamily = Balsamiq, fontSize = 15.sp, color = Color(0xFF3A2A20)),
                         modifier = Modifier.widthIn(max = 260.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFFBF0E4)).padding(horizontal = 14.dp, vertical = 8.dp))
                 }
-                LiveMascot(act ?: Pet.pose(), big) { if (!Pet.asleep) say = listOf("Хи-хи!", "Щекотно!", "Я тебя тоже люблю", "Поиграем?").random() }
+                LiveMascot(act ?: Pet.pose(), big) { com.nexus.psp.data.Secrets.tickle(); if (!Pet.asleep) say = listOf("Хи-хи!", "Щекотно!", "Я тебя тоже люблю", "Поиграем?").random() }
             }
         }
         // потребности
@@ -95,6 +95,11 @@ fun PetScreen() {
             NeedBar("pet/bed.webp", "Бодрость", Pet.energy)
             NeedBar("pet/tub.webp", "Чистота", Pet.clean)
             NeedBar("pet/carttoy.webp", "Настроение", Pet.fun_)
+        }
+        Row(Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 70.dp).height(42.dp).clip(RoundedCornerShape(21.dp)).background(K.s2.copy(alpha = .9f))
+            .press { Nav.open(com.nexus.psp.ui.Ov.Secrets) }.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("?", style = T.label.copy(fontFamily = Balsamiq, fontSize = 18.sp, color = K.acc))
+            Text("Секреты ${com.nexus.psp.data.Secrets.found.size}/${com.nexus.psp.data.Secrets.ALL.size}", style = T.label.copy(fontFamily = Balsamiq, fontSize = 13.sp))
         }
         Box(Modifier.align(Alignment.TopEnd).padding(18.dp).size(42.dp).clip(CircleShape).background(K.s2.copy(alpha = .9f)).press { Nav.back() }, contentAlignment = Alignment.Center) {
             SolarIcon(R.drawable.ph_x, 18.dp)

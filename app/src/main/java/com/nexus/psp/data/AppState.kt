@@ -157,6 +157,8 @@ class Settings(private val sp: SharedPreferences) {
     var grain by b("grain", true)
     /** Сейвик-питомец: потребности и время (Pet). */
     var pet by s("pet", "")
+    /** Найденные секреты (Secrets), id через запятую. */
+    var eggs by s("eggs", "")
     /** Переход на тёплое оформление 0.51 сделан (фон «Комната с лампой» — один раз). */
     var warm51 by b("warm51", false)
     var wallDim by i("wallDim", 45)
@@ -218,7 +220,7 @@ object AppState {
         Cloud.init(app)
         load()
         loadReal()
-        Pet.load()
+        Pet.load(); Secrets.load()
         // 0.51: тёплое оформление — фон «Комната с лампой» вместо обложки игры (один раз; свой фон или фото не трогаем)
         if (!S.warm51) { S.warm51 = true; if (S.wall == "game") { S.wall = "wp_room"; S.wallDim = 20 } }
         applyLook()

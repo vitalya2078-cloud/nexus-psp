@@ -85,6 +85,7 @@ object Cos {
         Item("tt_traveler", Kind.TT, "Путешественник", need = cons(5)), Item("tt_loyal", Kind.TT, "Верный игрок", need = streak(14)),
         Item("tt_legend", Kind.TT, "Легенда KAPSULA", need = lvl(15)),
         Item("tt_creator", Kind.TT, "Создатель KAPSULA", need = Need("admin", 1, "Только у создателя")),
+        Item("tt_seeker", Kind.TT, "Искатель секретов", need = gift("за секреты на сайте KAPSULA")),
         Item("tt_retro", Kind.TT, "Ретро-душа", 200), Item("tt_ninja", Kind.TT, "Кнопочный ниндзя", 200), Item("tt_keeper", Kind.TT, "Хранитель картриджей", 300),
     )
 
