@@ -116,9 +116,8 @@ fun GameSheet(id: String) {
                 contentAlignment = Alignment.Center,
             ) { Box(Modifier.size(40.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(K.ink3)) }
             Row(Modifier.weight(1f).padding(horizontal = 22.dp), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                Box(Modifier.width(136.dp).aspectRatio(3f / 4f).clip(RoundedCornerShape(16.dp)).border(1.dp, K.line, RoundedCornerShape(16.dp))) {
-                    Cover(g, 300, 400, modifier = Modifier.fillMaxSize())
-                }
+                // игра в футляре своей приставки, как на главной
+                com.nexus.psp.ui.CaseCover(g, Modifier.width(if (com.nexus.psp.ui.Cases.of(g.p).let { it.w > it.h }) 180.dp else 140.dp))
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {

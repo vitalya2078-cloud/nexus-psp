@@ -60,12 +60,12 @@ data class Game(
     val format get() = file.substringAfterLast('.', "").uppercase()
 }
 
-/** Палитры и мотивы обложек (из прототипа). */
+/** Палитры заглушек обложек: тёплые сумерки (слива, какао, мёд, роза) — в тон оформлению 0.51. Верх, низ, акцент. */
 private val PALETTES = listOf(
-    listOf(0xFF2A3140, 0xFF0D1016, 0xFFD9C7A3), listOf(0xFF1F2C3A, 0xFF0B1016, 0xFFA9BCCF), listOf(0xFF2B2A33, 0xFF0E0E12, 0xFFBDB6C9),
-    listOf(0xFF2E2B26, 0xFF100F0D, 0xFFD8C9A6), listOf(0xFF3A2E25, 0xFF110D0A, 0xFFD2B48C), listOf(0xFF1F302C, 0xFF0A100E, 0xFFA8C2B6),
-    listOf(0xFF1C2A21, 0xFF090E0B, 0xFF9DB3A1), listOf(0xFF3A2523, 0xFF110B0A, 0xFFC9A396), listOf(0xFF1B2836, 0xFF080C11, 0xFF9FB3C8),
-    listOf(0xFF36202A, 0xFF100A0D, 0xFFC4A1AE), listOf(0xFF22253A, 0xFF0B0C13, 0xFFB3B8D4),
+    listOf(0xFF4A2E3C, 0xFF1A1018, 0xFFF4B26B), listOf(0xFF3D2A44, 0xFF140E1A, 0xFFE9A6B8), listOf(0xFF4A3426, 0xFF170F0A, 0xFFF6C3A1),
+    listOf(0xFF2F2A40, 0xFF110E18, 0xFFF4B26B), listOf(0xFF46283A, 0xFF160B12, 0xFFF0A66C), listOf(0xFF3A2F2A, 0xFF120E0C, 0xFFE8C9A0),
+    listOf(0xFF3A3326, 0xFF12100B, 0xFFE2C185), listOf(0xFF4B2B2B, 0xFF180C0C, 0xFFF3B9A0), listOf(0xFF35283F, 0xFF120C16, 0xFFDDB1D6),
+    listOf(0xFF432F22, 0xFF150E09, 0xFFF2C77E), listOf(0xFF3B2533, 0xFF130A10, 0xFFF4B26B),
 )
 private val MOTIFS = listOf("sun", "planet", "waves", "city", "hills", "shards")
 

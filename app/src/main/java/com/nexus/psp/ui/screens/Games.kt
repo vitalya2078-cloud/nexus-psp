@@ -51,6 +51,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -195,7 +196,29 @@ private fun Detail(g: Game) {
                     ActButton(g)
                     KButton("Карточка") { Nav.open(Ov.Game(g.id)) }
                 }
+                ExitPolaroid(g)
             }
+        }
+    }
+}
+
+/** «Полароид» места выхода: кадр, где игрок остановился, — тап продолжает игру прямо с него. */
+@Composable
+private fun ExitPolaroid(g: Game) {
+    val ctx = LocalContext.current
+    val f = remember(g.id, AppState.storageTick) { AppState.stateFile(g, 4) }
+    val thumb = java.io.File(f.path + ".jpg")
+    if (!f.exists() || !thumb.exists()) return
+    Row(
+        Modifier.padding(top = 6.dp).graphicsLayer { rotationZ = -2.5f }.clip(RoundedCornerShape(6.dp)).background(Color(0xFFF6EBDD))
+            .press { Act.play(ctx, g.id, 4) }.padding(start = 6.dp, top = 6.dp, bottom = 6.dp, end = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(Modifier.width(112.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(3.dp)).background(Color(0xFF2A2230))) { com.nexus.psp.ui.FileImage(thumb, Modifier.fillMaxSize()) }
+        Column {
+            Text("Место выхода", style = T.label.copy(fontSize = 13.sp, color = Color(0xFF3A2A20)).let { if (K.evening) it.copy(fontFamily = com.nexus.psp.ui.kit.Balsamiq) else it })
+            Text(java.text.SimpleDateFormat("d MMM, HH:mm", java.util.Locale("ru")).format(java.util.Date(f.lastModified())), style = T.small.copy(fontSize = 11.sp, color = Color(0xFF6B5546)))
+            Text("Нажми — продолжить", style = T.small.copy(fontSize = 11.sp, color = Color(0xFFB4652A)))
         }
     }
 }
