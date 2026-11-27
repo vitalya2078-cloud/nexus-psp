@@ -152,7 +152,11 @@ class Settings(private val sp: SharedPreferences) {
     var banner by s("banner", "")
     var titleSel by s("titleSel", "")
     /** Фон главного экрана: game (обложка игры), none, photo, wp_*; затемнение, %; акцент: пусто — KAPSULA, #RRGGBB, wall, system. */
-    var wall by s("wall", "game")
+    var wall by s("wall", "wp_room")
+    /** Зерно «как на плёнке» поверх интерфейса (0.51). */
+    var grain by b("grain", true)
+    /** Переход на тёплое оформление 0.51 сделан (фон «Комната с лампой» — один раз). */
+    var warm51 by b("warm51", false)
     var wallDim by i("wallDim", 45)
     var accent by s("accent", "")
     /** Часы и заряд в шапке главного экрана. */
@@ -212,6 +216,8 @@ object AppState {
         Cloud.init(app)
         load()
         loadReal()
+        // 0.51: тёплое оформление — фон «Комната с лампой» вместо обложки игры (один раз; свой фон или фото не трогаем)
+        if (!S.warm51) { S.warm51 = true; if (S.wall == "game") { S.wall = "wp_room"; S.wallDim = 20 } }
         applyLook()
     }
 

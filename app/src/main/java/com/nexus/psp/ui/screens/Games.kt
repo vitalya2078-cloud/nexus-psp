@@ -177,18 +177,13 @@ private fun Detail(g: Game) {
     val e = AppState.lib[g.id]
     val ctx = LocalContext.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val coverH = maxHeight * .94f
-        val coverW = minOf(coverH * .75f, maxWidth * .44f)
+        // игра стоит в футляре своей приставки (UMD, диск, картридж, телефон…): тап — играть, долгое — меню игры
+        val case = com.nexus.psp.ui.Cases.of(g.p)
+        val caseH = maxHeight * .9f
+        val caseW = minOf(caseH * case.w / case.h, maxWidth * .46f)
         Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            Box(
-                Modifier.width(coverW).height(coverW / .75f).clip(RoundedCornerShape(18.dp))
-                    .border(if (K.evening) 3.dp else 1.5.dp, if (K.evening) K.ink.copy(alpha = .85f) else K.ink.copy(alpha = .5f), RoundedCornerShape(18.dp))
-                    .combinedClickable(remember { MutableInteractionSource() }, null, onLongClick = { Act.buzzLong(); Ctx.open(g.id) }) { Act.play(ctx, g.id) },
-            ) {
-                Cover(g, 300, 400, modifier = Modifier.fillMaxSize())
-                PlatformTag(g)
-                com.nexus.psp.ui.FormatBadge(g, Modifier.align(Alignment.BottomStart).padding(8.dp))
-            }
+            com.nexus.psp.ui.CaseCover(g, Modifier.width(caseW)
+                .combinedClickable(remember { MutableInteractionSource() }, null, onLongClick = { Act.buzzLong(); Ctx.open(g.id) }) { Act.play(ctx, g.id) })
             Column(Modifier.weight(1f).fillMaxHeight().padding(top = 8.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     ConsolePill(g.plat.short, g.plat.color)
