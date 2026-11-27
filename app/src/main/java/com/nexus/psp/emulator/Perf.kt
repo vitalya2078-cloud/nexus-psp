@@ -35,6 +35,23 @@ class Perf(private val a: Activity) {
 
     fun refreshRate(): Float = display()?.refreshRate ?: 60f
 
+    /** Настоящая частота обновления экрана — замер по Choreographer (главный поток). Некоторые телефоны (Tecno и др.)
+     *  называют 60 Гц, а экран идёт на 120: тогда движок, веря названной частоте, разгоняет игру вдвое. */
+    suspend fun measureHz(count: Int = 40): Float = kotlinx.coroutines.suspendCancellableCoroutine { c ->
+        val ch = android.view.Choreographer.getInstance()
+        val t = LongArray(count); var n = 0
+        val cb = object : android.view.Choreographer.FrameCallback {
+            override fun doFrame(now: Long) {
+                t[n++] = now
+                if (n < count) { ch.postFrameCallback(this); return }
+                val d = (1 until count).map { t[it] - t[it - 1] }.sorted()[(count - 1) / 2]
+                if (c.isActive) c.resumeWith(Result.success(if (d > 0) 1e9f / d else 0f))
+            }
+        }
+        ch.postFrameCallback(cb)
+        c.invokeOnCancellation { ch.removeFrameCallback(cb) }
+    }
+
     /** Частоты экрана, которые умеет телефон (для журнала плавности). */
     fun modes(): String = try { display()?.supportedModes?.map { it.refreshRate.toInt() }?.distinct()?.sorted()?.joinToString("/") ?: "?" } catch (e: Exception) { "?" }
 
