@@ -201,7 +201,7 @@
   });
   addEventListener("offline", function () { unlock("offline"); var b = B(); if (b) { b.busy = true; b.set("sad"); b.say(t("js.offline"), 600000); } else toast(t("js.offline"), "🔌", t("js.seivik")); });
   addEventListener("online", function () { var b = B(); if (b) { b.busy = false; b.act("jump", 1200, t("js.online")); } });
-  addEventListener("resize", function () { if (innerWidth < 340) { unlock("squeeze"); var b = B(); if (b) { b.el.style.transform = "scaleX(.7)"; b.say(t("js.squeeze")); setTimeout(function () { b.el.style.transform = ""; }, 2500); } } });
+  addEventListener("resize", function () { if (innerWidth < 300) { unlock("squeeze"); var b = B(); if (b) { b.el.style.transform = "scaleX(.7)"; b.say(t("js.squeeze")); setTimeout(function () { b.el.style.transform = ""; }, 2500); } } });
   doc.addEventListener("selectionchange", function () {
     var s = String(W.getSelection && W.getSelection() || "").trim(); if (s.length < 4 || s.length > 140) return;
     clearTimeout(W.__sel); W.__sel = setTimeout(function () { unlock("reader"); var b = B(); b && b.say("«" + s.slice(0, 60) + "»… " + t("js.reader"), 3500); }, 700);
