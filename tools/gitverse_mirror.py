@@ -45,13 +45,113 @@ def req(method, path, body=None, data=None, ctype=None):
 
 
 GITHUB = "https://github.com/vitalya2078-cloud/nexus-psp"
-README = f"""# KAPSULA
+SITE = "https://kapsula.gitverse.site/"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DESCRIPTION = "KAPSULA — уютный эмулятор ретро-приставок для Android: PSP, PS1, Sega, Денди и ещё дюжина консолей плюс Java-игры. Бесплатно и без рекламы. Здесь — готовые APK; код и лицензии — на GitHub."
 
-Здесь — только готовое: сборки KAPSULA (APK в разделе «Выпуски») и сайт https://kapsula.gitverse.site/.
 
-Исходный код, история изменений и лицензии (GNU GPL ядер эмуляции, шрифты OFL и др.) — на GitHub:
-{GITHUB}
+def changes():
+    try: return json.load(open(os.path.join(ROOT, "site/changes.json"), encoding="utf-8"))
+    except Exception: return []
+
+
+def notes(ver):
+    """Текст выпуска — из site/changes.json (тот же список, что «Что нового» в приложении и на сайте)."""
+    r = next((x for x in changes() if x.get("ver") == ver), None)
+    head = f"## KAPSULA {ver}\n\n"
+    items = "".join(f"- {i}\n" for i in (r or {}).get("items", []))
+    return (head + (items or "Обновление KAPSULA.\n") +
+            f"\n**Как установить:** скачай `kapsula.apk` ниже и открой его на телефоне (Android 8+). Если телефон спросит — разреши установку из браузера.\n"
+            f"\nСайт: {SITE} · Код и лицензии: {GITHUB}\n")
+
+
+def readme():
+    """README для GitVerse: что это, как скачать, приставки, возможности, что нового. Код и лицензии — ссылкой на GitHub."""
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "tools")); import site_build
+        pl = site_build.platforms()
+        cons = "\n".join(f"| {p['full']} | " + ("тестовая — нужен мощный телефон" if p["exp"] else "") +
+                         ("; " if p["exp"] and p["bios"] else "") + ("нужен BIOS" if p["bios"] == 2 else "BIOS по желанию" if p["bios"] == 1 else "") + (" " if p["exp"] or p["bios"] else "—") + " |"
+                         for p in pl)
+    except Exception as e:
+        print("список приставок не прочитался:", e); cons = ""
+    ch = changes()[:3]
+    news = "\n".join(f"**{r['ver']}** · {r['date']}\n" + "".join(f"- {i}\n" for i in r["items"]) for r in ch)
+    apk = f"https://gitverse.ru/{REPO}/releases"
+    return f"""<p align="center"><img src="img/logo.svg" width="96" alt="KAPSULA"></p>
+
+<h1 align="center">KAPSULA</h1>
+<p align="center"><b>Ретро-игры в уютной капсуле</b><br>Эмулятор ретро-приставок для Android — бесплатно и без рекламы</p>
+
+<p align="center"><img src="img/mascot.webp" width="200" alt="Сейвик — маскот KAPSULA"></p>
+
+## Скачать
+
+- **[Последняя версия ({VER}) — раздел «Выпуски»]({apk})** → файл `kapsula.apk`
+- Сайт: **{SITE}** — там же подсказки по установке, проверка файлов игр и тестер геймпада
+- Нужен **Android 8+** и 64-битный процессор (почти любой телефон последних лет). На iPhone не работает.
+
+**Как установить:** скачай `kapsula.apk`, открой его на телефоне. Если телефон спросит про «неизвестные источники» — разреши установку для браузера (один раз). Дальше KAPSULA сама подскажет, когда выйдет обновление.
+
+## Как выглядит
+
+<p align="center"><img src="img/screen-home.webp" width="49%" alt="Главный экран"> <img src="img/screen-game.webp" width="49%" alt="Карточка игры"></p>
+
+## Что умеет
+
+- **16 приставок и Java-игры** в одном приложении — все игры на одной полке, с обложками и временем в игре
+- **Сейвы в облаке** — сменил телефон, продолжил с того же места
+- **Удобное управление** — кнопки двигаются и масштабируются, турбо и комбо, геймпад подхватывается сам
+- **«Играть» возвращает туда, где остановился** — даже если игру закрыли на самом интересном месте
+- **Друзья, испытания недели, достижения RetroAchievements**, «Позвать в игру» по Wi-Fi
+- **Сейвик** — живой маскот: здоровается, радуется победам и грустит вместе с тобой
+- Без рекламы, без покупок, без регистрации
+
+## Приставки
+
+| Приставка | Примечание |
+|---|---|
+{cons}
+
+Игры и BIOS мы не раздаём и не подсказываем, где их взять: сделай образ своего диска или картриджа. Если приставке нужен BIOS — KAPSULA скажет, какой файл и куда положить.
+
+## Что нового
+
+{news}
+Полный список — в приложении («О приложении → Что нового») и на сайте.
+
+## Код и лицензии
+
+Здесь лежит только готовое: сборки APK и сайт. **Исходный код, история изменений и лицензии** — на GitHub:
+**{GITHUB}**
+
+Ядра эмуляции — открытые проекты (PPSSPP, PCSX-ReARMed, Flycast и другие) под GNU GPL; полный список и тексты лицензий — в приложении (Настройки → О приложении) и на GitHub. Названия приставок принадлежат их владельцам и указаны только для совместимости.
+
+## Связь
+
+- Написать нам и сообщить об ошибке: https://vk.ru/glasty (или в приложении: Настройки → О приложении → «Сообщить об ошибке»)
+- Конфиденциальность: {SITE}privacy.html
 """
+
+
+def readme_files(tmp):
+    """README и картинки к нему (логотип, маскот, два снимка экрана)."""
+    open(os.path.join(tmp, "README.md"), "w", encoding="utf-8").write(readme())
+    os.makedirs(os.path.join(tmp, "img"), exist_ok=True)
+    import shutil
+    for src, dst in (("ui/img/mascot-l-wave.webp", "mascot.webp"), ("site/screens/1-home.webp", "screen-home.webp"), ("site/screens/2-game.webp", "screen-game.webp")):
+        try: shutil.copy(os.path.join(ROOT, src), os.path.join(tmp, "img", dst))
+        except Exception as e: print("картинка для README не скопировалась:", src, e)
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "tools")); import site_build
+        open(os.path.join(tmp, "img/logo.svg"), "w", encoding="utf-8").write(site_build.LOGO)
+    except Exception as e: print("логотип не записался:", e)
+
+
+def repo_info():
+    """Описание и адрес сайта репозитория на GitVerse (PATCH /repos/{owner}/{repo})."""
+    st, r = req("PATCH", f"/repos/{REPO}", body={"description": DESCRIPTION, "homepage": SITE})
+    print("описание репозитория:", "обновлено" if st in (200, 201) else f"не обновилось ({st} {str(r)[:200]})")
 
 
 def git_url(user):
@@ -67,8 +167,8 @@ def push_code():
     with tempfile.TemporaryDirectory() as tmp:
         g = lambda *a: subprocess.run(["git", *a], cwd=tmp, capture_output=True, text=True)
         g("init", "-q", "-b", "main")
-        open(os.path.join(tmp, "README.md"), "w", encoding="utf-8").write(README)
-        g("add", "README.md")
+        readme_files(tmp)
+        g("add", "-A")
         g("-c", "user.name=KAPSULA", "-c", "user.email=build@kapsula.invalid", "commit", "-q", "-m", f"KAPSULA {VER}")
         g("tag", "-f", TAG)
         for attempt in range(4):
@@ -97,13 +197,14 @@ def push_code():
 def release():
     st, rel = req("GET", f"/repos/{REPO}/releases/tags/{TAG}")
     if st == 200 and isinstance(rel, dict):
-        print(f"выпуск {TAG} уже есть (id {rel['id']}) — заменяю APK")
+        print(f"выпуск {TAG} уже есть (id {rel['id']}) — заменяю APK и описание")
+        req("PATCH", f"/repos/{REPO}/releases/{rel['id']}", body={"name": f"KAPSULA {VER}", "body": NOTES or notes(VER)})
         for a in rel.get("assets") or []:
             if a.get("name") == "kapsula.apk":
                 req("DELETE", f"/repos/{REPO}/releases/{rel['id']}/assets/{a['id']}")
     else:
         st, rel = req("POST", f"/repos/{REPO}/releases", body={
-            "tag_name": TAG, "target_commitish": "main", "name": f"KAPSULA {VER}", "body": NOTES or f"KAPSULA {VER}",
+            "tag_name": TAG, "target_commitish": "main", "name": f"KAPSULA {VER}", "body": NOTES or notes(VER),
             "draft": False, "prerelease": False,
         })
         if st not in (200, 201) or not isinstance(rel, dict):
@@ -145,6 +246,7 @@ if __name__ == "__main__":
     if not TOKEN or not REPO or not VER:
         print("::warning::зеркало GitVerse не настроено (нет GITVERSE_TOKEN / GITVERSE_REPO) — пропускаю"); sys.exit(0)
     ok_code = push_code()
+    repo_info()
     rel = release()
     if rel: cleanup()
     sys.exit(0 if rel else 1)
