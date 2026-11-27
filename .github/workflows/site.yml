@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12"
       - name: Build
         run: |
-          pip install -q fonttools brotli segno pillow
+          pip install -q pillow
           INCLUDE_APK=1 python3 tools/site_build.py build/site
       - name: Publish to GitVerse
         env:

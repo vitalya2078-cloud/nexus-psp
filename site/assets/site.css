@@ -282,3 +282,13 @@ details p { margin: 0; padding: 0 20px 18px; color: var(--ink2); }
 .cart-slot img { width: 30px; } .cart-slot:not(.on) img { filter: brightness(0) opacity(.35); }
 .code-k { font: 700 15px ui-monospace, monospace; color: var(--mint); letter-spacing: 1px; }
 .egg-cart { right: 12px; bottom: 10px; }
+/* главная на телефоне: облачко сбоку от маскота (не закрывает язык), низкие экраны — без пилюль */
+@media (max-width: 720px) {
+  .hero { align-content: safe center; }
+  .bubble { top: 38%; right: 0; left: auto; max-width: 38%; }
+}
+@media (max-width: 720px) and (max-height: 720px) {
+  .pills { display: none; }
+  .lead { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .art { margin-bottom: 4px; }
+}
