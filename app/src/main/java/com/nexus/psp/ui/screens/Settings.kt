@@ -66,12 +66,16 @@ import com.nexus.psp.data.CoreStore
 /** Настройки (п. 21, 22, 27, 43, 47, 51, 53) + настройки ядра PSP по утверждённому макету. */
 @Composable
 fun SettingsScreen() {
+    // разделы по смыслу: всё про картинку и скорость игр — в одном месте, для всех приставок одинаково
     val nav = listOf(
-        Triple("general", "Общие", R.drawable.sl_sliders), Triple("dl", "Игры и память", R.drawable.sl_folder),
-        Triple("core", "Эмулятор PSP", R.drawable.sl_monitor), Triple("ps1", "Эмулятор PS1", R.drawable.ph_disc), Triple("ctl", "Управление", R.drawable.sl_pad),
-        Triple("ach", "Достижения", R.drawable.sl_trophy),
-        Triple("bios", "BIOS", R.drawable.sl_chip), Triple("a11y", "Доступность", R.drawable.ph_hand), Triple("about", "О приложении", R.drawable.sl_info),
+        Triple("general", "Общие", R.drawable.sl_sliders), Triple("profile", "Профиль и облако", R.drawable.sl_user),
+        Triple("saves", "Сохранения", R.drawable.sl_save), Triple("dl", "Игры и память", R.drawable.sl_folder),
+        Triple("gfx", "Графика и скорость", R.drawable.sl_monitor), Triple("ctl", "Управление", R.drawable.sl_pad),
+        Triple("ach", "Достижения", R.drawable.sl_trophy), Triple("bios", "BIOS", R.drawable.sl_chip),
+        Triple("a11y", "Доступность", R.drawable.ph_hand), Triple("about", "О приложении", R.drawable.sl_info),
     )
+    // старые адреса разделов («Эмулятор PSP / PS1») ведут в «Графика и скорость» на нужную приставку
+    if (Nav.settingsTab == "core" || Nav.settingsTab == "ps1") { gfxPlat = if (Nav.settingsTab == "ps1") "ps1" else "psp"; Nav.settingsTab = "gfx" }
     val tab = Nav.settingsTab
     Full {
         OvHead("Настройки")
@@ -92,14 +96,10 @@ fun SettingsScreen() {
             Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
                 when (tab) {
                     "general" -> General()
+                    "profile" -> ProfileCloud()
+                    "saves" -> Saves()
                     "dl" -> Downloads()
-                    "core" -> CoreSettings()
-                    "ps1" -> {
-                        Text("Для всех игр PS1. Игре можно задать свои — в её карточке или в паузе.", style = T.small, modifier = Modifier.padding(bottom = 6.dp))
-                        Sub("Картинка"); CoreRows(CoreOptions.PS1_QUALITY)
-                        Sub("Система"); CoreRows(CoreOptions.PS1_SYSTEM)
-                        Text("Заработает со следующего запуска игры.", style = T.small, modifier = Modifier.padding(top = 10.dp))
-                    }
+                    "gfx" -> Graphics()
                     "ctl" -> Controls()
                     "ach" -> Achievements()
                     "bios" -> Bios()
@@ -113,25 +113,34 @@ fun SettingsScreen() {
 
 @Composable
 private fun General() {
-    val th = listOf("dark", "oled", "light")
     // тема, цвет, фон главного экрана и профиль — в «Оформлении» (быстрая панель); здесь — дорога туда
     Opt("Оформление", "Цвет акцента, фон главного экрана, аватар и рамки") { KButton("Открыть", small = true) { com.nexus.psp.ui.Nav.replace(com.nexus.psp.ui.Ov.Look()) } }
-    CloudAccount()
     Opt("Язык", null) { Seg(listOf("RU", "EN"), if (S.lang == "EN") 1 else 0) { S.lang = if (it == 1) "EN" else "RU"; if (it == 1) AppState.say("Английский перевод появится позже") } }
     Opt("Маскот", "Живой маскот на главном экране и в сообщениях: здоровается, радуется, грустит вместе с тобой. Выключишь — останутся простые картинки") { Toggle(S.mascot) { S.mascot = it } }
     Opt("Вибрация", "Отклик при выборе и важных действиях") { Toggle(S.vib) { S.vib = it } }
     Opt("Звуки интерфейса", "Тихий щелчок в карусели") { Toggle(S.sound) { S.sound = it } }
     Opt("Часы и заряд в шапке", "Время и батарея на главном экране — системная строка там скрыта") { Toggle(S.headClock) { S.headClock = it } }
+    Opt("Экономия батареи", "При заряде 15% и ниже — пресет «Батарея» до зарядки") { Toggle(S.batterySaver) { S.batterySaver = it } }
+}
+
+/** Аккаунт KAPSULA (код игрока, код подарка, удаление профиля) и статистика. */
+@Composable
+private fun ProfileCloud() {
+    CloudAccount()
+    Opt("Анонимная статистика", "Сколько запусков, на каких консолях, были ли сбои — без названий игр и без твоего ID. Помогает чинить KAPSULA") {
+        Toggle(S.stats) { S.stats = it; if (!it) com.nexus.psp.data.Telemetry.clear() }
+    }
+}
+
+/** Всё о сохранениях: место выхода, автосохранение, облако. */
+@Composable
+private fun Saves() {
+    Opt("Продолжать с места выхода", "При выходе из игры место сохраняется само, «Играть» возвращает туда же") { Toggle(S.autoResume) { S.autoResume = it } }
     Opt("Автосохранение", "Каждые N минут игра сохраняется сама — в слот «Место выхода»") {
         val m = listOf("0", "5", "10", "15")
         Seg(listOf("Выкл", "5 мин", "10 мин", "15 мин"), m.indexOf(S.autoSave).coerceAtLeast(0), small = true) { S.autoSave = m[it] }
     }
-    Opt("Экономия батареи", "При заряде 15% и ниже — пресет «Батарея» до зарядки") { Toggle(S.batterySaver) { S.batterySaver = it } }
-    Opt("Продолжать с места выхода", "При выходе из игры место сохраняется само, «Играть» возвращает туда же") { Toggle(S.autoResume) { S.autoResume = it } }
     CloudSavesOpt()
-    Opt("Анонимная статистика", "Сколько запусков, на каких консолях, были ли сбои — без названий игр и без твоего ID. Помогает чинить KAPSULA") {
-        Toggle(S.stats) { S.stats = it; if (!it) com.nexus.psp.data.Telemetry.clear() }
-    }
 }
 
 @Composable
@@ -168,9 +177,6 @@ private fun Controls() {
     Opt("Подписи под кнопками", "«Газ», «Прыжок», «Удар» — под значками экранных кнопок. Что делает каждая кнопка — во вкладке «Управление»") { Toggle(S.caps) { S.caps = it } }
     Opt("Показывать смену раскладки", "Маленькая плашка с названием раскладки, когда переключаешь её в игре") { Toggle(S.layHint) { S.layHint = it } }
     CoreRows(CoreOptions.INPUT)
-    Opt("Ускорение", "Во сколько раз быстрее при включённом ускорении") {
-        Seg(listOf("×2", "×3", "×4"), ((S.fastLevel.toIntOrNull() ?: 2) - 2).coerceIn(0, 2), small = true) { S.fastLevel = (it + 2).toString() }
-    }
     Opt("Чувствительность руля наклоном", "Руль наклоном включается в игре: пауза → Настройки → Управление") {
         com.nexus.psp.ui.kit.Range(S.tiltSens.toIntOrNull() ?: 100, 50, 200, fill = false) { S.tiltSens = it.toString() }
     }
@@ -383,35 +389,78 @@ fun CoreQuality(store: CoreStore = GlobalCore, onChange: (CoreOpt?, String) -> U
     CoreRows(CoreOptions.QUALITY, store) { c, v -> tick++; onChange(c, v) }
 }
 
+/** Приставка, открытая в «Графика и скорость» (PSP / PS1 / остальные). */
+var gfxPlat by mutableStateOf("psp")
+
+/** «Графика и скорость»: для каждой приставки одни и те же блоки — Качество, Плавность, Система, Для опытных. */
 @Composable
-private fun CoreSettings() {
-    var sec by rememberSaveable { mutableStateOf(0) }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 6.dp)) {
-        Seg(listOf("Качество", "Скорость", "Система", "Для опытных"), sec) { sec = it }
-        Text("для всех игр PSP", style = T.small)
+private fun Graphics() {
+    val plats = listOf("psp" to "PSP", "ps1" to "PS1", "other" to "Остальные")
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 4.dp)) {
+        Seg(plats.map { it.second }, plats.indexOfFirst { it.first == gfxPlat }.coerceAtLeast(0)) { gfxPlat = plats[it].first }
     }
-    when (sec) {
-        0 -> {
-            val f = listOf("default" to "Обычный", "smooth" to "Сглаживание", "pixel" to "Пиксели", "lcd" to "ЖК", "crt" to "ЭЛТ")
-            CoreRows(CoreOptions.RENDER)
-            Opt("Авто-качество", "Держать 60 кадров: разрешение снижается само при нехватке скорости") { Toggle(S.autoRes) { S.autoRes = it } }
-            Opt("Экран 60 Гц в игре", "Игры идут в 60 кадров. На экране 120 или 144 Гц картинка может периодически дёргаться — на время игры KAPSULA переключает экран на 60 Гц") { Toggle(S.hz60) { S.hz60 = it } }
-            Opt("Фильтр картинки", "Для всех игр; в игре можно поменять на лету: пауза → Настройки") {
-                Seg(f.map { it.second }, f.indexOfFirst { it.first == S.shader }.coerceAtLeast(0), small = true) { S.shader = f[it].first }
-            }
-            CoreQuality()
-        }
-        1 -> CoreRows(CoreOptions.SPEED)
-        2 -> CoreRows(CoreOptions.SYSTEM)
-        else -> {
-            StateCard(null, null, "Эти параметры могут сломать игру. Не помогло — верни как было.", tint = K.warn) {
-                KButton("Сбросить раздел", small = true) { val o = GlobalCore.vars(); CoreOptions.EXPERT.forEach { o.remove(it.key) }; S.coreVars = o.toString(); AppState.say("Раздел «Для опытных» сброшен") }
-            }
-            CoreRows(CoreOptions.EXPERT)
-        }
+    Text(
+        when (gfxPlat) { "psp" -> "Для всех игр PSP."; "ps1" -> "Для всех игр PS1."; else -> "Sega, Денди, NEC, SNK, Bandai, Atari и Java-игры." } +
+            " Своё для одной игры — в её карточке («Настройки игры») или прямо в игре: пауза → Настройки.",
+        style = T.small, modifier = Modifier.padding(bottom = 4.dp),
+    )
+    androidx.compose.runtime.key(gfxPlat) {
+        Sub("Качество")
+        when (gfxPlat) { "psp" -> CoreQuality(); "ps1" -> CoreRows(CoreOptions.PS1_QUALITY) }
+        FilterOpt()
+        Sub("Плавность")
+        if (gfxPlat == "psp") Opt("Авто-качество", "Держать 60 кадров: при нехватке скорости разрешение снижается само, при запасе — возвращается") { Toggle(S.autoRes) { S.autoRes = it } }
+        when (gfxPlat) { "psp" -> CoreRows(CoreOptions.SMOOTH); "ps1" -> CoreRows(CoreOptions.PS1_SMOOTH) }
+        SmoothCommon()
+        if (gfxPlat == "psp") { Sub("Система"); CoreRows(CoreOptions.SYSTEM); Expert() }
+        if (gfxPlat == "ps1") { Sub("Система"); CoreRows(CoreOptions.PS1_SYSTEM) }
     }
     Text("Заработает со следующего запуска игры.", style = T.small, modifier = Modifier.padding(top = 10.dp))
 }
+
+/** Фильтр картинки — общий для всех приставок. */
+@Composable
+private fun FilterOpt() {
+    val f = listOf("default" to "Обычный", "smooth" to "Сглаживание", "pixel" to "Пиксели", "lcd" to "ЖК", "crt" to "ЭЛТ")
+    Opt("Фильтр картинки", "Для всех приставок; в игре меняется на лету: пауза → Настройки") {
+        Seg(f.map { it.second }, f.indexOfFirst { it.first == S.shader }.coerceAtLeast(0), small = true) { S.shader = f[it].first }
+    }
+}
+
+/** Плавность, общая для всех приставок: частота экрана, ускорение, счётчик кадров. */
+@Composable
+private fun SmoothCommon() {
+    Opt("Экран 60 Гц в игре", "Для всех приставок. На экране 120 или 144 Гц KAPSULA на время игры переключает его на 60 Гц — без рывков") { Toggle(S.hz60) { S.hz60 = it } }
+    Opt("Ускорение", "Для всех приставок: во сколько раз быстрее, когда включаешь ускорение в игре") {
+        Seg(listOf("×2", "×3", "×4"), ((S.fastLevel.toIntOrNull() ?: 2) - 2).coerceIn(0, 2), small = true) { S.fastLevel = (it + 2).toString() }
+    }
+    Opt("Счётчик кадров", "Для всех приставок: число кадров в секунду в углу экрана. Нормально — 60") { Toggle(S.fps) { S.fps = it } }
+}
+
+/** «Для опытных» — свёрнуто: эти параметры могут сломать игру. */
+@Composable
+private fun Expert() {
+    var open by rememberSaveable { mutableStateOf(false) }
+    Row(
+        Modifier.fillMaxWidth().padding(top = 18.dp).clip(RoundedCornerShape(12.dp)).background(K.s1).press { open = !open }.padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Для опытных", style = T.label.copy(fontSize = 14.sp))
+            Text("Процессор эмулятора, частота PSP, эффекты буфера. Могут сломать игру", style = T.small)
+        }
+        Text(if (open) "Скрыть" else "Показать", style = T.label.copy(fontSize = 13.sp, color = K.acc))
+    }
+    if (open) {
+        Box(Modifier.padding(top = 8.dp)) {
+            StateCard(null, null, "Не помогло — верни как было.", tint = K.warn) {
+                KButton("Вернуть как было", small = true) { val o = GlobalCore.vars(); CoreOptions.EXPERT.forEach { o.remove(it.key) }; S.coreVars = o.toString(); AppState.say("«Для опытных» — как было") }
+            }
+        }
+        CoreRows(CoreOptions.EXPERT)
+    }
+}
+
 
 
 /** Правовая информация: компоненты с открытым исходным кодом, авторы, лицензии (полные тексты — из assets/licenses). */

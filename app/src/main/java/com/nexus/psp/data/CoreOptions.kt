@@ -12,9 +12,9 @@ data class CoreOpt(val key: String, val title: String, val desc: String, val val
 
 object CoreOptions {
     val PRESETS = mapOf(
-        "quality" to mapOf("ppsspp_internal_resolution" to "1440x816", "ppsspp_texture_scaling_level" to "2x", "ppsspp_texture_scaling_type" to "xbrz", "ppsspp_texture_filtering" to "Auto max quality", "ppsspp_texture_anisotropic_filtering" to "16x", "ppsspp_auto_frameskip" to "disabled", "ppsspp_skip_gpu_readbacks" to "disabled"),
-        "balance" to mapOf("ppsspp_internal_resolution" to "960x544", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "8x", "ppsspp_auto_frameskip" to "enabled", "ppsspp_skip_gpu_readbacks" to "disabled"),
-        "battery" to mapOf("ppsspp_internal_resolution" to "480x272", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "disabled", "ppsspp_auto_frameskip" to "enabled", "ppsspp_skip_gpu_readbacks" to "enabled"),
+        "quality" to mapOf("ppsspp_internal_resolution" to "1440x816", "ppsspp_texture_scaling_level" to "2x", "ppsspp_texture_scaling_type" to "xbrz", "ppsspp_texture_filtering" to "Auto max quality", "ppsspp_texture_anisotropic_filtering" to "16x", "ppsspp_skip_gpu_readbacks" to "disabled"),
+        "balance" to mapOf("ppsspp_internal_resolution" to "960x544", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "8x", "ppsspp_skip_gpu_readbacks" to "disabled"),
+        "battery" to mapOf("ppsspp_internal_resolution" to "480x272", "ppsspp_texture_scaling_level" to "disabled", "ppsspp_texture_filtering" to "Auto", "ppsspp_texture_anisotropic_filtering" to "disabled", "ppsspp_skip_gpu_readbacks" to "enabled"),
     )
     val PRESET_NAMES = mapOf("quality" to "Качество", "balance" to "Баланс", "battery" to "Батарея", "custom" to "Своё")
 
@@ -32,14 +32,13 @@ object CoreOptions {
     // Vulkan для PSP скрыт: игры PSP упираются в процессор, а мост Vulkan → OpenGL только отнимал кадры. Код моста остаётся
     // (Vk, kapsula_vk.cpp) — для PS2/Dreamcast после проверки.
     val RENDER = emptyList<CoreOpt>()
-    val SPEED = listOf(
-        CoreOpt("ppsspp_frameskip", "Пропуск кадров", "Помогает слабым телефонам, но картинка менее плавная", listOf("disabled", "1", "2", "3"), listOf("Выкл", "1", "2", "3"), "disabled"),
-        CoreOpt("ppsspp_auto_frameskip", "Авто-пропуск кадров", "Пропускать кадры только когда игра не успевает", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "enabled"),
-        CoreOpt("ppsspp_frame_duplication", "Плавные 60 кадров", "Дублировать кадры игр с 30 кадрами до 60 Гц", listOf("enabled", "disabled"), listOf("Вкл", "Выкл"), "enabled"),
-        CoreOpt("ppsspp_inflight_frames", "Буфер команд", "Больше — выше скорость, но чуть больше задержка", listOf("No buffer", "Up to 1", "Up to 2"), listOf("Нет", "1", "2"), "Up to 1"),
+    /** «Плавность» PSP. kapsula_frameskip — наш переключатель (не ключ ядра): по нему ставятся ppsspp_frameskip/auto_frameskip.
+     *  Пропуск кадров в PPSSPP выключает дублирование кадров, и игры на 30 к/с идут вдвое быстрее на быстрых телефонах —
+     *  поэтому по умолчанию выключен (см. GameActivity.speedVars). */
+    val SMOOTH = listOf(
+        CoreOpt("kapsula_frameskip", "Пропуск кадров", "Для слабых телефонов: когда игра не успевает, часть кадров не рисуется. В играх на 30 кадрах (GTA и др.) может ускорять игру — включай, только если тормозит", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("ppsspp_skip_gpu_readbacks", "Ускорение для слабых", "Заметно быстрее на слабых телефонах; в редких играх ломает эффекты", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
-        CoreOpt("ppsspp_cache_iso", "Игра в памяти", "Образ целиком в оперативной памяти: без подгрузок. Нужно 2+ ГБ свободной памяти", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
-        CoreOpt("ppsspp_io_timing_method", "Загрузки", "«Как на UMD» чинит редкие игры, которым мешают слишком быстрые загрузки", listOf("Fast", "Simulate UMD delays"), listOf("Быстро", "Как на UMD"), "Fast", restart = true),
+        CoreOpt("ppsspp_inflight_frames", "Буфер команд", "Больше — выше скорость, но чуть больше задержка нажатий", listOf("No buffer", "Up to 1", "Up to 2"), listOf("Нет", "1", "2"), "Up to 1"),
     )
     val SYSTEM = listOf(
         CoreOpt("ppsspp_language", "Язык игры", "Сработает, если в игре есть такой язык", listOf("Automatic", "Russian", "English", "Japanese"), listOf("Авто", "Русский", "English", "日本語"), "Automatic", restart = true),
@@ -47,11 +46,13 @@ object CoreOptions {
         CoreOpt("ppsspp_psp_model", "Модель PSP", "Новая модель — больше памяти, быстрее загрузки", listOf("psp_1000", "psp_2000_3000"), listOf("PSP-1000", "PSP-2000/3000"), "psp_2000_3000", restart = true),
         CoreOpt("ppsspp_memstick_inserted", "Карта памяти", "Без неё игра не сохранится", listOf("enabled", "disabled"), listOf("Вставлена", "Нет"), "enabled"),
         CoreOpt("ppsspp_cheats", "Читы", "Коды для игр (файл cheat.db)", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
+        CoreOpt("ppsspp_cache_iso", "Игра в памяти", "Образ целиком в оперативной памяти: без подгрузок. Нужно 2+ ГБ свободной памяти", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
+        CoreOpt("ppsspp_io_timing_method", "Загрузки", "«Как на UMD» чинит редкие игры, которым мешают слишком быстрые загрузки", listOf("Fast", "Simulate UMD delays"), listOf("Быстро", "Как на UMD"), "Fast", restart = true),
     )
     val EXPERT = listOf(
         CoreOpt("ppsspp_cpu_core", "Процессор эмулятора", "Интерпретатор — только для поиска ошибок, очень медленно", listOf("JIT", "IR JIT", "Interpreter"), listOf("JIT", "IR JIT", "Интерпретатор"), "JIT", restart = true),
         CoreOpt("ppsspp_locked_cpu_speed", "Частота процессора PSP", "Разгон убирает тормоза в некоторых играх", listOf("disabled", "333MHz", "444MHz"), listOf("Как в игре", "333 МГц", "444 МГц"), "disabled", restart = true),
-        CoreOpt("ppsspp_skip_buffer_effects", "Пропускать эффекты буфера", "Быстрее, но могут пропасть тени и размытие", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
+        CoreOpt("ppsspp_skip_buffer_effects", "Пропускать эффекты буфера", "Быстрее, но пропадают тени и размытие, а игры на 30 кадрах могут ускориться", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("ppsspp_software_rendering", "Программная отрисовка", "Максимальная точность, очень медленно", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
     )
     /** Стик: мёртвая зона и чувствительность (применяются на лету). */
@@ -66,6 +67,9 @@ object CoreOptions {
         CoreOpt("pcsx_rearmed_neon_enhancement_enable", "Чёткость ×2", "3D-графика в двойном разрешении. На слабых телефонах может замедлить игру", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("pcsx_rearmed_neon_enhancement_no_main", "Быстрая чёткость", "Ускоряет «Чёткость ×2», но в редких играх появляются ошибки картинки", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled"),
         CoreOpt("pcsx_rearmed_dithering", "Зернистость цвета", "Как на настоящей PS1: мелкая сетка вместо полос в градиентах", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "enabled"),
+    )
+    /** Плавность PS1. */
+    val PS1_SMOOTH = listOf(
         CoreOpt("pcsx_rearmed_frameskip_type", "Пропуск кадров", "Помогает слабым телефонам: кадры пропускаются, только когда игра не успевает", listOf("disabled", "auto"), listOf("Выкл", "Авто"), "disabled"),
     )
     /** Система PS1: регион, BIOS, звук, контроллер. */
@@ -76,9 +80,9 @@ object CoreOptions {
         CoreOpt("pcsx_rearmed_spu_interpolation", "Звук", "«Как на PS1» — ближе всего к оригиналу", listOf("simple", "gaussian", "cubic", "off"), listOf("Простой", "Как на PS1", "Чистый", "Выкл"), "simple"),
         CoreOpt("pcsx_rearmed_cd_turbo", "Быстрые загрузки", "Ускоряет чтение диска. Некоторые игры из-за этого зависают — включай осторожно", listOf("disabled", "enabled"), listOf("Выкл", "Вкл"), "disabled", restart = true),
     )
-    val PS1 = PS1_QUALITY + PS1_SYSTEM
+    val PS1 = PS1_QUALITY + PS1_SMOOTH + PS1_SYSTEM
 
-    val ALL = QUALITY + RENDER + SPEED + SYSTEM + EXPERT + INPUT
+    val ALL = QUALITY + RENDER + SMOOTH + SYSTEM + EXPERT + INPUT
     fun byKey(k: String) = ALL.firstOrNull { it.key == k }
 }
 

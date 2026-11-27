@@ -77,6 +77,9 @@ class ScreensTest {
     @Test fun h01_settings_general() = shot("h01-settings-general", true) { Nav.settingsTab = "general"; Nav.open(Ov.Settings) }
     @Test fun h02_settings_ctl() = shot("h02-settings-ctl", true) { Nav.settingsTab = "ctl"; Nav.open(Ov.Settings) }
     @Test fun h03_settings_dl() = shot("h03-settings-dl", true) { Nav.settingsTab = "dl"; Nav.open(Ov.Settings) }
+    @Test fun h05_settings_profile() = shot("h05-settings-profile", true) { Nav.settingsTab = "profile"; Nav.open(Ov.Settings) }
+    @Test fun h06_settings_saves() = shot("h06-settings-saves", true) { Nav.settingsTab = "saves"; Nav.open(Ov.Settings) }
+    @Test fun h07_settings_gfx_other() = shot("h07-settings-gfx-other", true) { com.nexus.psp.ui.screens.gfxPlat = "other"; Nav.settingsTab = "gfx"; Nav.open(Ov.Settings) }
     @Test fun h04_settings_about() = shot("h04-settings-about", true) { Nav.settingsTab = "about"; Nav.open(Ov.Settings) }
     @Test fun h05_game_settings() = shot("h05-game-settings", true) { Nav.open(Ov.GSet(firstId())) }
     @Test fun h06_pad_classic() = shot("h06-pad-classic", true) { AppState.S.ctlMode = "classic"; Nav.open(Ov.Pad) }

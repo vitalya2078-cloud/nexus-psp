@@ -296,26 +296,33 @@ private fun SettingsPanel(a: GameActivity, ui: GameActivity.UiState) {
                 else "Поменяется во всех играх, где ты не настраивал своё",
                 style = T.small.copy(fontSize = 11.5.sp), modifier = Modifier.padding(top = 6.dp),
             )
+            // те же блоки, что в «Настройки → Графика и скорость» и в карточке игры: Качество · Плавность · Система · Управление · Звук
+            val sys = a.isPsp || a.platform == "ps1"
+            val tabs = listOfNotNull("q" to "Качество", "s" to "Плавность", if (sys) "y" to "Система" else null, "c" to "Управление", "a" to "Звук")
+            val cur = tabs.getOrNull(tab)?.first ?: "q"
             Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState())) {
-                Seg(listOf("Качество", "Скорость", "Управление", "Звук"), tab) { tab = it }
+                Seg(tabs.map { it.second }, tab.coerceIn(0, tabs.size - 1)) { tab = it }
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 16.dp)) {
                 key(ui.scopeGame) {
-                    when (tab) {
-                        0 -> if (!a.isPsp) { FilterRow(a, ui); if (a.platform == "ps1") CoreRows(CoreOptions.PS1_QUALITY, a.coreStore) } else {
-                            CoreRows(CoreOptions.RENDER, a.coreStore)
-                            Opt("Авто-качество", "Держать 60 кадров: при нехватке скорости разрешение снижается само, при запасе — возвращается") { Toggle(ui.autoRes) { a.setAutoRes(it) } }
-                            FilterRow(a, ui); CoreQuality(a.coreStore)
+                    when (cur) {
+                        "q" -> {
+                            FilterRow(a, ui)
+                            if (a.isPsp) CoreQuality(a.coreStore) else if (a.platform == "ps1") CoreRows(CoreOptions.PS1_QUALITY, a.coreStore)
                         }
-                        1 -> {
+                        "s" -> {
+                            if (a.isPsp) {
+                                Opt("Авто-качество", "Держать 60 кадров: при нехватке скорости разрешение снижается само, при запасе — возвращается") { Toggle(ui.autoRes) { a.setAutoRes(it) } }
+                                CoreRows(CoreOptions.SMOOTH, a.coreStore)
+                            } else if (a.platform == "ps1") CoreRows(CoreOptions.PS1_SMOOTH, a.coreStore)
                             Opt("Ускорение", "Во сколько раз быстрее при включённом ускорении") {
                                 Seg(listOf("×2", "×3", "×4"), (ui.fastLevel - 2).coerceIn(0, 2), small = true) { a.setFastLevel(it + 2) }
                             }
-                            if (a.isPsp) CoreRows(CoreOptions.SPEED, a.coreStore)
-                            else if (a.platform == "ps1") CoreRows(CoreOptions.PS1_SYSTEM, a.coreStore) { c, v -> if (c.key == "kapsula_ps1_pad") a.setPs1Pad(v) }
-                            Opt("Счётчик кадров", "Число кадров в секунду в углу экрана") { Toggle(ui.showFps) { a.setFps(it) } }
+                            Opt("Счётчик кадров", "Число кадров в секунду в углу экрана. Нормально — 60") { Toggle(ui.showFps) { a.setFps(it) } }
                         }
-                        2 -> Controls(a, ui)
+                        "y" -> if (a.isPsp) CoreRows(CoreOptions.SYSTEM, a.coreStore)
+                            else CoreRows(CoreOptions.PS1_SYSTEM, a.coreStore) { c, v -> if (c.key == "kapsula_ps1_pad") a.setPs1Pad(v) }
+                        "c" -> Controls(a, ui)
                         else -> Opt("Громкость", "Громкость звука телефона для игр") { Range(ui.volume, 0, 100) { a.setVolume(it) } }
                     }
                 }

@@ -397,10 +397,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         boot.optJSONObject("vars")?.let { o -> o.keys().forEach { k -> if (k.startsWith("ppsspp_")) v[k] = o.optString(k) } }
         // читы включаются на лету (retro_cheat_set) — движок читов должен работать с запуска
         if (!v.containsKey("ppsspp_cheats")) v["ppsspp_cheats"] = "enabled"
-        // авто-пропуск кадров: пропускать не больше одного кадра подряд и только когда игра не успевает
-        if (v["ppsspp_auto_frameskip"] != "disabled" && v["ppsspp_frameskip"].let { it == null || it == "disabled" }) {
-            v["ppsspp_auto_frameskip"] = "enabled"; v["ppsspp_frameskip"] = "1"
-        }
+        // скорость игр: пропуск кадров — только по переключателю «Пропуск кадров» (по умолчанию выкл), см. speedVars
+        val skip = boot.optJSONObject("vars")?.optString("kapsula_frameskip") == "enabled"
+        v.putAll(speedVars(skip))
         // игра в памяти — сама включается на телефонах с 6+ ГБ ОЗУ (если игрок не выбрал иначе)
         if (!v.containsKey("ppsspp_cache_iso")) {
             val mi = android.app.ActivityManager.MemoryInfo(); getSystemService(android.app.ActivityManager::class.java)?.getMemoryInfo(mi)
@@ -912,10 +911,20 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         }
     }
 
+    /** Настройки ядра, от которых зависит скорость игр PSP. Ядро PPSSPP отдаёт кадр каждые 1/60 с только с дублированием
+     *  кадров, а оно работает лишь без пропуска кадров и эффектов буфера (sceDisplay: duplicateFrames = bRenderDuplicateFrames
+     *  && iFrameSkip == 0). С пропуском игры на 30 к/с проходят 2/60 с за вызов — на быстрых телефонах шли вдвое быстрее. */
+    private fun speedVars(skip: Boolean) = mapOf(
+        "ppsspp_frame_duplication" to "enabled",
+        "ppsspp_auto_frameskip" to if (skip) "enabled" else "disabled",
+        "ppsspp_frameskip" to if (skip) "1" else "disabled",
+    )
+
     /** Настройка ядра: применяется сразу (ядро перечитывает настройки), отмеченные restart — после перезапуска. */
     fun setCoreVar(k: String, v: String) {
         vars.put(k, v)
-        retro?.updateVariables(Variable(k, v))
+        if (k == "kapsula_frameskip") speedVars(v == "enabled").forEach { (kk, vv) -> vars.put(kk, vv); retro?.updateVariables(Variable(kk, vv)) }
+        else retro?.updateVariables(Variable(k, v))
         if (CoreOptions.byKey(k)?.restart == true) ui.restartNeeded = true
         persist { o -> o.put("vars", (o.optJSONObject("vars") ?: JSONObject()).put(k, v)); o.put("preset", "custom") }
         ui.tick++
