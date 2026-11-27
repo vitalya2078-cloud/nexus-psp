@@ -13,6 +13,7 @@ import java.net.URL
  * Версия — в названии выпуска («KAPSULA 0.44.5»), её пишет сборка.
  * Автоматически — при открытии KAPSULA и в фоне (InboxJob), не чаще раза в 6 часов; новая версия — колокольчик + плашка,
  * а если KAPSULA закрыта — системное уведомление (тап — скачать). Каждая версия объявляется один раз.
+ * Скачивание — в самом приложении (UpdateService): прогресс в уведомлении, затем окно установки.
  */
 object Update {
     const val APK = "https://github.com/vitalya2078-cloud/nexus-psp/releases/download/latest/kapsula.apk"
@@ -116,8 +117,18 @@ object Update {
     /** Метка уведомления об обновлении (вместо id игры). */
     const val G = "update"
 
-    /** Скачать: ссылка с площадки, где нашлась новая версия (GitVerse — без VPN), иначе GitHub. */
-    fun download(c: Context) = try {
+    /** Версия, которую качаем (для подписи в уведомлении). */
+    fun pendingVer(c: Context): String? = prefs(c).getString("updLatest", null)
+
+    /** Откуда качать по очереди: GitHub (докачивает после обрыва), затем площадка, где нашлась версия (сайт / GitVerse). */
+    fun downloadUrls(c: Context): List<String> =
+        listOfNotNull(APK, prefs(c).getString("updUrl", null)?.takeIf { it.startsWith("https://") }).distinct()
+
+    /** Скачать — прямо в приложении: прогресс в уведомлении, по готовности — установка (UpdateService). */
+    fun download(c: Context) = UpdateService.start(c)
+
+    /** Запасной путь, если служба не запустилась: браузер. */
+    fun openInBrowser(c: Context) = try {
         val url = prefs(c).getString("updUrl", null)?.takeIf { it.startsWith("https://") } ?: APK
         c.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (e: Exception) { AppState.say("Не получилось открыть браузер") }

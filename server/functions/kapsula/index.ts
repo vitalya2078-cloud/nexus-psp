@@ -3,7 +3,7 @@
 // cheer («поприветствовать создателя»), chest (сундук создателя — раз в сутки), friends / friend (друзья),
 // poll (новые личные уведомления, новости, баланс — для фоновой проверки и раз в минуту),
 // stats (анонимная статистика), challenges / claim (недельные испытания), invite («Позвать в игру»),
-// saves (опись облачных сохранений), gift (подарок по коду), delete (удалить профиль целиком). Файлы сейвов — отдельными запросами с телом-файлом: POST ?op=put / ?op=get,
+// saves (опись облачных сохранений), gift (подарок по коду), push_token (телефон для push), delete (удалить профиль целиком). Файлы сейвов — отдельными запросами с телом-файлом: POST ?op=put / ?op=get,
 // код и ключ — в заголовках x-kapsula-code / x-kapsula-key (не в адресе — чтобы не попадали в журналы).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -177,6 +177,12 @@ Deno.serve(async (req) => {
     }
     if (body.action === "gift") {
       const { data, error } = await db.rpc("kapsula_gift", { p_code_hash: h, p_gift: String(body.gift ?? "").slice(0, 32) });
+      if (error) throw error;
+      return json(data, data?.error ? (data.error === "unknown_code" ? 404 : 400) : 200);
+    }
+    if (body.action === "push_token") {
+      // токен Firebase телефона — для push-уведомлений
+      const { data, error } = await db.rpc("kapsula_push_token", { p_code_hash: h, p_token: String(body.token ?? "").slice(0, 400) });
       if (error) throw error;
       return json(data, data?.error ? (data.error === "unknown_code" ? 404 : 400) : 200);
     }

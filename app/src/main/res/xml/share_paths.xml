@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Файлы, которыми KAPSULA делится через «Поделиться» (карточка профиля) -->
+<!-- Файлы, которые KAPSULA отдаёт другим приложениям по временной ссылке: карточка профиля («Поделиться») и скачанное обновление (установщик Android) -->
 <paths>
     <cache-path name="share" path="share/" />
+    <cache-path name="update" path="update/" />
 </paths>

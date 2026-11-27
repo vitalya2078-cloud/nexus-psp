@@ -234,9 +234,10 @@ private fun About() {
     Opt("KAPSULA", sub = "Версия $ver") { KButton("Знакомство заново", small = true) { S.onboarded = false; AppState.say("Знакомство покажется при следующем запуске") } }
     val scopeU = androidx.compose.runtime.rememberCoroutineScope()
     var checking by remember { mutableStateOf(false) }
-    Opt("Обновления", "KAPSULA сама проверяет новую версию раз в 6 часов — на GitVerse (без VPN) и на GitHub") {
-        KButton(if (checking) "Проверяю…" else "Проверить", small = true) {
-            if (!checking) { checking = true; scopeU.launch {
+    val dl = com.nexus.psp.data.UpdateService.progress
+    Opt("Обновления", if (dl != null) "Качаю новую версию — прогресс и в уведомлении. Потом откроется установка" else "KAPSULA сама проверяет новую версию раз в 6 часов и качает её прямо в приложении") {
+        KButton(when { dl != null && dl >= 0 -> "Качаю $dl%"; dl != null -> "Качаю…"; checking -> "Проверяю…"; else -> "Проверить" }, small = true) {
+            if (!checking && dl == null) { checking = true; scopeU.launch {
                 val latest = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.nexus.psp.data.Update.latest(ctx) }
                 checking = false
                 when {

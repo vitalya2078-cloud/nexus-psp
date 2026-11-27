@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "875503885010",
+    "project_id": "kapsula-6ed01",
+    "storage_bucket": "kapsula-6ed01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875503885010:android:f8fc07d514b2a915402b0b",
+        "android_client_info": {
+          "package_name": "com.nexus.psp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtem7tr0LxS34LoS-4jOg_-62vCCYZi9k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

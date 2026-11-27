@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- фоновая проверка уведомлений продолжает работать после перезагрузки телефона -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- обновление внутри приложения: загрузка в фоне с прогрессом в уведомлении и установка скачанного APK -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- скриншоты в галерею на Android 8–9; папка KAPSULA в корне памяти на Android 8–10 -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <!-- проводник и поиск игр: Android 8–10 — чтение памяти; Android 11+ — «Доступ ко всем файлам» (по желанию, игрок включает сам) -->
@@ -56,6 +60,17 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/share_paths" />
         </provider>
+        <service
+            android:name=".data.UpdateService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+        <service
+            android:name=".data.KapsulaFcm"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <service
             android:name=".data.InboxJob"
             android:permission="android.permission.BIND_JOB_SERVICE"
