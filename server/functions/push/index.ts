@@ -1,4 +1,4 @@
-// KAPSULA push: вызывается триггером базы (pg_net) на новое уведомление (inbox) или новость (news) и отправляет push
+// KAPSULA push: вызывается триггером базы (pg_net) на новое уведомление (inbox), новость (news) или пуш всем (push_msgs: совет или свой) и отправляет push
 // через Firebase Cloud Messaging (HTTP v1). Защита без пароля: kapsula_push_take отдаёт уведомление один раз
 // и только свежее (10 минут) — повторный вызов ничего не отправит.
 // Ключ сервисного аккаунта Firebase — секрет FCM_SERVICE_ACCOUNT (JSON целиком).
@@ -60,15 +60,18 @@ Deno.serve(async (req) => {
       });
       return new Response(`fcm ${r.status}`, { status: r.ok ? 200 : 502 });
     }
-    const kind = body.kind === "news" ? "news" : body.kind === "inbox" ? "inbox" : null;
+    const kind = body.kind === "news" ? "news" : body.kind === "inbox" ? "inbox" : body.kind === "msg" ? "msg" : null;
     const id = Number(body.id);
     if (!kind || !Number.isFinite(id) || id <= 0) return new Response("bad", { status: 400 });
     const { data: it, error } = await db.rpc("kapsula_push_take", { p_kind: kind, p_id: id });
     if (error) throw error;
     if (!it) return new Response("skip");
-    const data = { kind: String(it.kind ?? kind), id: String(it.id), title: String(it.title ?? "").slice(0, 120), body: String(it.body ?? "").slice(0, 400), src: kind,
+    const data = { kind: String(it.kind ?? kind), id: String(it.id), title: String(it.title ?? "").slice(0, 120), body: String(it.body ?? "").slice(0, 400),
+      // src: news / inbox / tip (совет, тема tips) / msg (свой пуш админа всем, тема news)
+      src: kind === "msg" ? String(it.kind) : kind,
       image: /^https:\/\//.test(String(it.image ?? "")) ? String(it.image).slice(0, 500) : "" };
     if (kind === "news") { await send(sa, { topic: "news" }, data); return new Response("ok"); }
+    if (kind === "msg") { await send(sa, { topic: it.topic === "tips" ? "tips" : "news" }, data); return new Response("ok"); }
     const gone: string[] = [];
     for (const t of (it.tokens ?? []) as string[]) {
       const st = await send(sa, { token: t }, data);
