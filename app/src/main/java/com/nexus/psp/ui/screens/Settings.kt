@@ -122,6 +122,7 @@ private fun General() {
     Opt("Звуки интерфейса", "Тихий щелчок в карусели") { Toggle(S.sound) { S.sound = it } }
     Opt("Часы и заряд в шапке", "Время и батарея на главном экране — системная строка там скрыта") { Toggle(S.headClock) { S.headClock = it } }
     Opt("Экономия батареи", "При заряде 15% и ниже — пресет «Батарея» до зарядки") { Toggle(S.batterySaver) { S.batterySaver = it } }
+    Opt("Советы от Сейвика", "Пара коротких уведомлений в день: подсказки, секреты, ретро-факты. Новости и друзья приходят всегда") { Toggle(S.pushTips) { S.pushTips = it; com.nexus.psp.data.Push.tips(it) } }
     Opt("Зерно как на плёнке", "Лёгкая тёплая зернистость поверх меню. В игре её нет") { Toggle(S.grain) { S.grain = it; com.nexus.psp.data.Secrets.grainFlip() } }
 }
 

@@ -159,7 +159,7 @@ private fun Main() {
     BackHandler(player != null) { player = null }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(when (tab) { "sum" -> "Сводка"; "players" -> "Игроки"; "eco" -> "Экономика"; "news" -> "Новости"; else -> "Ещё" }, style = F.h1, modifier = Modifier.weight(1f))
+            Text(when (tab) { "sum" -> "Сводка"; "players" -> "Игроки"; "eco" -> "Экономика"; "news" -> "Новости"; "push" -> "Пуши"; else -> "Ещё" }, style = F.h1, modifier = Modifier.weight(1f))
             Tag("Админ · ${St.me.ifEmpty { "KAPSULA" }}", C.gold2)
         }
         Box(Modifier.weight(1f)) {
@@ -168,14 +168,15 @@ private fun Main() {
                 "players" -> Players { player = it }
                 "eco" -> Economy()
                 "news" -> News()
+                "push" -> Pushes()
                 else -> More()
             }
             player?.let { PlayerCard(it) { player = null } }
         }
         Row(Modifier.fillMaxWidth().background(C.s1).padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            listOf("sum" to "Сводка", "players" to "Игроки", "eco" to "Экономика", "news" to "Новости", "more" to "Ещё").forEach { (id, t) ->
+            listOf("sum" to "Сводка", "players" to "Игроки", "eco" to "Экономика", "news" to "Новости", "push" to "Пуши", "more" to "Ещё").forEach { (id, t) ->
                 val on = tab == id
-                Column(Modifier.clip(RoundedCornerShape(14.dp)).clickable { tab = id; player = null }.padding(horizontal = 10.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.clip(RoundedCornerShape(14.dp)).clickable { tab = id; player = null }.padding(horizontal = 6.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.size(6.dp).clip(CircleShape).background(if (on) C.gold else C.s1))
                     Text(t, style = F.small.copy(color = if (on) C.ink else C.ink3, fontSize = 12.sp))
                 }
@@ -458,15 +459,20 @@ private fun BannerPick(sel: String, onPick: (String) -> Unit) {
 private fun News() {
     val scope = rememberCoroutineScope()
     var text by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf("") }
+    var image by remember { mutableStateOf("") }
     var list by remember { mutableStateOf(JSONArray()) }
     var tick by remember { mutableStateOf(0) }
     var ask by remember { mutableStateOf(false) }
     LaunchedEffect(tick) { val r = req("news_list"); if (r.ok) list = r.arr() }
     Page {
-        Text("Новость придёт игрокам в уведомления при следующем заходе (30 дней).", style = F.text)
+        Text("Новость сразу приходит пушем всем игрокам и остаётся в колокольчике 30 дней.", style = F.text)
+        Field(title, "Заголовок (пусто — «Новости KAPSULA»)", Modifier.fillMaxWidth()) { title = it.take(80) }
         Field(text, "Текст новости", Modifier.fillMaxWidth()) { text = it.take(300) }
         Text("${text.length} / 300", style = F.small)
-        Btn("Отправить всем", Modifier.fillMaxWidth(), gold = true, enabled = text.isNotBlank()) { ask = true }
+        Field(image, "Картинка: ссылка https://… (необязательно)", Modifier.fillMaxWidth()) { image = it.trim().take(500) }
+        PushPreview(title.ifBlank { "Новости KAPSULA" }, text, image)
+        Btn("Отправить всем", Modifier.fillMaxWidth(), gold = true, enabled = text.isNotBlank() && (image.isBlank() || image.startsWith("https://"))) { ask = true }
         Caps("Отправленные")
         for (i in 0 until list.length()) list.getJSONObject(i).let { n ->
             Card(Modifier.fillMaxWidth()) {
@@ -482,7 +488,7 @@ private fun News() {
     }
     if (ask) Confirm("Отправить новость всем игрокам?", { ask = false }) {
         ask = false
-        scope.launch { if (req("news_add", JSONObject().put("text", text.trim())).ok) { St.toast = "Новость отправлена"; text = ""; tick++ } }
+        scope.launch { if (req("news_post", JSONObject().put("body", text.trim()).put("title", title.trim()).put("image", image)).ok) { St.toast = "Новость отправлена"; text = ""; title = ""; image = ""; tick++ } }
     }
 }
 
@@ -519,6 +525,7 @@ private fun More() {
         Btn("Сохранить профиль", Modifier.fillMaxWidth(), gold = true) {
             scope.launch { if (req("creator_set", JSONObject().put("status", status.trim()).put("name", name).put("banner", banner)).ok) St.toast = "Сохранено. В KAPSULA обновится при следующем заходе" }
         }
+        Gifts()
         Caps("Обязательное обновление")
         Text("У кого версия ниже — KAPSULA попросит обновиться. Пусто — не просить.", style = F.text)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -544,5 +551,6 @@ private fun More() {
 private fun word(a: String) = when (a) {
     "setup" -> "Настройка админа"; "rebind" -> "Новый телефон"; "grant" -> "Жетоны"; "give_item" -> "Выдан предмет"; "reset_nick" -> "Сброс ника"
     "ban" -> "Блокировка"; "unban" -> "Разблокировка"; "set_price" -> "Цена"; "event_set" -> "Событие запущено"; "event_off" -> "Событие остановлено"
-    "news_add" -> "Новость"; "news_off" -> "Новость скрыта"; "min_version" -> "Минимальная версия"; "creator_set" -> "Мой профиль"; else -> a
+    "news_add" -> "Новость"; "news_off" -> "Новость скрыта"; "push_send" -> "Пуш"; "tip_set" -> "Совет изменён"; "tip_del" -> "Совет удалён"
+    "tip_send" -> "Совет отправлен"; "tips_cfg" -> "Расписание советов"; "gift_set" -> "Подарок"; "ch_set" -> "Испытание"; "ch_off" -> "Испытание выключено" "min_version" -> "Минимальная версия"; "creator_set" -> "Мой профиль"; else -> a
 }

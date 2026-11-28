@@ -157,6 +157,8 @@ class Settings(private val sp: SharedPreferences) {
     var grain by b("grain", true)
     /** Сейвик-питомец: потребности и время (Pet). */
     var pet by s("pet", "")
+    /** Пуши-советы от Сейвика (тема tips). */
+    var pushTips by b("pushTips", true)
     /** Найденные секреты (Secrets), id через запятую. */
     var eggs by s("eggs", "")
     /** Переход на тёплое оформление 0.51 сделан (фон «Комната с лампой» — один раз). */
