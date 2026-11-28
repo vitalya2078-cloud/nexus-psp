@@ -1,11 +1,11 @@
 // KAPSULA Админ: все действия проверяет функция базы kapsula_admin (код аккаунта + PIN + телефон, пауза после 5 ошибок, журнал).
 // Здесь только хэши: код и PIN на сервере не хранятся.
-// creator_set (оформление создателя) и EXT (статистика, испытания) — только после успешной проверки той же функцией (ping).
+// creator_set (оформление создателя) и EXT (статистика, испытания, пуши, советы, подарки) — только после успешной проверки той же функцией (ping).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const EXT = ["stats", "ch_list", "ch_set", "ch_off"];
+const EXT = ["stats", "ch_list", "ch_set", "ch_off", "push_send", "push_list", "tips_list", "tip_set", "tip_del", "tip_send", "tips_cfg", "news_post", "gifts", "gift_set"];
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json; charset=utf-8" } });

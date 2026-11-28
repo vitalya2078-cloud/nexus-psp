@@ -21,6 +21,14 @@ object Push {
         try {
             FirebaseMessaging.getInstance().token.addOnSuccessListener { t -> if (!t.isNullOrBlank()) token(c, t) }
             FirebaseMessaging.getInstance().subscribeToTopic("news")
+            tips(AppState.S.pushTips)
+        } catch (e: Throwable) { Log.w(TAG, "push недоступен: ${e.message}") }
+    }
+
+    /** Советы и Сейвик (тема tips, ~3 раза в день): подписка по настройке. */
+    fun tips(on: Boolean) {
+        try {
+            if (on) FirebaseMessaging.getInstance().subscribeToTopic("tips") else FirebaseMessaging.getInstance().unsubscribeFromTopic("tips")
         } catch (e: Throwable) { Log.w(TAG, "push недоступен: ${e.message}") }
     }
 
@@ -47,6 +55,22 @@ object Push {
     fun received(c: Context, d: Map<String, String>) {
         val id = d["id"]?.toLongOrNull() ?: return
         val src = d["src"] ?: "inbox"
+        // совет (tip) или свой пуш создателя всем (msg): своя нумерация, в колокольчик не попадают
+        if (src == "tip" || src == "msg") {
+            // приложение могло быть закрыто (AppState не поднят) — тогда решает подписка на тему
+            if (src == "tip" && runCatching { !AppState.S.pushTips }.getOrDefault(false)) return
+            val sp = prefs(c); val key = if (src == "tip") "tipAfter" else "msgAfter"
+            if (id <= sp.getLong(key, 0L)) return
+            sp.edit().putLong(key, id).apply()
+            val title = d["title"].orEmpty(); val body = d["body"].orEmpty()
+            if (Inbox.foreground) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post { AppState.sayAs(if (src == "tip") "wave" else "letter", if (body.isEmpty()) title else "$title · $body") }
+                return
+            }
+            val pic = d["image"]?.takeIf { it.startsWith("https://") }?.let { picture(it) }
+            Inbox.notify(c, (id % 100000).toInt() + (if (src == "tip") 300000 else 400000), title.ifBlank { "KAPSULA" }, body, false, open = "home", pic = pic)
+            return
+        }
         if (Inbox.foreground) { Thread { try { Cloud.pollNow(c) } catch (e: Exception) { } }.start(); return }
         val sp = prefs(c)
         val pic = d["image"]?.takeIf { it.startsWith("https://") }?.let { picture(it) }
